@@ -1,4 +1,9 @@
 module Main (main) where
 
+import "hspec" Test.Hspec (hspec)
+
+import Flow.Parser.LexerSpec qualified
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = hspec do
+  Flow.Parser.LexerSpec.spec
