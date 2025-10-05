@@ -1,0 +1,57 @@
+cabal-version: 3.14
+name: flow-ast
+version: 0.1.0.0
+-- synopsis:
+-- description:
+license: MPL-2.0
+license-file: LICENSE
+author: Alexander Makarov
+maintainer: i@kremovtort.ru
+-- copyright:
+category: Development
+build-type: Simple
+
+common warnings
+  ghc-options: -Wall
+
+common extensions
+  default-extensions:
+    BlockArguments
+    NoFieldSelectors
+    OverloadedRecordDot
+    OverloadedStrings
+    PackageImports
+    StrictData
+
+library
+  import: warnings, extensions
+  exposed-modules:
+    Flow.AST
+
+  build-depends:
+    base ^>=4.21.0.0,
+    containers,
+    text,
+    vector,
+
+  hs-source-dirs: lib
+  default-language: GHC2024
+
+test-suite flow-ast-test
+  import: warnings, extensions
+  default-language: GHC2024
+  other-modules:
+    Flow.ASTSpec
+
+  -- other-extensions:
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Main.hs
+  build-depends:
+    base ^>=4.21.0.0,
+    containers,
+    flow-ast,
+    hspec,
+    text,
+    vector,
+
