@@ -26,6 +26,7 @@ common extensions
 library
   import: warnings, extensions
   exposed-modules:
+    Flow.Parser
     Flow.Parser.Lexer
 
   build-depends:
