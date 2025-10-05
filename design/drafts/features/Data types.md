@@ -15,8 +15,8 @@ struct Pair<A, B> {
 ## GADT
 ```rust
 enum Type_<A> {
-  Char: Type_<Char>,
-  Int: Type_<I64>,
+  Char: Type_<char>,
+  Int: Type_<i64>,
   <X> List(Type_<X>): Type_<List<X>>
 }
 ```
