@@ -27,10 +27,18 @@ library
   import: warnings, extensions
   exposed-modules:
     Flow.AST
+    Flow.AST.Type
+    Flow.AST.Type.Alias
+    Flow.AST.Type.Binder
+    Flow.AST.Type.Common
+    Flow.AST.Type.Constraint
+    Flow.AST.Type.Effect
+    Flow.AST.Type.Universe
 
   build-depends:
     base ^>=4.21.0.0,
     containers,
+    nonempty-vector,
     text,
     vector,
 
