@@ -1,20 +1,17 @@
 ---
 alwaysApply: true
 ---
-В данном проекте я реализую язык Flow.
+In this project, I am implementing the Flow language.
 
-Язык Flow синтаксически очень схож с языком Rust.
+The Flow language is language inspired by rust, golang, haskell and high-order effect systems. Synthacsitically it very similar to rust.
 
-В отличии от Rust в данном языке:
-- есть GC
-- система типов поддерживает HKT
-- есть поддержка эффектов (algebraic, scoped)
-- есть рантайм с зелёными потоками наподобии haskell и golang
-- трейты здесь больше похожи на тайпклассы в haskell
+Unlike Rust, this language has:
+- GC
+- type system supports HKT
+- support for effects (algebraic, scoped, maybe latent and parallel)
+- runtime with green threads similar to Haskell and Golang
+- traits here are more like typeclasses in Haskell
 
-## Структура
-В данном проекте я использую flake.nix для развёртки среды разработки.
-
-Для управления зависимостями и сборкой я использую cabal.
-
-Все haskell пакеты находятся в директории pkgs.
+## Structure
+All Haskell packages are located in the pkgs directory.
+Language design is located in design directory.

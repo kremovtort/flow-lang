@@ -2,11 +2,12 @@
 alwaysApply: true
 ---
 
-В данном проекте я использую:
-- для контроля версий - jujutsu vcs
-- для развёртки среды разработки - flake.nix
-- основной язык программирования - haskell
-- для управления зависимостями и сборки - cabal
-- для анализа кода на haskell - haskell-language-server
-- для форматирования кода на haskell - fourmolu
-- для анализа кода на haskell - hlint
+In this project I use:
+- for version control - jujutsu vcs
+- for development environment deployment - flake.nix
+- main programming language - haskell
+- language for runtime implementation - rust
+- for dependency management and building - cabal
+- for Haskell code analysis - haskell-language-server
+- for Haskell code formatting - fourmolu
+- for Haskell code analysis - hlint
