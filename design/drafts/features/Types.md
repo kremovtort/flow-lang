@@ -349,6 +349,16 @@ trait ExtractScope<T> {
 type ScopeOf<T> = ExtractScope<T>::Scope : fn(Type₀) -> RefScope₀ : RefScope₁
 ```
 
+### Bottom type
+
+```rust
+// Bottom type
+! : Type0
+
+// Elimination rule:
+// A value of type `!` can be coerced to any `T : Type_n`
+```
+
 ### Builtin RefScopes
 
 **`'global`** — глобальный scope всей программы:
@@ -360,6 +370,18 @@ type ScopeOf<T> = ExtractScope<T>::Scope : fn(Type₀) -> RefScope₀ : RefScope
 - Ссылки `&'const T` можно разыменовывать в любом scope
 - Чистый код может работать с `&'const T` без эффектов
 - `const` поля в структурах неявно используют `'const`
+
+### Erasure: RefScope are type-only
+
+RefScope существуют только на уровне типов и полностью стираются при компиляции:
+
+```rust
+// No runtime representation for RefScope
+<'s> fn(&'s T) -> U   // `'s` is a phantom in types, not a value
+@['s, IO]             // sugar for @[Scope<'s>, IO] is elaboration-time only
+```
+
+Безопасность обеспечивается исключительно типчекером (фантомные параметры, ограничения в сигнатурах); рантайм не содержит «меток» RefScope.
 
 ### Общая форма функционального типа
 
@@ -469,6 +491,8 @@ effect State<S> :< Stateful {
 effect FileIO :< IO, Error<IOError> {
   op readFile(path: String) -> @String
 }
+// Global inheritance relation implied by the design
+IO :< Error<IOError>, AsyncError
 ```
 
 ### Наследование в type checking

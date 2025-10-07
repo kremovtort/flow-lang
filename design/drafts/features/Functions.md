@@ -37,7 +37,7 @@ fn wrapInner(tree: TreeF<Identity>, f: fn<X>(&X) -> Option<&X>) -> TreeF<Option>
 ```
 
 ```rust
-type Handler<E> = <X> fn(@[E + ..] X) -> @X
+type Handler<E> = <X> fn(@[E, ..] X) -> @X
 ```
 
 ## Методы
