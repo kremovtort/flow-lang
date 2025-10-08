@@ -1,3 +1,141 @@
+## Effects specification: principles
+
+- Lexical handler selection: operations resolve to the nearest handler in source, no runtime search.
+- Inheritance `A :< B` is entailment: rows with `A` satisfy requirements for `B`; no automatic method lifting.
+- Effect rows: canonicalize (desugar, set semantics, remove supers via `:<`, sort); compatibility via entailment.
+- Named instances and qualification: `@[s1: E<T>, s2: E<T>]`, calls `s1::op(...)`; unqualified only if unique.
+- Instance parameters and `_` inference: `a: E<T>` is a binder (erased); `_` allowed only if exactly one `E<T>` visible.
+- Call-site binding: `f(args) with { s1 = outer1, E<T> = name }` (erased to dictionary passing on elaboration).
+- Monomorphization key (future): canonical effect row after reduction and deduplication.
+
+### Runtime primitives used in this document
+
+- DelimitedCell<T>: handler-local, snapshot/restore across delimited continuations; pushLocal/popLocal for lexical scopes; set/get for updates.
+- DelimitedStack<R>: handler-local stack for Reader-like scoping; multi-shot safe via continuation snapshots.
+- Stream<A>: abstract lazy stream with `empty`, `singleton`, `++`, and `decompose(): Option<(A, Stream<A>)>`.
+
+### Delimited control syntax
+- Spawn (fibers)
+
+- Standard spawn (fiber-safe rows only):
+  ```rust
+  fn <X, R: EffectRow>(act: @[R] X) -> @['global] Fiber<X>
+    where { FiberSafe<R> }
+  ```
+  FiberSafe<R> holds if every effect in R is fiber-safe (e.g., `:< Scope<'global>` or scope-agnostic).
+
+## Handler blocks
+
+Lexical handler blocks let you define one or more effect handlers that may share state.
+
+Syntax:
+```rust
+handle in R {
+  E1 returning C1 { /* ops for E1; handler-local state available here */ }
+  E2 returning C2 { /* ops for E2; can call E1 ops and vice versa */ }
+}
+```
+
+Rules:
+- Each `Ei returning Ci` defines a handler with its own prompt and carrier `Ci<Y>`.
+- The block runs in dependency row `R`; inside ops, code executes under `@[R, ..]`.
+- Handlers in the same block may call each other; delimited control forms must be in tail-position
+  with respect to their own effect.
+- Optional per-effect dependency extension: `E in R1 returning C` means the handler depends on
+  `R ∪ R1`.
+
+### Example: shared-state multi-effect handler block
+
+```rust
+type Handler<
+  Es: EffectRow, // effects that handler interprets
+  Ds: EffectRow, // effects that handler depends on
+  C: fn(Type) -> Type, // carrier type
+>
+
+type Compose<F<_>, G<_>> = <X> F<G<X>>;
+
+fn runApp<R, S, W: Monoid, X>(
+  env: R,
+  init: S,
+  action: @[Reader<R>, State<S>, Writer<W>, ..] X,
+) -> @[..] ((X, S), W) {
+  action.interpret(
+    handle { // returning<Y> ((Y, S), W)
+      // Writer using shared writerCell
+      Writer<W> returning<Y> (Y, W) {
+        let mut writerCell = DelimitedCell::new(Monoid::empty());
+
+        op tell(w: W) -> @() { writerCell.set(writerCell.get() ++ w) }
+
+        op listen<Y>(sub: @Y) -> @(Y, W) {
+          let parent = writerCell.get();
+          writerCell.pushLocal(Monoid::empty());
+          let y = sub.do;
+          let local = writerCell.get();
+          writerCell.popLocal();
+          writerCell.set(parent ++ local);
+          (y, local)
+        }
+
+        op censor<Y>(sub: @Y, f: fn(W) -> W) -> @Y {
+          let parent = writerCell.get();
+          writerCell.pushLocal(Monoid::empty());
+          let y = sub.do;
+          let local = writerCell.get();
+          writerCell.popLocal();
+          writerCell.set(parent ++ f(local));
+          y
+        }
+
+        op pass<Y>(sub: @(Y, fn(W) -> W)) -> @Y {
+          let parent = writerCell.get();
+          writerCell.pushLocal(Monoid::empty());
+          let (y, k) = sub.do;
+          let local = writerCell.get();
+          writerCell.popLocal();
+          writerCell.set(parent ++ k(local));
+          y
+        }
+
+        returning (y: Y) -> (Y, W) { (y, writerCell.get()) }
+      }
+
+      // State using shared stateCell
+      State<S> returning<Y> (Y, S) {
+        let mut stateCell = DelimitedCell::new(init);
+
+        op get() -> @S { stateCell.get() }
+        op put(s: S) -> @() { stateCell.set(s) }
+
+        returning (y: Y) -> (Y, S) { (y, stateCell.get()) }
+      }
+
+      // Reader using shared envCell
+      Reader<R> {
+        let mut envCell = DelimitedCell::new(env);
+
+        op ask() -> @R { envCell.get() }
+        op local<Y>(f: fn(R) -> R, sub: @Y) -> @Y {
+          envCell.pushLocal(f(envCell.get()));
+          let y = sub.do;
+          envCell.popLocal();
+          y
+        }
+      }
+    }
+  )
+}
+```
+
+- Block forms inside `op` bodies:
+  - `shift { resume => /* compute carrier */ }`
+  - `control { resume => /* compute carrier */ }`
+  - `control0 { resume => /* compute carrier */ }`
+- Tail-position only: after these blocks, no further code in the `op` body executes.
+- Typing: each form returns `@!` (non-returning); `.do` is not required.
+- Semantics (short): `shift` captures up to handler prompt; `control` reinstalls continuation; `control0` does not.
+
 ```rust
 pub effect ConsoleOutput {
   pub op print(str: string) -> @()
@@ -16,12 +154,9 @@ pub effect State<S> {
 
 pub effect Writer<W> {
   pub op tell(W) -> @()
-  pub op censor<A>(@A, fn(W) -> Option<W>) -> @A
-}
-
-// есть своего рода наследование эффектов
-pub effect WriterListener<W, Acc> :< Writer<W>  {
-  pub op listen<A>(@A) -> @(A, Acc)
+  pub op listen<X>(@X) -> @(X, W)
+  pub op censor<X>(@X, fn(W) -> W) -> @X
+  pub op pass<X>(@(X, fn(W) -> W)) -> @X
 }
 
 pub effect Error<E> {
@@ -31,11 +166,9 @@ pub effect Error<E> {
 
 fn runState<S, X>(initial: S, action: @[State<S>, ..] X) -> @[..] (X, S) {
   action.interpret(<Y> handle State<S> returning (Y, S) {
-    // How to make State branch together with NonDet?
-    // Probably we need a way to combine states from successful branches,
-    // e.g. fn(S, S) -> S, but how to express that in the effects system?
-    // Alternatively, specify bind: <A, B> fn(@A, fn(A) -> @B) -> @B for any effect,
-    // but that moves us to monadic design.
+    // Note: composition with NonDet requires per-branch snapshots.
+    // Aggregation of branch states (if needed) should be expressed explicitly
+    // at the call site or via a higher-level combinator, not inside this handler.
 
     let mut state = initial;
 
@@ -54,7 +187,7 @@ fn runState<S, X>(initial: S, action: @[State<S>, ..] X) -> @[..] (X, S) {
 }
 
 fn runReader<R, X>(env: R, action: @[Reader<R>, ..] X) -> @[..] X {
-  let handler = |e: R| <Y> handle Reader<R> returning Y {
+  let handler = |e| handle Reader<R> {
     op ask() -> @R {
       e
     }
@@ -68,12 +201,14 @@ fn runReader<R, X>(env: R, action: @[Reader<R>, ..] X) -> @[..] X {
 
   action.interpret(handler(env)).do
 }
+// Note: this stackless variant is simple but problematic in multi-shot settings:
+// local rebinds are not automatically restored on resume; prefer DelimitedStack below.
 
 // Alternative stack-based interpreter. DelimitedStack is a runtime structure capturing
 // the current environment as a stack to support nested locals and multi-shot control.
 // API sketch: DelimitedStack::new(R) -> DelimitedStack<R>, top() -> R, push(R) -> (), pop() -> ()
 fn runReaderWithDelimitedStack<R, X>(env: R, action: @[Reader<R>, ..] X) -> @[..] X {
-  let handler = <Y> handle Reader<R> returning Y {
+  let handler = handle Reader<R> {
     // Create DelimitedStack inside the handler, making it handler-local.
     // For multi-shot control, the captured continuation must snapshot this state.
     let mut delimitedStack = DelimitedStack::new(env);
@@ -111,7 +246,7 @@ fn runReaderWithDelimitedStack<R, X>(env: R, action: @[Reader<R>, ..] X) -> @[..
 
 // Reader on top of DelimitedCell
 fn runReaderWithDelimitedCell<R, X>(env: R, action: @[Reader<R>, ..] X) -> @[..] X {
-  let handler = <Y> handle Reader<R> returning Y {
+  let handler = handle Reader<R> {
     let mut cell = DelimitedCell::new(env);
 
     op ask() -> @R {
@@ -129,64 +264,48 @@ fn runReaderWithDelimitedCell<R, X>(env: R, action: @[Reader<R>, ..] X) -> @[..]
   action.interpret(handler).do
 }
 
-// Generic Writer+Listener on top of DelimitedCell with user-supplied aggregation
-// Accumulator model: `acc` aggregates events; `filters` is a stack of censor functions.
-struct WriterState<W, Acc> {
-  acc: Acc,
-  filters: List<fn(W) -> Option<W>>,
-}
-
-fn runWriterListenerGeneric<W, Acc, X>(
-  action: @[WriterListener<W, Acc>, ..] X,
-  emptyAcc: Acc,
-  wToAcc: fn(W) -> Acc,
-  combine: fn(Acc, Acc) -> Acc,
-) -> @[..] (X, Acc) {
-  let handler = <Y> handle WriterListener<W, Acc> returning (Y, Acc) {
-    let mut cell = DelimitedCell::new(WriterState { acc = emptyAcc, filters = Nil });
+// Canonical Writer on top of DelimitedCell (requires Monoid<W>; ++ is Monoid::append)
+fn runWriter<W, X>(action: @[Writer<W>, ..] X) -> @[..] (X, W) {
+  let handler = handle Writer<W> {
+    let mut cell = DelimitedCell::new(Monoid::empty());
 
     op tell(w: W) -> @() {
-      // Apply filters (inner-most first). Drop event if any filter returns None.
-      let st = cell.get();
-      let mut current: Option<W> = Some(w);
-      for f in st.filters.iterator() {
-        current = match current {
-          None => None,
-          Some(x) => f(x),
-        };
-      }
-      match current {
-        None => (),
-        Some(w2) => {
-          let acc1 = combine(st.acc, wToAcc(w2));
-          cell.set(WriterState { acc = acc1, filters = st.filters });
-        }
-      }
+      cell.set(cell.get() ++ w);
     }
 
-    op censor<Y>(sub: @Y, f: fn(W) -> Option<W>) -> @Y {
-      // Temporarily extend filters, preserving the running accumulator.
-      let before = cell.get();
-      let extendedFilters = addFilter(f, before.filters); // conceptual: push f on top
-      cell.set(WriterState { acc = before.acc, filters = extendedFilters });
+    op listen<Y>(sub: @Y) -> @(Y, W) {
+      let parent = cell.get();
+      cell.pushLocal(Monoid::empty());
       let y = sub.do;
-      let after = cell.get();
-      cell.set(WriterState { acc = after.acc, filters = before.filters });
+      let local = cell.get();
+      cell.popLocal();
+      cell.set(parent ++ local);
+      (y, local)
+    }
+
+    op censor<Y>(sub: @Y, f: fn(W) -> W) -> @Y {
+      let parent = cell.get();
+      cell.pushLocal(Monoid::empty());
+      let y = sub.do;
+      let local = cell.get();
+      cell.popLocal();
+      cell.set(parent ++ f(local));
       y
     }
 
-    op listen<Y>(sub: @Y) -> @(Y, Acc) {
-      // Isolate sub-accumulator, then merge it back and also return it.
+    op pass<Y>(sub: @(Y, fn(W) -> W)) -> @Y {
       let parent = cell.get();
-      cell.set(WriterState { acc = emptyAcc, filters = parent.filters });
-      let y = sub.do;
-      let localAcc = cell.get().acc;
-      cell.set(WriterState { acc = combine(parent.acc, localAcc), filters = parent.filters });
-      (y, localAcc)
+      cell.pushLocal(Monoid::empty());
+      let pair = sub.do;
+      let (y, k) = pair;
+      let local = cell.get();
+      cell.popLocal();
+      cell.set(parent ++ k(local));
+      y
     }
 
-    returning (y: Y) -> (Y, Acc) {
-      (y, cell.get().acc)
+    returning (y: Y) -> (Y, W) {
+      (y, cell.get())
     }
   };
 
@@ -195,7 +314,7 @@ fn runWriterListenerGeneric<W, Acc, X>(
 
 // State on top of DelimitedCell with per-branch snapshots
 fn runStateDelimited<S, X>(initial: S, action: @[State<S>, ..] X) -> @[..] (X, S) {
-  let handler = <Y> handle State<S> returning (Y, S) {
+  let handler = handle State<S> {
     let mut cell = DelimitedCell::new(initial);
 
     op get() -> @S { cell.get() }
@@ -222,7 +341,7 @@ pub effect Resource {
 // Scoped policy: share handle across delimited branches within a fiber;
 // finalize when last branch exits; do not transfer on spawn.
 fn runResourceScoped<X>(action: @[Resource, ..] X) -> @[..] X {
-  let handler = <Y> handle Resource returning Y {
+  let handler = handle Resource {
     let mut env = DelimitedCell::new(ResourceEnv::empty());
 
     op bracket<A, B>(acq: @A, useWith: fn(A) -> @B, rel: fn(A) -> @()) -> @B {
@@ -244,7 +363,7 @@ fn runResourceScoped<X>(action: @[Resource, ..] X) -> @[..] X {
 // Per-fiber policy: branches in the same fiber share; new fibers acquire independently;
 // finalize on fiber exit for fiber-owned handles.
 fn runResourcePerFiber<X>(action: @[Resource, ..] X) -> @[..] X {
-  let handler = <Y> handle Resource returning Y {
+  let handler = handle Resource {
     let mut env = DelimitedCell::new(ResourceEnv::emptyPerFiber());
 
     op bracket<A, B>(acq: @A, useWith: fn(A) -> @B, rel: fn(A) -> @()) -> @B {
@@ -264,7 +383,7 @@ fn runResourcePerFiber<X>(action: @[Resource, ..] X) -> @[..] X {
 }
 
 fn runError<E, X>(action: @[Error<E>, ..] X) -> @[..] Result<E, X> {
-  let handler = handle Error<E> returning Result<E, Y> {
+  let handler = handle Error<E> {
     op throw(e: E) @{
       abort(Err(e)).do;
 	  }
@@ -299,7 +418,7 @@ pub effect NonDet {
 
 // depth-first non-determinism
 fn runNonDetListDF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
-  let handler = <X> handle NonDet returning Stream<X> {
+  let handler = handle NonDet {
     op empty() -> @! {
       abort(Stream::empty()).do
     }
@@ -307,16 +426,16 @@ fn runNonDetListDF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
     op choose<F<_> :< Foldable, X>(elems: F<X>) -> @X {
       // delimited control; we also need control and control0,
       // think how to ensure type-safety of their usage
-      shift(|resume| {
+      shift { resume =>
         let mut res = Stream::empty();
         for elem in elems.iterator() {
           res = res ++ resume(elem).do;
         }
         res
-      }).do
+      }
     }
 
-    returning<Y>(y: Y) -> @Stream<Y> {
+    returning<Y>(y: Y) -> Stream<Y> {
       Stream::singleton(y)
     }
   }
@@ -326,11 +445,109 @@ fn runNonDetListDF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
 
 // breadth-first non-determinism
 fn runNonDetListBF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
-  let handler = <X> handle NonDet returning Stream<X> {
-    // как оно должно быть реализовано? через переустановку хэндлера?
-    ...
-  }
+  // Breadth-first via explicit queue using control to capture continuation.
+  let handler = <X> handle NonDet returning Stream {
+    // BFS queue of pending branches; each element is a thunk producing Stream<X>
+    let mut queue: Queue<@Stream<X>> = Queue::empty();
+
+    op empty() -> @! { abort(Stream::empty()).do }
+
+    op choose<F<_> :< Foldable, X>(elems: F<X>) -> @X {
+      // Capture the current continuation and enqueue all choices
+      control { resume =>
+        for elem in elems.iterator() {
+          queue.push(resume(elem));
+        }
+        // Dequeue in FIFO order and concatenate lazily
+        let mut acc = Stream::empty();
+        while let Some(k) = queue.pop() {
+          acc = acc ++ k.do;
+        }
+        acc
+      }
+    }
+
+    returning<Y>(y: Y) -> Stream<Y> { Stream::singleton(y) }
+  };
 
   action.interpret(handler).do
 }
+```
+
+// Handler selection and compilation model (spec excerpt)
+// - Handler selection is lexical: an operation E.op resolves to the E-handler provided
+//   by the nearest enclosing handle/impose/interpose in source structure, not by runtime search.
+// - Elaboration passes the required handlers as an implicit environment Env<[E1,..,En]>,
+//   and each E.op compiles to a direct call into the corresponding Handler<E> slot.
+// - Effect row compatibility uses entailment only; effect rows remain opaque at runtime.
+// - Monomorphization key (future work): the canonical effect row @[A1,..,An] after
+//   deduplication and inheritance reduction serves as the specialization key.
+
+## Named effect instances and qualification (spec excerpt)
+
+- Effect atoms can be named to distinguish multiple instances of the same effect in scope.
+- Syntax in effect rows: `@[s1: State<S>, s2: State<S>]` (sugar for `State<S>#s1`, `State<S>#s2`).
+- Qualification in calls: `s1::get()` refers to the named instance; unqualified `get()` is allowed
+  only if there is exactly one `State<_>` instance visible in the lexical scope.
+- Canonicalization: duplicates are removed only for identical atoms (same effect and same instance name);
+  different instances never collapse.
+- Shadowing: the nearest (lexically) instance shadows outer ones for unqualified calls; qualified
+  calls `s1::...` bypass shadowing.
+- Entailment and inheritance apply per instance: if `E#i :< B`, then a row containing `E#i` satisfies
+  a requirement for `B` via projection of `Handler<E>` to `Handler<B>`.
+- impose/interpose may target either the nearest instance by effect type or a concrete named instance.
+
+```rust
+// Example with two State instances and qualified calls
+fn <S>() -> @[s1: State<S>, s2: State<S>] (S, S) {
+  let x = s1::get().do;
+  let y = s2::get().do;
+  (x, y)
+}
+
+// Instance-parameter and underscore inference at call-site
+fn f(a: A, g: @[a, b: A] X) -> @[a] X {
+  // handle only b; a remains in the row
+  g.interpret(handler)[b].do
+}
+
+// explicit binding
+f(s1, g).do
+
+// underscore inference: allowed only if exactly one visible A-instance exists
+f(_, g).do
+
+// with-binding syntax for instances at call site
+fn f<S>(...) -> @[s1: State<S>, s2: State<S>] ... { ... }
+
+f(x, y) with {
+  s1 = outer1,
+  s2 = outer2,
+}
+
+// binding unnamed requirement via typed key
+fn g<S>(...) -> @[State<S>] ... { ... }
+g(z) with { State<S> = s1 }
+```
+
+```rust
+pub effect Provider<E: Effect> {
+  pub op <X>(@[E, ..] X) -> @[..] X
+}
+```
+
+```rust
+fn f(g: @[a: A, b: A] X) -> @[a] X {
+  g.interpret(handler).do
+}
+
+f(g).do
+```
+
+```rust
+fn f(a: A, g: @[a, b] X) -> @[a] X {
+  g.interpret(handler)[b].do
+}
+
+f(_, g).do // аргумент a тут выводится из доступных эффектов в лексическом контексте
 ```
