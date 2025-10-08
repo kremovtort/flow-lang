@@ -47,3 +47,11 @@ struct ImutPair<A, B> {
 let mut x = ImutPair { first = true, second = 2 : i32 };
 x.first = false; // ошибка компиляции, поле first иммутабельно
 ```
+
+Типы могут быть параметризованы скоупами:
+```rust
+struct Pair<'s, A, B> {
+  first: &'s A,
+  second: &'s B,
+}
+```

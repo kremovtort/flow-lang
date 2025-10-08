@@ -508,7 +508,7 @@ fn <S>() -> @[s1: State<S>, s2: State<S>] (S, S) {
 // Instance-parameter and underscore inference at call-site
 fn f(a: A, g: @[a, b: A] X) -> @[a] X {
   // handle only b; a remains in the row
-  g.interpret(handler)[b].do
+  g.interpret(handler) with { b = b }.do
 }
 
 // explicit binding
