@@ -60,6 +60,32 @@ fn g<S>(...) -> @[State<S>] ... { ... }
 g(args) with { State<S> = s1 }
 ```
 
+### Effect parameters in function heads
+A function parameter of the form `name: E<T>` is an effect-instance binder. It is erased at elaboration and the bound effect is automatically added to the function's result effect row (sugar for extending the row if not already present).
+
+Rules:
+- Syntax: inside the parameter list, `name: E<T>` binds an instance name `name` for the effect `E<T>`.
+- Automatic row inclusion: the return type behaves as if it had `@[name: E<T>, ..]` appended.
+- The instance can be used with qualification inside the body: `name::op(...)`.
+- Underscore inference at call-site (`_`) is allowed only if exactly one visible `E<T>` instance exists.
+
+Examples:
+```rust
+// explicit binder; return row automatically includes a
+fn f<S>(a: State<S>) -> () {
+  let s = a::get().do;
+}
+// desugars as
+fn f<S>(a: State<S>) -> @[a: State<S>, ..] @() { /* ... */ }
+
+// multiple binders
+fn g<S, W>(s: State<S>, w: Writer<W>) -> @() {
+  // both s and w are available and included in the effect row
+}
+// desugars as
+fn g<S, W>(s: State<S>, w: Writer<W>) -> @[s: State<S>, w: Writer<W>, ..] () { /* ... */ }
+```
+
 ### Handlers (reference)
 Lexical handler selection and detailed forms are specified in `../drafts/features/Effects.md`. This syntax chapter treats `handle`, `op`, and `returning` as reserved words participating in effect declarations and handler blocks.
 
@@ -92,7 +118,7 @@ Multiple effect handlers in one block:
 ```rust
 fn runApp<R, S, W, X>(env: R, init: S, action: @[Reader<R>, State<S>, Writer<W>, ..] X) -> @[..] ((X, S), W) {
   action.interpret(
-    handle in (..: EffectRow) {
+    handle in [..] {
       Writer<W> returning<Y> (Y, W) {
         op tell(w: W) -> @() { /* ... */ }
         returning (y: Y) -> (Y, W) { (y, /* w */ Monoid::empty()) }
@@ -124,7 +150,7 @@ Multiple effect handlers in one block:
 ```rust
 fn runApp<R, S, W, X>(env: R, init: S, action: @[Reader<R>, State<S>, Writer<W>, ..] X) -> @[..] ((X, S), W) {
   action.interpret(
-    handle in (..: EffectRow) {
+    handle in [..] {
       Writer<W> returning<Y> (Y, W) {
         op tell(w: W) -> @() { /* ... */ }
         returning (y: Y) -> (Y, W) { (y, /* w */ Monoid::empty()) }

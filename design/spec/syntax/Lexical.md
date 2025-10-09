@@ -23,7 +23,7 @@ Notes:
 ### Punctuators and operators (token inventory)
 Common multi/uni-character tokens recognized by the lexer:
 
-- Grouping: `(` `)` `[` `]` `{` `}`
+- Grouping: `(` `)` `@[` `[` `]` `@{` `{` `}`
 - Separators: `,` `;` `:` `::` `.` `=>`
 - Arrows and at: `->` `@` `@[`
 - Assignment/comparison: `=` `==` `!=` `<` `<=` `>` `>=`

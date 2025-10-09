@@ -47,7 +47,7 @@ fn main() -> @[IO] () {
 - Effects and handlers: see `../drafts/features/Effects.md`
 - Constraints and traits: see `../drafts/features/Constraints.md`
 
-### Future work: EBNF
-The full EBNF grammar will be published later as `design/spec/Grammar.ebnf` and linked here. Current sections provide precise textual rules alongside examples.
+### Formal grammar (ABNF)
+An ABNF grammar (RFC 5234) is provided in `design/spec/Grammar.abnf`. The lexical layer inside the grammar is high-level: details of string escapes, byte strings, and numeric formats are left to the lexer; see `syntax/Lexical.md`.
 
 
