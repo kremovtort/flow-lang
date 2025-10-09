@@ -479,13 +479,13 @@ trait Traversable<F<_>> where {
 
 ## Наследование Constraints и Effects
 
-Constraints и Effects могут наследоваться друг от друга используя синтаксис `:<`.
+Constraints и Effects могут наследоваться друг от друга используя синтаксис `=>`.
 
 ### Наследование Constraints
 
 ```rust
 // Constraint наследует другие constraints
-trait Ord<A> :< Eq<A> {
+trait Ord<A> => Eq<A> {
   fn compare(a: A, b: A) -> Ordering
 }
 
@@ -493,7 +493,7 @@ trait Ord<A> :< Eq<A> {
 // где для любого T: если Ord<T> то автоматически Eq<T>
 
 // Множественное наследование
-trait Show<A> :< Display<A>, Debug<A> {
+trait Show<A> => Display<A>, Debug<A> {
   fn show(a: A) -> String
 }
 ```
@@ -524,40 +524,40 @@ trait Show<A> :< Display<A>, Debug<A> {
 
 ```rust
 // Effect наследует другие effects
-effect IO :< Scope<'global> {
+effect IO => Scope<'global> {
   // IO операции требуют доступа к глобальному scope
   op println(s: String) -> @()
 }
 
 // Effect с параметрами наследует базовый effect
-effect State<S> :< Stateful {
+effect State<S> => Stateful {
   op get() -> @S
   op put(s: S) -> @()
 }
 
 // Множественное наследование
-effect FileIO :< IO, Error<IOError> {
+effect IO => FileIO, Error<IOError> {
   op readFile(path: String) -> @String
 }
 // Global inheritance relation implied by the design
-IO :< Error<IOError>, AsyncError
+IO => Error<IOError>, AsyncError
 ```
 
 ### Наследование в type checking
 
-Когда `A :< B`, то:
+Когда `A => B`, то:
 - Для Constraint: если требуется `B<T>`, можно предоставить `A<T>`
 - Для Effect: код с эффектом `@[A]` может вызываться где ожидается `@[B, ..]`
 
 ```rust
 // Пример с constraints
-<A :< Ord> fn(a: A, b: A) -> Bool {
-  a == b  // OK: Ord :< Eq, поэтому A автоматически Eq
+fn f<A :< Ord>(a: A, b: A) -> Bool {
+  a == b  // OK: Ord<A> => Eq<A>, поэтому A автоматически Eq
 }
 
 // Пример с effects
 fn doIO() -> @[IO] () {
-  doGlobalMutation().do // OK: IO :< Scope<'global>
+  doGlobalMutation().do // OK: IO => Scope<'global>
 }
 
 fn doGlobalMutation() -> @['global] () { ... }
@@ -565,10 +565,10 @@ fn doGlobalMutation() -> @['global] () { ... }
 
 ### Правила наследования
 
-1. **Транзитивность:** Если `A :< B` и `B :< C`, то `A :< C`
-2. **Рефлексивность:** `A :< A` всегда истинно
+1. **Транзитивность:** Если `A => B` и `B => C`, то `A => C`
+2. **Рефлексивность:** `A => A` всегда истинно
 3. **Параметры:** Наследование инвариантно к параметрам:
-   - `State<S> :< Stateful` НЕ означает `State<T> :< Stateful` для произвольного T
+   - `State<S> => Stateful` НЕ означает `State<T> => Stateful` для произвольного T
    - Параметры должны совпадать точно
 
 ## Структура AST

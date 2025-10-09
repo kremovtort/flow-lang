@@ -1,8 +1,8 @@
 ## Effects specification: principles
 
 - Lexical handler selection: operations resolve to the nearest handler in source, no runtime search.
-- Inheritance `A :< B` is entailment: rows with `A` satisfy requirements for `B`; no automatic method lifting.
-- Effect rows: canonicalize (desugar, set semantics, remove supers via `:<`, sort); compatibility via entailment.
+- Inheritance `A => B` is entailment: rows with `A` satisfy requirements for `B`; no automatic method lifting.
+- Effect rows: canonicalize (desugar, set semantics, remove supers via `=>`, sort); compatibility via entailment.
 - Named instances and qualification: `@[s1: E<T>, s2: E<T>]`, calls `s1::op(...)`; unqualified only if unique.
 - Instance parameters and `_` inference: `a: E<T>` is a binder (erased); `_` allowed only if exactly one `E<T>` visible.
 - Call-site binding: `f(args) with { s1 = outer1, E<T> = name }` (erased to dictionary passing on elaboration).
@@ -22,7 +22,7 @@
   fn <X, R: EffectRow>(act: @[R] X) -> @['global] Fiber<X>
     where { FiberSafe<R> }
   ```
-  FiberSafe<R> holds if every effect in R is fiber-safe (e.g., `:< Scope<'global>` or scope-agnostic).
+  FiberSafe<R> holds if every effect in R is fiber-safe (e.g., `=> Scope<'global>` or scope-agnostic).
 
 ## Handler blocks
 
@@ -135,6 +135,56 @@ fn runApp<R, S, W: Monoid, X>(
 - Tail-position only: after these blocks, no further code in the `op` body executes.
 - Typing: each form returns `@!` (non-returning); `.do` is not required.
 - Semantics (short): `shift` captures up to handler prompt; `control` reinstalls continuation; `control0` does not.
+
+### Built-in effects for delimited control (op-scope only)
+
+These effects are implicitly in scope inside any `op` body of a handler. They are not available outside `op`.
+
+```rust
+// Abort with payload E
+pub effect Abort<E> {
+  pub op recover<X>(action: @X, handler: fn(E) -> @X) -> @X
+  pub op abort(E) -> @!
+}
+
+// One-shot prompt tied to the op-local scope 's and the fully applied carrier Ret
+// SingleShot<Self> marks that multiple resumes are not allowed; a second resume panics at runtime.
+pub effect Prompt1<'s, Ret> => 's where { SingleShot<Self> } {
+  pub op control0<A>(k: fn(
+    reenter: fn(@Ret) -> @Ret,
+    resume:  fn(A) -> @Ret
+  ) -> @Ret) -> @!
+
+  pub op control1<A>(k: fn(
+    resume: fn(A) -> @Ret
+  ) -> @Ret) -> @!
+
+  pub op shift1<A>(k: fn(
+    resume: fn(A) -> @Ret
+  ) -> @Ret) -> @!
+}
+
+// Multi-shot prompt tied to the op-local scope 's and the fully applied carrier Ret
+pub effect ControlN<'s, Ret> => 's {
+  pub op control0N<A>(k: fn(
+    reenter: fn(@Ret) -> @Ret,
+    resume:  fn(A) -> @Ret
+  ) -> @Ret) -> @!
+
+  pub op controlN<A>(k: fn(
+    resume: fn(A) -> @Ret
+  ) -> @Ret) -> @!
+
+  pub op shiftN<A>(k: fn(
+    resume: fn(A) -> @Ret
+  ) -> @Ret) -> @!
+}
+
+// Optional aliases (sugar):
+// control  ≡ controlN
+// shift    ≡ shiftN
+// control0 ≡ control1
+```
 
 ```rust
 pub effect ConsoleOutput {
@@ -426,13 +476,13 @@ fn runNonDetListDF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
     op choose<F<_> :< Foldable, X>(elems: F<X>) -> @X {
       // delimited control; we also need control and control0,
       // think how to ensure type-safety of their usage
-      shift { resume =>
+      shift(|resume| {
         let mut res = Stream::empty();
         for elem in elems.iterator() {
           res = res ++ resume(elem).do;
         }
         res
-      }
+      })
     }
 
     returning<Y>(y: Y) -> Stream<Y> {
@@ -454,7 +504,7 @@ fn runNonDetListBF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
 
     op choose<F<_> :< Foldable, X>(elems: F<X>) -> @X {
       // Capture the current continuation and enqueue all choices
-      control { resume =>
+      control(|resume| {
         for elem in elems.iterator() {
           queue.push(resume(elem));
         }
@@ -464,7 +514,7 @@ fn runNonDetListBF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
           acc = acc ++ k.do;
         }
         acc
-      }
+      })
     }
 
     returning<Y>(y: Y) -> Stream<Y> { Stream::singleton(y) }
@@ -493,7 +543,7 @@ fn runNonDetListBF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
   different instances never collapse.
 - Shadowing: the nearest (lexically) instance shadows outer ones for unqualified calls; qualified
   calls `s1::...` bypass shadowing.
-- Entailment and inheritance apply per instance: if `E#i :< B`, then a row containing `E#i` satisfies
+- Entailment and inheritance apply per instance: if `E#i => B`, then a row containing `E#i` satisfies
   a requirement for `B` via projection of `Handler<E>` to `Handler<B>`.
 - impose/interpose may target either the nearest instance by effect type or a concrete named instance.
 
@@ -546,8 +596,20 @@ f(g).do
 
 ```rust
 fn f(a: A, g: @[a, b] X) -> @[a] X {
-  g.interpret(handler)[b].do
+  g.interpret(handler).do
 }
 
 f(_, g).do // аргумент a тут выводится из доступных эффектов в лексическом контексте
+```
+
+## Static effects - эффекты, реализация которых известна на этапе компиляции, либо же эффекты, реализация которых не требуется (пустые эффекты)
+
+```rust
+pub effect Concurrency {}
+
+mod Concurrency {
+  fn spawn<Es :< FiberSafe>(f: fn() -> @[Es] ()) -> @[Es] () {
+    // some magical staff here
+  }
+}
 ```

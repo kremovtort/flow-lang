@@ -32,6 +32,9 @@ println!("({}, {}, {})", x._1, x._2, x._3);
 struct Pair<A, B> {
   first: A,
   second: B,
+} deriving {
+  Functor,
+  Applicative
 }
 
 let x = Pair { first = true, second = 2 : i32 };
