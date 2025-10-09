@@ -1,8 +1,8 @@
-module Flow.AST.Type.Effect where
+module Flow.AST.Core.Type.Effect where
 
 import "vector" Data.Vector (Vector)
 
-import Flow.AST.Type.Common (Name, ScopeName)
+import Flow.AST.Core.Type.Common (Name, ScopeName)
 
 -- | Primitive effect atom, parameterized by the type node.
 data EffectF ty

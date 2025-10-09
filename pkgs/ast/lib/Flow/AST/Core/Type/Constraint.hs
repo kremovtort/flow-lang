@@ -1,9 +1,9 @@
-module Flow.AST.Type.Constraint where
+module Flow.AST.Core.Type.Constraint where
 
 import "vector" Data.Vector (Vector)
 
-import Flow.AST.Type.Common (Name)
-import Flow.AST.Type.Binder (TyBinder)
+import Flow.AST.Core.Type.Common (Name)
+import Flow.AST.Core.Type.Binder (TyBinder)
 
 -- | Saturated constraint predicate, Core-level, parameterized by the type node.
 data ConstraintF ty

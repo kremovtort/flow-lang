@@ -446,7 +446,7 @@ fn runNonDetListDF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
 // breadth-first non-determinism
 fn runNonDetListBF<A>(action: @[NonDet, ..] A) -> @[..] Stream<A> {
   // Breadth-first via explicit queue using control to capture continuation.
-  let handler = <X> handle NonDet returning Stream {
+  let handler = handle NonDet returning<X> Stream<X> {
     // BFS queue of pending branches; each element is a thunk producing Stream<X>
     let mut queue: Queue<@Stream<X>> = Queue::empty();
 

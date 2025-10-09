@@ -1,11 +1,11 @@
-module Flow.AST.Type where
+module Flow.AST.Core.Type where
 
 import "vector" Data.Vector (Vector)
-import Flow.AST.Type.Common (Name, ScopeName)
-import Flow.AST.Type.Binder (TyBinder, UniverseAnn)
-import Flow.AST.Type.Effect (EffectF, EffectRowF)
-import Flow.AST.Type.Constraint (ConstraintF)
-import Flow.AST.Type.Alias (AliasDecl)
+import Flow.AST.Core.Type.Common (Name, ScopeName)
+import Flow.AST.Core.Type.Binder (TyBinder, UniverseAnn)
+import Flow.AST.Core.Type.Effect (EffectF, EffectRowF)
+import Flow.AST.Core.Type.Constraint (ConstraintF)
+import Flow.AST.Core.Type.Alias (AliasDecl)
 
 -- | Built-in ground types of the language (Type₀ side).
 data Builtin

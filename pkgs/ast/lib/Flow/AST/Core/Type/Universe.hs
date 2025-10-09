@@ -1,4 +1,4 @@
-module Flow.AST.Type.Universe where
+module Flow.AST.Core.Type.Universe where
 
 data Sort
   = Type

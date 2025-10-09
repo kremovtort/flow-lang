@@ -1,4 +1,4 @@
-module Flow.AST.Type.Common where
+module Flow.AST.Core.Type.Common where
 
 import "text" Data.Text (Text)
 

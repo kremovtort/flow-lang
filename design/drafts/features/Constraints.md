@@ -9,24 +9,18 @@ trait Applicative<F<_>> :< Functor<F> { ... }
 Если требуется ввести дополнительные переменные типов, то они вводятся через `<>` после trait:
 
 ```rust
-trait<F<_>> Functor<G<_>> where {
-  <A :< Coercible> Coercible<F<G<A>>>
-} { ... }
+trait<F<_>> Functor<G<_>> :< <A :< Coercible> Coercible<F<G<A>>> { ... }
 ```
 
 
 ### Quantified Constraits
 Констрейнты могут быть заданы над абстрактной переменной, например
 ```rust
-trait T<F<_>> where {
-  <A :< Coercible> Coercible<F<A>>
-} { ... }
+trait T<F<_>> :< <A :< Coercible> Coercible<F<A>> { ... }
 ```
 ### Вложенный where
 ```rust
-trait T<F<_>> where {
-  <A> Coercible<F<A>> where { Coercible<A> }
-} { ... }
+trait T<F<_>> :< <A> Coercible<F<A>> :< Coercible<A> { ... }
 ```
 ## Равенство типов
 Равенство над типами задаётся через `==`:
@@ -36,9 +30,7 @@ trait T1<A> {
   fn someFn() @[IO] ()
 }
 
-trait T2<A> :< T1<A> where {
-  T1<A>::Person == Guest,
-} {
+trait T2<A> :< T1<A>, T1<A>::Person == Guest {
   fn someOtherFn() @[IO] ()
 }
 ```
@@ -56,4 +48,6 @@ impl Functor<Option> {
   }
 }
 ```
+
+так же доступно ключевое слово `where` для обозначения дополнительных ограничений для инстанса, подробнее в [Types.md](./Types.md)
 

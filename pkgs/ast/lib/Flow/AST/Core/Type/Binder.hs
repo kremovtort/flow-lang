@@ -1,4 +1,4 @@
-module Flow.AST.Type.Binder where
+module Flow.AST.Core.Type.Binder where
 
 import "base" Data.List qualified as List
 import "base" Numeric.Natural (Natural)
@@ -7,8 +7,8 @@ import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
-import Flow.AST.Type.Common (Name)
-import Flow.AST.Type.Universe (Sort)
+import Flow.AST.Core.Type.Common (Name)
+import Flow.AST.Core.Type.Universe (Sort)
 
 {- | Universe level can be a concrete natural, a named level variable,
 a max of non-empty levels, or a successor of a level.
