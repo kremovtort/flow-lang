@@ -20,6 +20,7 @@ spec = do
   keywordSpec
   punctuationSpec
   identifierSpec
+  dotIdentifierSpec
   refScopeSpec
   opticSpec
   boolLiteralSpec
@@ -40,9 +41,6 @@ singleToken t = Vector.fromList [t]
 -- | Test all keywords
 keywordSpec :: Spec
 keywordSpec = describe "Keywords" do
-  it "parses 'abort'" $
-    parse tokens "" "abort" `shouldParse` singleToken (Keyword Abort)
-
   it "parses 'do'" $
     parse tokens "" "do" `shouldParse` singleToken (Keyword Do)
 
@@ -93,12 +91,6 @@ keywordSpec = describe "Keywords" do
 
   it "parses 'pub'" $
     parse tokens "" "pub" `shouldParse` singleToken (Keyword Pub)
-
-  it "parses 'recover'" $
-    parse tokens "" "recover" `shouldParse` singleToken (Keyword Recover)
-
-  it "parses 'resume'" $
-    parse tokens "" "resume" `shouldParse` singleToken (Keyword Resume)
 
   it "parses 'return'" $
     parse tokens "" "return" `shouldParse` singleToken (Keyword Return)
@@ -232,9 +224,6 @@ punctuationSpec = describe "Punctuation" do
   it "parses '@'" $
     parse tokens "" "@" `shouldParse` singleToken (Punctuation At)
 
-  it "parses '.'" $
-    parse tokens "" "." `shouldParse` singleToken (Punctuation Dot)
-
   it "parses '..'" $
     parse tokens "" ".." `shouldParse` singleToken (Punctuation DotDot)
 
@@ -319,6 +308,17 @@ identifierSpec = describe "Identifiers" do
   it "does not parse identifier starting with number" $
     parse tokens "" `shouldFailOn` ("123foo" :: Text)
 
+dotIdentifierSpec :: Spec
+dotIdentifierSpec = describe "Dot identifiers" do
+  it "parses simple dot identifier" $
+    parse tokens "" ".bar" `shouldParse` singleToken (DotIdentifier "bar")
+
+  it "parses dot identifier with numbers" $
+    parse tokens "" ".bar123" `shouldParse` singleToken (DotIdentifier "bar123")
+
+  it "parses dot tuple field identifier" $
+    parse tokens "" ".123" `shouldParse` singleToken (DotIdentifier "123")
+
 -- | Test ref scopes
 refScopeSpec :: Spec
 refScopeSpec = describe "RefScope" do
@@ -352,7 +352,10 @@ opticSpec = describe "Optics" do
   it "parses optic starting with underscore" $
     parse tokens "" "#_foo" `shouldParse` singleToken (Optic "_foo")
 
-  it "does not parse optic starting with number" $
+  it "parses optic for tuple field" $
+    parse tokens "" "#123" `shouldParse` singleToken (Optic "123")
+
+  it "does not parse optic starting with number and followed by letters" $
     parse tokens "" `shouldFailOn` ("#123foo" :: Text)
 
 -- | Test boolean literals
@@ -692,8 +695,7 @@ combinedTokensSpec = describe "Combined token sequences" do
         , Identifier "b"
         , Punctuation Star
         , Identifier "c"
-        , Punctuation Dot
-        , Identifier "d"
+        , DotIdentifier "d"
         , Punctuation LeftBracket
         , IntegerLiteral 0
         , Punctuation RightBracket

@@ -42,6 +42,7 @@ data Token
   = Keyword Keyword
   | Punctuation Punctuation
   | Identifier Text
+  | DotIdentifier Text
   | Optic Text
   | RefScope Text
   | BoolLiteral Bool
@@ -54,8 +55,7 @@ data Token
   deriving (Eq, Ord, Show)
 
 data Keyword
-  = Abort
-  | Do
+  = Do
   | Effect
   | Else
   | Enum
@@ -72,8 +72,6 @@ data Keyword
   | Mut
   | Op
   | Pub
-  | Recover
-  | Resume
   | Return
   | Returning
   | Struct
@@ -82,6 +80,7 @@ data Keyword
   | Use
   | Where
   | While
+  | With
   deriving (Eq, Ord, Show, Bounded, Enum)
 
 data Punctuation
@@ -116,9 +115,8 @@ data Punctuation
   | PipeAssign
   | ShiftLeftAssign
   | ShiftRightAssign
-  | Inherit
+  | ColonLessThan
   | At
-  | Dot
   | DotDot
   | DotDotDot
   | DotDotEqual
@@ -133,8 +131,10 @@ data Punctuation
   | Dollar
   | Question
   | Underscore
+  | AtLeftBrace
   | LeftBrace
   | RightBrace
+  | AtLeftBracket
   | LeftBracket
   | RightBracket
   | LeftParen
@@ -162,6 +162,7 @@ token =
     , Megaparsec.try optic
     , punctuation
     , identifier
+    , dotIdentifier
     ]
 
 tokenWithSourcePos :: Lexer TokenWithSourcePosition
@@ -174,12 +175,12 @@ tokenWithSourcePos = do
 keyword :: Lexer Token
 keyword = Keyword <$> Megaparsec.choice keywords
  where
-  keywords = map mkKeyword $ List.sortOn (Ord.Down . keywordText) (enumFrom Abort)
+  keywords = map mkKeyword $ List.sortOn (Ord.Down . keywordText) [minBound .. maxBound]
 
 punctuation :: Lexer Token
 punctuation = Punctuation <$> Megaparsec.choice punctuations
  where
-  punctuations = map mkPunctuation $ List.sortOn (Ord.Down . punctuationText) (enumFrom Assign)
+  punctuations = map mkPunctuation $ List.sortOn (Ord.Down . punctuationText) [minBound .. maxBound]
 
 identifier :: Lexer Token
 identifier =
@@ -187,6 +188,22 @@ identifier =
     fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
     restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
     pure $ Text.cons fstChar restChars
+
+dotIdentifier :: Lexer Token
+dotIdentifier =
+  DotIdentifier <$> lexeme do
+    _ <- Megaparsec.Char.char '.'
+    commonIdentifier <|> tupleFieldIdentifier
+  where
+    commonIdentifier = do
+      fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
+      restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
+      pure $ Text.cons fstChar restChars
+    tupleFieldIdentifier = do
+      fstChar <- Megaparsec.Char.digitChar
+      restChars <- Megaparsec.takeWhileP Nothing isDigit
+      Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
+      pure $ Text.cons fstChar restChars
 
 refScope :: Lexer Token
 refScope =
@@ -200,9 +217,17 @@ optic :: Lexer Token
 optic =
   Optic <$> lexeme do
     _ <- Megaparsec.Char.string "#"
-    fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
-    restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
-    pure $ Text.cons fstChar restChars
+    commonIdentifier <|> tupleFieldIdentifier
+  where
+    commonIdentifier = do
+      fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
+      restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
+      pure $ Text.cons fstChar restChars
+    tupleFieldIdentifier = do
+      fstChar <- Megaparsec.Char.digitChar
+      restChars <- Megaparsec.takeWhileP Nothing isDigit
+      Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
+      pure $ Text.cons fstChar restChars
 
 boolLiteral :: Lexer Token
 boolLiteral =
@@ -361,7 +386,6 @@ hexLiteral = lexeme do
 
 keywordText :: Keyword -> Text
 keywordText = \case
-  Abort -> "abort"
   Do -> "do"
   Effect -> "effect"
   Else -> "else"
@@ -379,8 +403,6 @@ keywordText = \case
   Mut -> "mut"
   Op -> "op"
   Pub -> "pub"
-  Recover -> "recover"
-  Resume -> "resume"
   Return -> "return"
   Returning -> "returning"
   Struct -> "struct"
@@ -389,6 +411,7 @@ keywordText = \case
   Use -> "use"
   Where -> "where"
   While -> "while"
+  With -> "with"
 
 punctuationText :: Punctuation -> Text
 punctuationText = \case
@@ -423,9 +446,8 @@ punctuationText = \case
   PipeAssign -> "|="
   ShiftLeftAssign -> "<<="
   ShiftRightAssign -> ">>="
-  Inherit -> ":<"
+  ColonLessThan -> ":<"
   At -> "@"
-  Dot -> "."
   DotDot -> ".."
   DotDotDot -> "..."
   DotDotEqual -> "..="
@@ -440,8 +462,10 @@ punctuationText = \case
   Dollar -> "$"
   Question -> "?"
   Underscore -> "_"
+  AtLeftBrace -> "@{"
   LeftBrace -> "{"
   RightBrace -> "}"
+  AtLeftBracket -> "@["
   LeftBracket -> "["
   RightBracket -> "]"
   LeftParen -> "("
