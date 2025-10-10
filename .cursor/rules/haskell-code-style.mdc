@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+- All imports use explicit package names except from current package, eg `import "text" Data.Text (Text)`
+- All imports are either explicit or qualified, eg `import Data.Text (Text)` or `import Data.Text qualified as Text`
+- Collection types imported as `Data.Vector (Vector)` and their operations as `Data.Vector qualified as Vector`, so import qualification of collection operations should be the same as the collection type or qualified as submodule of the collection type, eg `Data.Text qualified as Text` or `Data.Text.Encoding qualified as Text.Encoding`
+- Lazy types should be imported with `Lazy` prefix, eg `Data.Text.Lazy qualified as Lazy (Text)` for type and `Data.Text.Lazy qualified as Lazy.Text` for operations
+- that kinds of packages delimeted by newlines
+  - imports from foreign packages
+  - import from other packages of current project
+  - imports from current package
