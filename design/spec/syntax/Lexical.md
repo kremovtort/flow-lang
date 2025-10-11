@@ -38,12 +38,20 @@ Exact precedence and associativity: see [Precedence](./Precedence.md).
 Special postfix operator:
 - The sequence `.do` is parsed as a dedicated postfix execution operator (see Effects). Outside of the postfix form, `do` is not a keyword and may be used as an identifier.
 
+### Optics token
+- Optic paths are introduced with `#` followed by an identifier or a tuple index:
+  - Examples: `#field`, `#_private`, `#123`
+  - For tuple indices, a numeric sequence cannot be followed by letters/underscores (e.g., `#123foo` is invalid).
+  - See drafts for optics semantics: `design/drafts/features/Optics.md`.
+
 ### Literals
 - Integer: decimal (`0`, `42`), hexadecimal (`0xFF`), binary (`0b1010`), octal (`0o755`). Optional `_` separators: `1_000_000`.
 - Float: `3.14`, `1e9`, `1.0e-3`, with optional `_` separators.
 - Boolean: `true`, `false`.
 - Char: `'a'`, `'\n'` (single quotes, single Unicode scalar value).
 - String: `"hello"`, supports common escapes (e.g. `\n`, `\t`, `\\`, `\"`).
+- Byte: `b'\x41'`, `b'\n'`, `b'A'` — ASCII-only single byte.
+- ByteString: `b"hello"`, supports `\xNN` escapes and line continuation `\\\n`.
 - Unit: `()`.
 
 ### Comments and whitespace

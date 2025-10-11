@@ -15,7 +15,7 @@ let x = if cond { 1 } else { 2 };
 
 ### Loops
 ```rust
-for i in 0..10 { /* ... */ }
+for i in iterable { /* ... */ }
 
 while cond { /* ... */ }
 

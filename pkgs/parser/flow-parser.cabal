@@ -17,6 +17,7 @@ common warnings
 common extensions
   default-extensions:
     BlockArguments
+    DuplicateRecordFields
     NoFieldSelectors
     OverloadedRecordDot
     OverloadedStrings
@@ -26,6 +27,10 @@ common extensions
 library
   import: warnings, extensions
   exposed-modules:
+    Flow.AST
+    Flow.AST.Common
+    Flow.AST.Ann
+    Flow.AST.Type
     Flow.Parser
     Flow.Parser.Lexer
 
@@ -34,6 +39,7 @@ library
     bytestring,
     containers,
     megaparsec,
+    nonempty-vector,
     scientific,
     text,
     vector,

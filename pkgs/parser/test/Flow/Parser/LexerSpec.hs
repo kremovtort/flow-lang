@@ -41,8 +41,8 @@ singleToken t = Vector.fromList [t]
 -- | Test all keywords
 keywordSpec :: Spec
 keywordSpec = describe "Keywords" do
-  it "parses 'do'" $
-    parse tokens "" "do" `shouldParse` singleToken (Keyword Do)
+  it "parses 'do' as identifier (not a keyword)" $
+    parse tokens "" "do" `shouldParse` singleToken (Identifier "do")
 
   it "parses 'effect'" $
     parse tokens "" "effect" `shouldParse` singleToken (Keyword Effect)
@@ -116,6 +116,15 @@ keywordSpec = describe "Keywords" do
   it "parses 'while'" $
     parse tokens "" "while" `shouldParse` singleToken (Keyword While)
 
+  it "parses 'break'" $
+    parse tokens "" "break" `shouldParse` singleToken (Keyword Break)
+
+  it "parses 'continue'" $
+    parse tokens "" "continue" `shouldParse` singleToken (Keyword Continue)
+
+  it "parses 'as'" $
+    parse tokens "" "as" `shouldParse` singleToken (Keyword As)
+
   it "does not parse keywords followed by alphanumeric" $
     parse tokens "" "ifx" `shouldParse` singleToken (Identifier "ifx")
 
@@ -160,6 +169,9 @@ punctuationSpec = describe "Punctuation" do
 
   it "parses '+'" $
     parse tokens "" "+" `shouldParse` singleToken (Punctuation Plus)
+
+  it "parses '++'" $
+    parse tokens "" "++" `shouldParse` singleToken (Punctuation Concat)
 
   it "parses '-'" $
     parse tokens "" "-" `shouldParse` singleToken (Punctuation Minus)
@@ -219,7 +231,7 @@ punctuationSpec = describe "Punctuation" do
     parse tokens "" ">>=" `shouldParse` singleToken (Punctuation ShiftRightAssign)
 
   it "parses ':<'" $
-    parse tokens "" ":<" `shouldParse` singleToken (Punctuation Inherit)
+    parse tokens "" ":<" `shouldParse` singleToken (Punctuation ColonLessThan)
 
   it "parses '@'" $
     parse tokens "" "@" `shouldParse` singleToken (Punctuation At)

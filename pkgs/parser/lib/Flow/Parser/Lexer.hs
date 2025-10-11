@@ -55,8 +55,7 @@ data Token
   deriving (Eq, Ord, Show)
 
 data Keyword
-  = Do
-  | Effect
+  = Effect
   | Else
   | Enum
   | Fn
@@ -81,6 +80,9 @@ data Keyword
   | Where
   | While
   | With
+  | Break
+  | Continue
+  | As
   deriving (Eq, Ord, Show, Bounded, Enum)
 
 data Punctuation
@@ -96,6 +98,7 @@ data Punctuation
   | Not
   | Tilde
   | Plus
+  | Concat
   | Minus
   | Star
   | Slash
@@ -194,16 +197,16 @@ dotIdentifier =
   DotIdentifier <$> lexeme do
     _ <- Megaparsec.Char.char '.'
     commonIdentifier <|> tupleFieldIdentifier
-  where
-    commonIdentifier = do
-      fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
-      restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
-      pure $ Text.cons fstChar restChars
-    tupleFieldIdentifier = do
-      fstChar <- Megaparsec.Char.digitChar
-      restChars <- Megaparsec.takeWhileP Nothing isDigit
-      Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
-      pure $ Text.cons fstChar restChars
+ where
+  commonIdentifier = do
+    fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
+    restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
+    pure $ Text.cons fstChar restChars
+  tupleFieldIdentifier = do
+    fstChar <- Megaparsec.Char.digitChar
+    restChars <- Megaparsec.takeWhileP Nothing isDigit
+    Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
+    pure $ Text.cons fstChar restChars
 
 refScope :: Lexer Token
 refScope =
@@ -218,16 +221,16 @@ optic =
   Optic <$> lexeme do
     _ <- Megaparsec.Char.string "#"
     commonIdentifier <|> tupleFieldIdentifier
-  where
-    commonIdentifier = do
-      fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
-      restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
-      pure $ Text.cons fstChar restChars
-    tupleFieldIdentifier = do
-      fstChar <- Megaparsec.Char.digitChar
-      restChars <- Megaparsec.takeWhileP Nothing isDigit
-      Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
-      pure $ Text.cons fstChar restChars
+ where
+  commonIdentifier = do
+    fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
+    restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
+    pure $ Text.cons fstChar restChars
+  tupleFieldIdentifier = do
+    fstChar <- Megaparsec.Char.digitChar
+    restChars <- Megaparsec.takeWhileP Nothing isDigit
+    Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
+    pure $ Text.cons fstChar restChars
 
 boolLiteral :: Lexer Token
 boolLiteral =
@@ -386,7 +389,6 @@ hexLiteral = lexeme do
 
 keywordText :: Keyword -> Text
 keywordText = \case
-  Do -> "do"
   Effect -> "effect"
   Else -> "else"
   Enum -> "enum"
@@ -412,6 +414,9 @@ keywordText = \case
   Where -> "where"
   While -> "while"
   With -> "with"
+  Break -> "break"
+  Continue -> "continue"
+  As -> "as"
 
 punctuationText :: Punctuation -> Text
 punctuationText = \case
@@ -427,6 +432,7 @@ punctuationText = \case
   Not -> "!"
   Tilde -> "~"
   Plus -> "+"
+  Concat -> "++"
   Minus -> "-"
   Star -> "*"
   Slash -> "/"

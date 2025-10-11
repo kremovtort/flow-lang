@@ -4,8 +4,8 @@ This chapter defines the concrete syntax for trait declarations and instance imp
 
 ### Trait declarations
 - No `where { ... }` block in trait headers.
-- Parent predicates are listed with `:<` after the trait head.
-- If additional type variables are needed only for the parent list, they are bound immediately after the `trait` keyword: `trait<X> Name<Y> :< Parent<X, Y>`.
+- Parent predicates are listed with `=>` after the trait head.
+- If additional type variables are needed only for the parent list, they are bound immediately after the `trait` keyword: `trait<X> Name<Y> => Parent<X, Y>`.
 
 Forms:
 ```rust
@@ -15,13 +15,13 @@ trait Ord<A> {
   fn compare(a: A, b: A) -> Ordering
 }
 
-// Inheritance via :<
-trait Show<A> :< Display<A>, Debug<A> {
+// Inheritance via =>
+trait Show<A> => Display<A>, Debug<A> {
   fn show(a: A) -> String
 }
 
 // Binding extra type variables for the parent list
-trait<X> CoerceDeep<F<_>> :< Coercible<F<X>> {
+trait<X> CoerceDeep<F<_>> => Coercible<F<X>> {
   // methods / associated items...
 }
 ```
@@ -43,12 +43,25 @@ impl Functor<Option> {
     }
   }
 }
+
+impl<F<_> :< Applicative> Functor<F> {
+  fn <A>(opt: F<A>) map<B>(f: fn(A) -> B) -> F<B> {
+    f.pure().apply(opt)
+  }
+}
+
+impl<F<_>> Functor<F> where { Applicative<F> } {
+  fn <A>(opt: F<A>) map<B>(f: fn(A) -> B) -> F<B> {
+    f.pure().apply(opt)
+  }
+}
 ```
 
 `impl` headers may use generics and (outside trait headers) may include a `where { ... }` block if needed by the surrounding signature rules; see `Generics.md`.
 
 ### Guidelines
-- Trait headers: use `:<` for parents; bind extra variables as `trait<X> ...` when needed by parents.
+- Trait headers: use `=>` for parents; bind extra variables as `trait<X> ...` when needed by parents.
+- For constraints in functions, effects, impls use `where { ... }` block or short syntax `:<` for one type parameter.
 - Keep parent entries fully-applied (saturated) predicates.
 - Definitions inside `impl` follow the ordinary function/method syntax.
 
