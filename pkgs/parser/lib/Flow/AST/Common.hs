@@ -5,29 +5,43 @@ import "text" Data.Text (Text)
 
 -- | represents module path chunks like std, io, IO, etc.Do
 -- could start either with a capital letter or a lowercase letter
-newtype ModuleIdentifier = ModuleIdentifier Text
-  deriving (Eq, Ord, Show)
+data ModuleIdentifier ann = ModuleIdentifier
+  { name :: Text
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | represents type names like A, Option, Result, Functor, etc. always starts with a capital letter
 -- as well can represent name of Constructor like Some, Ok, Err, etc.
-newtype SimpleTypeIdentifier = SimpleTypeIdentifier Text
-  deriving (Eq, Ord, Show)
+data SimpleTypeIdentifier ann = SimpleTypeIdentifier
+  { name :: Text
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | represents variable names like x, y, z, etc. always starts with a lowercase letter
-newtype SimpleVarIdentifier = SimpleVarIdentifier Text
-  deriving (Eq, Ord, Show)
-
-data AnyTypeIdentifier = AnyTypeIdentifier
-  { qualifier :: NonEmptyVector ModuleIdentifier
-  , identifier :: SimpleTypeIdentifier
+data SimpleVarIdentifier ann = SimpleVarIdentifier
+  { name :: Text
+  , ann :: ann
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data AnyVarIdentifier = AnyVarIdentifier
-  { qualifier :: NonEmptyVector ModuleIdentifier
-  , identifier :: SimpleVarIdentifier
+data AnyTypeIdentifier ann = AnyTypeIdentifier
+  { qualifier :: NonEmptyVector (ModuleIdentifier ann)
+  , identifier :: SimpleTypeIdentifier ann
+  , ann :: ann
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-newtype Scope = Scope Text
-  deriving (Eq, Ord, Show)
+data AnyVarIdentifier ann = AnyVarIdentifier
+  { qualifier :: NonEmptyVector (ModuleIdentifier ann)
+  , identifier :: SimpleVarIdentifier ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data ScopeIdentifier ann = ScopeIdentifier
+  { name :: Text
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

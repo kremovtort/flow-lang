@@ -28,19 +28,19 @@ library
   import: warnings, extensions
   exposed-modules:
     Flow.AST
-    Flow.AST.Common
     Flow.AST.Ann
-    Flow.AST.Type
-    Flow.AST.Surface.Literal
+    Flow.AST.Common
+    Flow.AST.Surface
     Flow.AST.Surface.Callable
-    Flow.AST.Surface.Callable.Defs
-    Flow.AST.Surface.Fields
+    Flow.AST.Surface.Constraint
     Flow.AST.Surface.Decl
     Flow.AST.Surface.Expr
-    Flow.AST.Surface.Syntax
+    Flow.AST.Surface.Fields
+    Flow.AST.Surface.Literal
     Flow.AST.Surface.Module
     Flow.AST.Surface.Pattern
-    Flow.AST.Surface.Stmt
+    Flow.AST.Surface.Syntax
+    Flow.AST.Surface.Type
     Flow.Parser
     Flow.Parser.Lexer
 
@@ -50,7 +50,9 @@ library
     containers,
     megaparsec,
     nonempty-vector,
+    recursion-schemes,
     scientific,
+    template-haskell,
     text,
     vector,
 

@@ -4,46 +4,47 @@ import "base" Prelude hiding (Enum)
 import "vector" Data.Vector (Vector)
 
 import Flow.AST.Common (ModuleIdentifier)
-import Flow.AST.Type (TypeDefinition)
-import Flow.AST.Surface.Callable.Defs (FnDefinition, FnInfixDefinition, OpDefinition, OpInfixDefinition)
+import Flow.AST.Surface.Constraint (TypeDefinitionF)
+import Flow.AST.Surface.Callable (FnDefinitionF, FnInfixDefinitionF, OpDefinitionF, OpInfixDefinitionF)
 import Flow.AST.Surface.Decl qualified as Decl
-import Flow.AST.Surface.Syntax (LetDefinition)
+import Flow.AST.Surface.Syntax (LetDefinitionF)
 
-data Mod
-  = ModDeclaration ModuleIdentifier
-  | ModDefinition ModuleIdentifier ModDefinitionBody
-  deriving (Eq, Ord, Show)
+data ModF mod lhsExpr pat ty expr ann
+  = ModDeclaration (ModuleIdentifier ann)
+  | ModDefinition (ModuleIdentifier ann) (ModDefinitionBodyF mod lhsExpr pat ty expr ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data ModDefinitionBody = ModDefinitionBody
-  { uses :: Vector UseClause
-  , items :: Vector ModuleItem
+data ModDefinitionBodyF mod lhsExpr pat ty expr ann = ModDefinitionBody
+  { uses :: Vector (UseClause ann)
+  , items :: Vector (ModuleItemF mod lhsExpr pat ty expr ann)
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data UseClause = UseClause
-  { root :: ModuleIdentifier
-  , tree :: UseTree
+data UseClause ann = UseClause
+  { root :: ModuleIdentifier ann
+  , tree :: UseTree ann
+  , ann :: ann
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data UseTree
-  = UseTreeBranch ModuleIdentifier UseTree
-  | UseTreeNested (Vector UseTree)
-  | UseTreeLeaf ModuleIdentifier
-  | UseTreeLeafAs ModuleIdentifier ModuleIdentifier
-  deriving (Eq, Ord, Show)
+data UseTree ann
+  = UseTreeBranch (ModuleIdentifier ann) (UseTree ann)
+  | UseTreeNested (Vector (UseTree ann))
+  | UseTreeLeaf (ModuleIdentifier ann)
+  | UseTreeLeafAs (ModuleIdentifier ann) (ModuleIdentifier ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data ModuleItem
-  = ModuleItemMod Mod
-  | ModuleItemStruct Decl.Struct
-  | ModuleItemEnum Decl.Enum
-  | ModuleItemTypeAlias TypeDefinition
-  | ModuleItemTrait Decl.Trait
-  | ModuleItemImpl Decl.Impl
-  | ModuleItemEffect Decl.Effect
-  | ModuleItemFn FnDefinition
-  | ModuleItemFnInfix FnInfixDefinition
-  | ModuleItemOp OpDefinition
-  | ModuleItemOpInfix OpInfixDefinition
-  | ModuleItemLet LetDefinition
-  deriving (Eq, Ord, Show)
+data ModuleItemF mod lhsExpr pat ty expr ann
+  = ModuleItemModF (mod ann) ann
+  | ModuleItemStruct (Decl.StructF ty ann)
+  | ModuleItemEnum (Decl.EnumF ty ann)
+  | ModuleItemTrait (Decl.Trait lhsExpr pat ty expr ann)
+  | ModuleItemImpl (Decl.Impl lhsExpr pat ty expr ann)
+  | ModuleItemEffect (Decl.EffectF lhsExpr pat ty expr ann)
+  | ModuleItemTypeAlias (TypeDefinitionF ty ann)
+  | ModuleItemFn (FnDefinitionF lhsExpr pat ty expr ann)
+  | ModuleItemFnInfix (FnInfixDefinitionF lhsExpr pat ty expr ann)
+  | ModuleItemOp (OpDefinitionF lhsExpr pat ty expr ann)
+  | ModuleItemOpInfix (OpInfixDefinitionF lhsExpr pat ty expr ann)
+  | ModuleItemLet (LetDefinitionF pat ty expr ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

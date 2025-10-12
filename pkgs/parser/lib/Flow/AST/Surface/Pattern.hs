@@ -13,17 +13,17 @@ import Flow.AST.Common (SimpleVarIdentifier, AnyTypeIdentifier)
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Fields (Fields)
 
-data Pattern
-  = PatternWildcard -- _
-  | PatternLiteral Literal -- 0 | true | "str"
-  | PatternVar SimpleVarIdentifier -- x
-  | PatternTuple (NonEmptyVector Pattern) -- (a, b, c)
-  | PatternCons (ConstructorApp Pattern) -- EnumVariant | Some(1) | Cons { a = 1, b = 2 }
-  | PatternOr (NonEmptyVector Pattern) -- a | b | c
-  deriving (Eq, Ord, Show)
+data PatternF pat ann
+  = PatternWildcardF ann
+  | PatternLiteralF Literal ann
+  | PatternVarF (SimpleVarIdentifier ann)
+  | PatternTupleF (NonEmptyVector (pat ann)) ann
+  | PatternConsF (ConstructorApp pat ann)
+  | PatternOrF (NonEmptyVector (pat ann)) ann
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data ConstructorApp t = ConstructorApp
-  { name :: AnyTypeIdentifier
-  , fields :: Fields t
+data ConstructorApp a ann = ConstructorApp
+  { name :: AnyTypeIdentifier ann
+  , fields :: Fields a ann
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

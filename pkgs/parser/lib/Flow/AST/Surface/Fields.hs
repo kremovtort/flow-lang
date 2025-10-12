@@ -5,7 +5,7 @@ import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 
 import Flow.AST.Common (SimpleVarIdentifier)
 
-data Fields v
-  = FieldsTuple (NonEmptyVector v)
-  | FieldsNamed (NonEmptyVector (SimpleVarIdentifier, v))
-  deriving (Eq, Ord, Show)
+data Fields inner ann
+  = FieldsTuple (NonEmptyVector (inner ann)) ann
+  | FieldsNamed (NonEmptyVector (SimpleVarIdentifier ann, inner ann)) ann
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

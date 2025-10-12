@@ -1,108 +1,123 @@
-{-# LANGUAGE DataKinds, GADTs, KindSignatures, TypeFamilies, StandaloneDeriving #-}
+{-# LANGUAGE DataKinds #-}
 
 module Flow.AST.Surface.Callable where
 
-import "base" Prelude hiding (Enum)
 import "vector" Data.Vector (Vector)
+import "base" Prelude hiding (Enum)
 
-import Flow.AST.Common (Scope, SimpleVarIdentifier)
-import Flow.AST.Type (Type, Binder, WhereClause)
+import Flow.AST.Common (ScopeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
+import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
 
--- | Kinds for indexing callables
 data CallKind = KFn | KOp
 data Fixity = Plain | Infix
-data Phase = Decl | Def
 
 -- | Receiver header for infix calls
-data ReceiverHeader (f :: Fixity) where
-  NoRecv  :: ReceiverHeader 'Plain
-  HasRecv :: { calleeScopeParams :: Vector Scope
-             , calleeTypeParams  :: Vector Binder
-             , calleeName        :: SimpleVarIdentifier
-             , calleeType        :: Type
-             } -> ReceiverHeader 'Infix
+data ReceiverHeader ty ann = ReceiverHeader
+  { calleeScopeParams :: Vector (ScopeIdentifier ann)
+  , calleeTypeParams :: Vector (BinderF ty ann)
+  , calleeName :: SimpleVarIdentifier ann
+  , calleeType :: ty ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- | Common header for all callable entities
-data CallableHeader (f :: Fixity) = CallableHeader
-  { receiver     :: ReceiverHeader f
-  , name         :: SimpleVarIdentifier
-  , scopeParams  :: Vector Scope
-  , typeParams   :: Vector Binder
-  , args         :: Vector (SimpleVarIdentifier, Type)
-  , effects      :: Maybe Type
-  , result       :: Type
-  , whereClauses :: Vector WhereClause
+data CallableHeader ty reciever ann = CallableHeader
+  { receiver :: reciever ann
+  , name :: SimpleVarIdentifier ann
+  , scopeParams :: Vector (ScopeIdentifier ann)
+  , typeParams :: Vector (BinderF ty ann)
+  , args :: Vector (SimpleVarIdentifier ann, ty ann)
+  , effects :: Maybe (ty ann)
+  , result :: Maybe (ty ann)
+  , whereClauses :: Vector (WhereClauseF ty ann)
   }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
--- | GADT for all callable definitions and declarations
-data Callable (k :: CallKind) (f :: Fixity) (p :: Phase) body where
-  -- Declarations (no body)
-  FnDecl  :: CallableHeader f -> Callable 'KFn f 'Decl body
-  OpDecl  :: CallableHeader f -> Callable 'KOp f 'Decl body
+data RecieverF (fixity :: Fixity) ty ann where
+  RecieverFPlain :: () -> RecieverF Plain ty ann
+  RecieverFInfix :: ReceiverHeader ty ann -> RecieverF Infix ty ann
 
-  -- Definitions (with body)
-  FnDef   :: CallableHeader f -> body -> Callable 'KFn f 'Def body
-  OpDef   :: CallableHeader f -> body -> Callable 'KOp f 'Def body
+deriving instance (Show ann, Show (ty ann)) => Show (RecieverF f ty ann)
+deriving instance (Eq ann, Eq (ty ann)) => Eq (RecieverF f ty ann)
+deriving instance (Ord ann, Ord (ty ann)) => Ord (RecieverF f ty ann)
+deriving instance (Functor ty) => Functor (RecieverF fixity ty)
+deriving instance (Foldable ty) => Foldable (RecieverF fixity ty)
+deriving instance (Traversable ty) => Traversable (RecieverF fixity ty)
 
--- | Type synonyms for backward compatibility
--- Declarations fix the body type to unit to avoid propagating a type parameter
-type FnDeclaration       = Callable 'KFn 'Plain 'Decl ()
-type FnInfixDeclaration  = Callable 'KFn 'Infix 'Decl ()
-type OpDeclaration       = Callable 'KOp 'Plain 'Decl ()
-type OpInfixDeclaration  = Callable 'KOp 'Infix 'Decl ()
+data
+  CallableF
+    (kind :: CallKind)
+    (fixity :: Fixity)
+    ty
+    body
+    ann
+  = CallableF
+  { header :: CallableHeader ty (RecieverF fixity ty) ann
+  , body :: body ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
--- | Parameterized synonyms for definitions by body type
-type FnDefinitionOf body        = Callable 'KFn 'Plain 'Def body
-type FnInfixDefinitionOf body   = Callable 'KFn 'Infix 'Def body
-type OpDefinitionOf body        = Callable 'KOp 'Plain 'Def body
-type OpInfixDefinitionOf body   = Callable 'KOp 'Infix 'Def body
+type FnDeclarationF ty ann =
+  CallableF
+    'KFn
+    'Plain
+    ty
+    UnitF
+    ann
 
--- Standalone deriving for GADTs and indexed headers
+type FnInfixDeclarationF ty ann =
+  CallableF
+    'KFn
+    'Infix
+    ty
+    UnitF
+    ann
 
-deriving instance Eq (ReceiverHeader 'Plain)
-deriving instance Ord (ReceiverHeader 'Plain)
-deriving instance Show (ReceiverHeader 'Plain)
+type OpDeclarationF ty ann =
+  CallableF
+    'KOp
+    'Plain
+    ty
+    UnitF
+    ann
 
-deriving instance Eq (ReceiverHeader 'Infix)
-deriving instance Ord (ReceiverHeader 'Infix)
-deriving instance Show (ReceiverHeader 'Infix)
+type OpInfixDeclarationF ty ann =
+  CallableF
+    'KOp
+    'Infix
+    ty
+    UnitF
+    ann
 
-deriving instance Eq (CallableHeader 'Plain)
-deriving instance Ord (CallableHeader 'Plain)
-deriving instance Show (CallableHeader 'Plain)
+type FnDefinitionF lhsExpr pat ty expr ann =
+  CallableF
+    'KFn
+    'Plain
+    ty
+    (CodeBlockF lhsExpr pat ty expr)
+    ann
 
-deriving instance Eq (CallableHeader 'Infix)
-deriving instance Ord (CallableHeader 'Infix)
-deriving instance Show (CallableHeader 'Infix)
+type FnInfixDefinitionF lhsExpr pat ty expr ann =
+  CallableF
+    'KFn
+    'Infix
+    ty
+    (CodeBlockF lhsExpr pat ty expr)
+    ann
 
-deriving instance Eq (Callable 'KFn 'Plain 'Decl body)
-deriving instance Ord (Callable 'KFn 'Plain 'Decl body)
-deriving instance Show (Callable 'KFn 'Plain 'Decl body)
+type OpDefinitionF lhsExpr pat ty expr ann =
+  CallableF
+    'KOp
+    'Plain
+    ty
+    (CodeBlockF lhsExpr pat ty expr)
+    ann
 
-deriving instance Eq (Callable 'KFn 'Infix 'Decl body)
-deriving instance Ord (Callable 'KFn 'Infix 'Decl body)
-deriving instance Show (Callable 'KFn 'Infix 'Decl body)
-
-deriving instance Eq body => Eq (Callable 'KFn 'Plain 'Def body)
-deriving instance Ord body => Ord (Callable 'KFn 'Plain 'Def body)
-deriving instance Show body => Show (Callable 'KFn 'Plain 'Def body)
-
-deriving instance Eq body => Eq (Callable 'KFn 'Infix 'Def body)
-deriving instance Ord body => Ord (Callable 'KFn 'Infix 'Def body)
-deriving instance Show body => Show (Callable 'KFn 'Infix 'Def body)
-
-deriving instance Eq (Callable 'KOp 'Plain 'Decl body)
-deriving instance Ord (Callable 'KOp 'Plain 'Decl body)
-deriving instance Show (Callable 'KOp 'Plain 'Decl body)
-
-deriving instance Eq (Callable 'KOp 'Infix 'Decl body)
-deriving instance Ord (Callable 'KOp 'Infix 'Decl body)
-deriving instance Show (Callable 'KOp 'Infix 'Decl body)
-
-deriving instance Eq body => Eq (Callable 'KOp 'Plain 'Def body)
-deriving instance Ord body => Ord (Callable 'KOp 'Plain 'Def body)
-deriving instance Show body => Show (Callable 'KOp 'Plain 'Def body)
-
-deriving instance Eq body => Eq (Callable 'KOp 'Infix 'Def body)
-deriving instance Ord body => Ord (Callable 'KOp 'Infix 'Def body)
-deriving instance Show body => Show (Callable 'KOp 'Infix 'Def body)
+type OpInfixDefinitionF lhsExpr pat ty expr ann =
+  CallableF
+    'KOp
+    'Infix
+    ty
+    (CodeBlockF lhsExpr pat ty expr)
+    ann
