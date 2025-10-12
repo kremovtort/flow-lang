@@ -13,7 +13,6 @@ let somePair = pair(true, 2: i32);
 let somePair = pair(a = true, b = 2: i32); // именованные аргументы
 
 
-type Handler<E> = <X> fn(@[E, ..] X) -> @X
 
 // Методы
 enum List<A> {

@@ -5,12 +5,17 @@
 fn add(a: i32, b: i32) -> i32 { a + b }
 
 fn pair<A, B>(a: A, b: B) -> (A, B) { (a, b) }
+
+// effectful functions: effects are properties of functions
+fn printLine(s: string) -> @[IO] () { ConsoleOutput::print(s) }
 ```
 
 Named arguments are supported at call sites:
 ```rust
 let p = pair(a = true, b = 2: i32);
 ```
+
+Note: Effects are only properties of functions and appear only in function return types (`-> @[E] T`). There are no separate "effectful values" or execution operators.
 
 ### Methods
 Methods are declared similarly to functions; receiver is the first parameter positionally, with optional polymorphism markers.

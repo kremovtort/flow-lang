@@ -24,9 +24,10 @@ Complete enough for day-to-day authoring. Some parts reference semantics documen
 - [Future work: EBNF grammar](#future-work-ebnf)
 
 ### Design principles (syntactic scope)
-- Syntax is Rust-like where reasonable; notable Flow-specific features include unified effect rows, higher-kinded type parameters via `F<_>`, quantified constraints, and explicit RefScopes with `'s`.
+- Syntax is Rust-like where reasonable; notable Flow-specific features include effect rows `@[R]` as function properties, higher-kinded type parameters via `F<_>`, quantified constraints, and explicit RefScopes with `'s`.
 - Module keyword is `mod`.
 - Statements are separated by semicolons `;`. The final non-terminated item in a block is an expression and yields the block value.
+- Effects are properties of functions only; no separate "effectful values" or execution operators.
 
 ### Quick taste
 ```rust

@@ -8,21 +8,25 @@
 
 ```rust
 // доступ к внешнему mutability scope
-fn sort<'s, A :< Ord>(vec: &'s mut Vec<A>) -> ['s] () {
+fn sort<'s, A :< Ord>(vec: &'s mut Vec<A>) -> @['s] () {
+  vec.sortWith(|a, b| a.cmp(b));
+}
+// по дефолту скоупы выводится, так что можно сократить до:
+fn sort<A :< Ord>(vec: &mut Vec<A>) {
   vec.sortWith(|a, b| a.cmp(b));
 }
 
 // доступ к внешнему и внутреннему mutability scope
 fn
-  withLock<'o, A, X>(
+  withLock<'o, A, X, R>(
     mutex: Mutex<A>,
-    f: <'i> fn(&'i mut A) -> @['o + 'i + IO + ..] X
-  ) -> @['o + IO + ..] X {
+    f: <'i> fn(&'i mut A) -> @['i, 'o, ..R] X
+  ) -> @R X {
   ...
 }
 
 // доступ только к внутреннему mutability scope
-fn atomically<'o, X>(fn: <'i> @['i + STM] X) -> @['o + IO + ..] X {
+fn atomically<X>(action: <'i> fn() -> @['i, STM] X) -> @['global] X {
   ...
 }
 

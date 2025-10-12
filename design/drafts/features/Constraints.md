@@ -42,11 +42,11 @@ fn f<F<_>>(f: F<A>) -> F<A> where { <A> Coercible<F<A>> where { Coercible<A> } }
 ```rust
 trait T1<A> {
   type Person
-  fn someFn() @[IO] ()
+  fn someFn() -> @[IO] ()
 }
 
 trait T2<A> => T1<A>, T1<A>::Person == Guest {
-  fn someOtherFn() @[IO] ()
+  fn someOtherFn() -> @[IO] ()
 }
 ```
 

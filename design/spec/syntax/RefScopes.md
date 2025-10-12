@@ -16,8 +16,17 @@ fn <'s, A: Ord>(xs: &'s mut Vec<A>) -> @['s] () { /* ... */ }
 fn <'s>() -> @['s, IO] ()  // ≡ @[Scope<'s>, IO]
 ```
 
+### Sugar in effect declarations
+RefScope parameters can appear directly in effect headers:
+```rust
+effect State<'s, S> => 's {  // ≡ effect State<'s, S> => Scope<'s>
+  op get() -> S
+  op put(s: S) -> ()
+}
+```
+
 ### Omitting scope type arguments and inference
-- Scope type parameters may be omitted in generic parameter lists and type applications when they can be inferred from context (e.g., from `&'s T` references and effect rows `@['s, ..]`).
+- Scope type parameters may be omitted in generic parameter lists and type applications when they can be inferred from context (e.g., from `&'s T` references and effect rows `@['s, ..R]`).
 - If inference fails or is ambiguous, compilation must report an error.
 
 Examples:

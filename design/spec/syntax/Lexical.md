@@ -35,8 +35,6 @@ Common multi/uni-character tokens recognized by the lexer:
 
 Exact precedence and associativity: see [Precedence](./Precedence.md).
 
-Special postfix operator:
-- The sequence `.do` is parsed as a dedicated postfix execution operator (see Effects). Outside of the postfix form, `do` is not a keyword and may be used as an identifier.
 
 ### Optics token
 - Optic paths are introduced with `#` followed by an identifier or a tuple index:
