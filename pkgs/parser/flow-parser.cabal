@@ -31,6 +31,16 @@ library
     Flow.AST.Common
     Flow.AST.Ann
     Flow.AST.Type
+    Flow.AST.Surface.Literal
+    Flow.AST.Surface.Callable
+    Flow.AST.Surface.Callable.Defs
+    Flow.AST.Surface.Fields
+    Flow.AST.Surface.Decl
+    Flow.AST.Surface.Expr
+    Flow.AST.Surface.Syntax
+    Flow.AST.Surface.Module
+    Flow.AST.Surface.Pattern
+    Flow.AST.Surface.Stmt
     Flow.Parser
     Flow.Parser.Lexer
 

@@ -20,7 +20,6 @@ data Type
   | TyRef Ref -- &'s T | &'s mut T | &T | &mut T
   | TyForall (Forall Type) -- <A :< Monoid> fn(List<A>) -> A
   | TyFn Fn -- fn(List<A>) -> A
-  | TyEffectful Effectful -- @A | @[IO] A
   | TyEffectRow EffectRow -- [IO, State<S>] | ['s, IO], | [IO, ..R, ..S, ..] | etc
   deriving (Eq, Ord, Show)
 
@@ -70,13 +69,8 @@ data Forall t = Forall -- <A :< Monoid> fn(List<A>) -> A
 
 data Fn = Fn -- fn(List<A>) -> A
   { args :: Vector Type
+  , effects :: Maybe Type
   , result :: Type
-  }
-  deriving (Eq, Ord, Show)
-
-data Effectful = Effectful -- @R | @[IO] A
-  { effects :: Maybe EffectRow
-  , type_ :: Type
   }
   deriving (Eq, Ord, Show)
 
