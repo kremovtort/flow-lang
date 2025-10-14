@@ -1,14 +1,15 @@
-module Flow.Parser.Lexer (
+module Flow.Lexer (
   Token (..),
   Keyword (..),
   Punctuation (..),
-  TokenWith (..),
-  TokenWithSourcePosition,
+  WithSourceRegion (..),
+  TokenWithSourceRegion,
+  SourceRegion (..),
   Lexer,
   tokens,
   token,
-  tokensWithSourcePos,
-  tokenWithSourcePos,
+  tokensWithSourceRegion,
+  tokenWithSourceRegion,
 ) where
 
 import "base" Control.Applicative (many, (<|>))
@@ -33,16 +34,21 @@ import "vector" Data.Vector qualified as Vector
 
 type Lexer = Parsec Void Text
 
-data TokenWith a = TokenWith {token :: Token, payload :: a}
+data WithSourceRegion a = WithSourceRegion {token :: a, payload :: SourceRegion}
   deriving (Eq, Ord, Show, Functor)
 
-type TokenWithSourcePosition = TokenWith (Megaparsec.SourcePos, Megaparsec.SourcePos)
+data SourceRegion = SourceRegion
+  { start :: Megaparsec.SourcePos
+  , end :: Megaparsec.SourcePos
+  }
+  deriving (Eq, Ord, Show)
+
+type TokenWithSourceRegion = WithSourceRegion Token
 
 data Token
   = Keyword Keyword
   | Punctuation Punctuation
   | Identifier Text
-  | DotIdentifier Text
   | Optic Text
   | RefScope Text
   | BoolLiteral Bool
@@ -120,6 +126,7 @@ data Punctuation
   | ShiftRightAssign
   | ColonLessThan
   | At
+  | Dot
   | DotDot
   | DotDotDot
   | DotDotEqual
@@ -134,7 +141,6 @@ data Punctuation
   | Dollar
   | Question
   | Underscore
-  | AtLeftBrace
   | LeftBrace
   | RightBrace
   | AtLeftBracket
@@ -142,13 +148,18 @@ data Punctuation
   | RightBracket
   | LeftParen
   | RightParen
+  | LeftRightParen
   deriving (Eq, Ord, Show, Bounded, Enum)
 
 tokens :: Lexer (Vector Token)
 tokens = fmap Vector.fromList $ spaceConsumer *> many token <* Megaparsec.eof
 
-tokensWithSourcePos :: Lexer (Vector TokenWithSourcePosition)
-tokensWithSourcePos = fmap Vector.fromList $ spaceConsumer *> many tokenWithSourcePos
+tokensWithSourceRegion :: Lexer (Vector TokenWithSourceRegion)
+tokensWithSourceRegion = fmap Vector.fromList do
+  spaceConsumer
+  tokens' <- many tokenWithSourceRegion
+  Megaparsec.eof
+  pure tokens'
 
 token :: Lexer Token
 token =
@@ -165,15 +176,18 @@ token =
     , Megaparsec.try optic
     , punctuation
     , identifier
-    , dotIdentifier
     ]
 
-tokenWithSourcePos :: Lexer TokenWithSourcePosition
-tokenWithSourcePos = do
+tokenWithSourceRegion :: Lexer TokenWithSourceRegion
+tokenWithSourceRegion = do
   startPos <- Megaparsec.getSourcePos
   token' <- token
   endPos <- Megaparsec.getSourcePos
-  pure $ TokenWith{token = token', payload = (startPos, endPos)}
+  pure $
+    WithSourceRegion
+      { token = token'
+      , payload = SourceRegion{start = startPos, end = endPos}
+      }
 
 keyword :: Lexer Token
 keyword = Keyword <$> Megaparsec.choice keywords
@@ -190,22 +204,6 @@ identifier =
   Identifier <$> lexeme do
     fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
     restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
-    pure $ Text.cons fstChar restChars
-
-dotIdentifier :: Lexer Token
-dotIdentifier =
-  DotIdentifier <$> lexeme do
-    _ <- Megaparsec.Char.char '.'
-    commonIdentifier <|> tupleFieldIdentifier
- where
-  commonIdentifier = do
-    fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
-    restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
-    pure $ Text.cons fstChar restChars
-  tupleFieldIdentifier = do
-    fstChar <- Megaparsec.Char.digitChar
-    restChars <- Megaparsec.takeWhileP Nothing isDigit
-    Megaparsec.notFollowedBy (Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_')
     pure $ Text.cons fstChar restChars
 
 refScope :: Lexer Token
@@ -454,6 +452,7 @@ punctuationText = \case
   ShiftRightAssign -> ">>="
   ColonLessThan -> ":<"
   At -> "@"
+  Dot -> "."
   DotDot -> ".."
   DotDotDot -> "..."
   DotDotEqual -> "..="
@@ -468,7 +467,6 @@ punctuationText = \case
   Dollar -> "$"
   Question -> "?"
   Underscore -> "_"
-  AtLeftBrace -> "@{"
   LeftBrace -> "{"
   RightBrace -> "}"
   AtLeftBracket -> "@["
@@ -476,6 +474,7 @@ punctuationText = \case
   RightBracket -> "]"
   LeftParen -> "("
   RightParen -> ")"
+  LeftRightParen -> "()"
 
 spaceConsumer :: Lexer ()
 spaceConsumer =

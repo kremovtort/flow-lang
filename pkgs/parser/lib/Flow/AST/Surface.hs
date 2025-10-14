@@ -1,24 +1,42 @@
 module Flow.AST.Surface where
 
 import Flow.AST.Surface.Expr (ExpressionF)
-import Flow.AST.Surface.Module (ModF, ModDefinitionBodyF)
+import Flow.AST.Surface.Module (ModDefinitionBodyF, ModF)
 import Flow.AST.Surface.Pattern (PatternF)
 import Flow.AST.Surface.Syntax (LHSExpressionF)
 import Flow.AST.Surface.Type (TypeF)
 
-newtype ModDefinitionBody ann = ModDefinitionBody (ModDefinitionBodyF Mod LHSExpression Pattern Type Expression ann)
+data ModDefinitionBody ann = ModDefinitionBody
+  { modDefinitionBody :: ModDefinitionBodyF Mod LHSExpression Pattern Type Expression ann
+  , ann :: ann
+  }
 
-newtype Mod ann = Mod (ModF Mod LHSExpression Pattern Type Expression ann)
+data Mod ann = Mod
+  { mod :: ModF Mod LHSExpression Pattern Type Expression ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-newtype LHSExpression ann = LHSExpression (LHSExpressionF LHSExpression Expression ann)
+data LHSExpression ann = LHSExpression
+  { lhsExpression :: LHSExpressionF LHSExpression Expression ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-newtype Pattern ann = Pattern (PatternF Pattern ann)
+data Pattern ann = Pattern
+  { pattern :: PatternF Pattern ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-newtype Type ann = Type (TypeF Type ann)
+data Type ann = Type
+  { ty :: TypeF Type ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-newtype Expression ann = Expression (ExpressionF LHSExpression Pattern Type Expression ann)
+data Expression ann = Expression
+  { expr :: ExpressionF LHSExpression Pattern Type Expression ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

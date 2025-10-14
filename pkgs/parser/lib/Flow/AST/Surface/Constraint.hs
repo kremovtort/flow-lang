@@ -3,7 +3,7 @@ module Flow.AST.Surface.Constraint where
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
-import Flow.AST.Common (SimpleTypeIdentifier, AnyTypeIdentifier, ScopeIdentifier)
+import Flow.AST.Surface.Common (SimpleTypeIdentifier, AnyTypeIdentifier, ScopeIdentifier)
 
 data BinderF ty ann = BinderF -- A | A :< Monoid
   { name :: SimpleTypeIdentifier ann

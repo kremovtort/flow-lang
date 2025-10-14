@@ -22,6 +22,7 @@ common extensions
     OverloadedRecordDot
     OverloadedStrings
     PackageImports
+    QuantifiedConstraints
     StrictData
 
 library
@@ -29,9 +30,9 @@ library
   exposed-modules:
     Flow.AST
     Flow.AST.Ann
-    Flow.AST.Common
     Flow.AST.Surface
     Flow.AST.Surface.Callable
+    Flow.AST.Surface.Common
     Flow.AST.Surface.Constraint
     Flow.AST.Surface.Decl
     Flow.AST.Surface.Expr
@@ -41,8 +42,11 @@ library
     Flow.AST.Surface.Pattern
     Flow.AST.Surface.Syntax
     Flow.AST.Surface.Type
+    Flow.Lexer
     Flow.Parser
-    Flow.Parser.Lexer
+    Flow.Parser.Common
+    Flow.Parser.Expr
+    Flow.Parser.Syntax
 
   build-depends:
     base ^>=4.21.0.0,
@@ -63,7 +67,7 @@ test-suite flow-parser-test
   import: warnings, extensions
   default-language: GHC2024
   other-modules:
-    Flow.Parser.LexerSpec
+    Flow.LexerSpec
 
   -- other-extensions:
   type: exitcode-stdio-1.0

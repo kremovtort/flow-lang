@@ -4,7 +4,7 @@ import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
-import Flow.AST.Common (ScopeIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (ScopeIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Callable (
   FnDeclarationF,
   FnDefinitionF,

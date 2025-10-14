@@ -2,7 +2,7 @@ module Flow.AST.Surface.Type where
 
 import "vector" Data.Vector (Vector)
 
-import Flow.AST.Common (ScopeIdentifier, AnyTypeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (ScopeIdentifier, AnyTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
 
 data TypeF ty ann

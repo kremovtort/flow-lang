@@ -1,40 +1,43 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Flow.AST.Surface.Expr where
 
 import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
-import Flow.AST.Common (AnyTypeIdentifier, AnyVarIdentifier, ScopeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Callable
+import Flow.AST.Surface.Common (AnyTypeIdentifier, AnyVarIdentifier, ScopeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
 import Flow.AST.Surface.Fields (Fields)
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Pattern (ConstructorApp)
-import Flow.AST.Surface.Syntax (CodeBlockF, LetDefinitionF)
+import Flow.AST.Surface.Syntax (CodeBlockF, ForExpression, IfExpression, LetDefinitionF, LoopExpression, MatchExpression, WhileExpression)
 
 -- Expressions
 
 data ExpressionF lhsExpr pat ty expr ann
   = EWildcard ann -- _
-  | ELiteral Literal ann -- 0 | true | "str"
+  | ELiteral (Literal ann) ann -- 0 | true | "str"
   | EOfType (expr ann) (ty ann) ann -- expr : T
-  | EVar (AnyVarIdentifier ann) -- ident | someModule::ident
+  | EParens (expr ann) ann -- (expr)
+  | EVar (AnyVarIdentifier ann) ann -- ident | someModule::ident
   | EIndex (expr ann) (expr ann) ann -- expr[index]
   | EDotAccess (expr ann) (AnyVarIdentifier ann) ann -- expr.ident
-  | EFnCall (FnCallF ty expr ann) -- f(a, b) | f(arg1 = a, arg2 = b) | f<T>(a, b) | f() with { State<S> = e }
-  | EUnOp (UnOpExpression expr ann) -- -a | !a | *a | &a | &mut a | &'s mut a
-  | EBinOp (BinOpExpression expr ann) -- a * b | a + b | a ++ b | etc
-  | EConstructorAsFn (AnyTypeIdentifier ann) -- EnumVariant | Some | Cons
-  | EConstructorApp (ConstructorApp expr ann) -- EnumVariant | Some(1) | Cons { a = 1, b = 2 }
+  | EFnCall (FnCallF ty expr ann) ann -- f(a, b) | f(arg1 = a, arg2 = b) | f<T>(a, b) | f() with { State<S> = e }
+  | EUnOp (UnOpExpression expr ann) ann -- -a | !a | *a | &a | &mut a | &'s mut a
+  | EBinOp (BinOpExpression expr ann) ann -- a * b | a + b | a ++ b | etc
+  | EConstructorAsFn (AnyTypeIdentifier ann) ann -- EnumVariant | Some | Cons
+  | EConstructorApp (ConstructorApp expr ann) ann -- EnumVariant | Some(1) | Cons { a = 1, b = 2 }
   | ETuple (NonEmptyVector (expr ann)) ann -- (a, b, c)
-  | EMatch (MatchExpression pat expr ann) -- match expr { Pattern => expr, ... }
-  | EIf (IfExpression expr ann) -- if expr { then_ } else { else_ }
-  | ELoop (LoopExpression expr ann) -- loop { ... } | 'label: loop { ... }
-  | EWhile (WhileExpression expr ann) -- while expr { ... } | 'label: while expr { ... }
-  | EFor (ForExpression pat expr ann) -- for pattern in iterable { ... }
-  | EBlock (CodeBlockF lhsExpr pat ty expr ann) -- { ... }
+  | EMatch (MatchExpression pat expr ann) ann -- match expr { Pattern => expr, ... }
+  | EIf (IfExpression expr ann) ann -- if expr { then_ } else { else_ }
+  | ELoop (LoopExpression expr ann) ann -- loop { ... } | 'label: loop { ... }
+  | EWhile (WhileExpression expr ann) ann -- while expr { ... } | 'label: while expr { ... }
+  | EFor (ForExpression pat expr ann) ann -- for pattern in iterable { ... }
+  | EBlock (CodeBlockF lhsExpr pat ty expr ann) ann -- { ... }
   | EHandle (HandleExpressionF lhsExpr pat ty expr ann) -- handle Effect
-  | ELambda (LambdaExpressionF ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
+  | ELambda (LambdaExpressionF ty expr ann) ann -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- Pieces used by both Expr and Stmt
@@ -47,8 +50,7 @@ data UnOpExpression expr ann = UnOpExpression
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data BinOpExpression expr ann = BinOpExpression
-  { op :: BinOp
-  , opAnn :: ann
+  { op :: BinOp ann
   , left :: expr ann
   , right :: expr ann
   , ann :: ann
@@ -64,23 +66,41 @@ data UnOp ann
   | UnOpTakeMutRef (Maybe (ScopeIdentifier ann)) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data BinOp
-  = BinOpAdd
-  | BinOpSub
-  | BinOpMul
-  | BinOpDiv
-  | BinOpMod
-  deriving (Eq, Ord, Show)
+data BinOp ann
+  = BinOpAdd ann
+  | BinOpSub ann
+  | BinOpMul ann
+  | BinOpDiv ann
+  | BinOpMod ann
+  | BinOpAnd ann
+  | BinOpOr ann
+  | BinOpLessThan ann
+  | BinOpLessThanOrEqual ann
+  | BinOpGreaterThan ann
+  | BinOpGreaterThanOrEqual ann
+  | BinOpEqual ann
+  | BinOpNotEqual ann
+  | BinOpConcat ann
+  | BinOpBitwiseAnd ann
+  | BinOpBitwiseOr ann
+  | BinOpBitwiseShiftLeft ann
+  | BinOpBitwiseShiftRight ann
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- Higher-level expression nodes
 
 data LambdaExpressionF ty expr ann = LambdaExpressionF
   { scopes :: Vector (ScopeIdentifier ann)
   , binders :: Vector (BinderF ty ann)
-  , result :: ty ann
+  , typeParamsAnn :: ann
   , effects :: Maybe (ty ann)
+  , effectsAnn :: ann
+  , result :: ty ann
+  , resultAnn :: ann
   , body :: expr ann
+  , bodyAnn :: ann
   , whereClauses :: Vector (WhereClauseF ty ann)
+  , whereClausesAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -89,27 +109,39 @@ data LambdaExpressionF ty expr ann = LambdaExpressionF
 
 data HandleExpressionF lhsExpr pat ty expr ann = HandleExpressionF
   { in_ :: Maybe (ty ann)
+  , inAnn :: ann
   , returning :: Maybe (HandleReturningF ty ann)
+  , returningAnn :: ann
   , handlers :: NonEmptyVector (HandlerSpecF lhsExpr pat ty expr ann)
+  , handlersAnn :: ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data HandlerSpecF lhsExpr pat ty expr ann = HandlerSpecF
   { effect :: ty ann
+  , effectAnn :: ann
   , returning :: Maybe (HandleReturningF ty ann)
+  , returningAnn :: ann
   , body :: NonEmptyVector (EffectItemDefinitionF lhsExpr pat ty expr ann)
+  , bodyAnn :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data HandleReturningF ty ann = HandleReturningF
   { binder :: ReturningBinderF ty ann
+  , binderAnn :: ann
   , result :: ty ann
+  , resultAnn :: ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data ReturningBinderF ty ann = ReturningBinderF
   { name :: SimpleVarIdentifier ann
+  , nameAnn :: ann
   , result :: ty ann
+  , resultAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -119,99 +151,66 @@ data ReturningBinderF ty ann = ReturningBinderF
 
 data FnCallF ty expr ann = FnCallF
   { callee :: expr ann
+  , calleeAnn :: ann
   , scopeParams :: Maybe (NonEmptyVector (ScopeIdentifier ann))
   , typeParams :: Maybe (NonEmptyVector (ty ann))
+  , typeParamsAnn :: ann
   , args :: Vector (Fields expr ann)
+  , argsAnn :: ann
   , withEffects :: Maybe (Vector (WithEffectsItem ty ann))
+  , withEffectsAnn :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data WithEffectsItem ty ann = WithEffectsItem
   { lhs :: Either (SimpleVarIdentifier ann) (ty ann)
+  , lhsAnn :: ann
   , rhs :: Either (SimpleVarIdentifier ann) (ty ann)
+  , rhsAnn :: ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show)
 
 instance (Functor ty) => Functor (WithEffectsItem ty) where
-  fmap f (WithEffectsItem lhs rhs) =
+  fmap f (WithEffectsItem{..}) =
     WithEffectsItem
       { lhs = case lhs of
           Left a -> Left (fmap f a)
           Right a -> Right (fmap f a)
+      , lhsAnn = f lhsAnn
       , rhs = case rhs of
           Left a -> Left (fmap f a)
           Right a -> Right (fmap f a)
+      , rhsAnn = f rhsAnn
+      , ann = f ann
       }
 
 instance (Foldable ty) => Foldable (WithEffectsItem ty) where
-  foldMap f (WithEffectsItem lhs rhs) = lhsFolded <> rhsFolded
-    where
-      lhsFolded = case lhs of
-        Left a -> foldMap f a
-        Right a -> foldMap f a
-      rhsFolded = case rhs of
-        Left a -> foldMap f a
-        Right a -> foldMap f a
+  foldMap f (WithEffectsItem{..}) = lhsFolded <> f lhsAnn <> rhsFolded <> f rhsAnn <> f ann
+   where
+    lhsFolded = case lhs of
+      Left a -> foldMap f a
+      Right a -> foldMap f a
+    rhsFolded = case rhs of
+      Left a -> foldMap f a
+      Right a -> foldMap f a
 
 instance (Traversable ty) => Traversable (WithEffectsItem ty) where
-  traverse f (WithEffectsItem lhs rhs) = liftA2 WithEffectsItem lhsTraversed rhsTraversed
-    where
-      lhsTraversed = case lhs of
-        Left a -> Left <$> traverse f a
-        Right a -> Right <$> traverse f a
-      rhsTraversed = case rhs of
-        Left a -> Left <$> traverse f a
-        Right a -> Right <$> traverse f a
-
-
--- Match and control flow
-
-data MatchExpression pat expr ann = MatchExpression
-  { value :: expr ann
-  , arms :: NonEmptyVector (MatchArm pat expr ann)
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-data MatchArm pat expr ann = MatchArm
-  { pattern :: pat ann
-  , guard :: Maybe (expr ann)
-  , expression :: expr ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-data IfExpression expr ann = IfExpression
-  { condition :: expr ann
-  , then_ :: expr ann
-  , else_ :: Maybe (expr ann)
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-data LoopExpression expr ann = LoopExpression
-  { label :: Maybe (SimpleVarIdentifier ann)
-  , body :: expr ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-data WhileExpression expr ann = WhileExpression
-  { label :: Maybe (SimpleVarIdentifier ann)
-  , condition :: expr ann
-  , body :: expr ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-data ForExpression pat expr ann = ForExpression
-  { label :: Maybe (SimpleVarIdentifier ann)
-  , pattern :: pat ann
-  , iterable :: expr ann
-  , body :: expr ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  traverse f (WithEffectsItem{..}) =
+    WithEffectsItem <$> lhsTraversed <*> f lhsAnn <*> rhsTraversed <*> f rhsAnn <*> f ann
+   where
+    lhsTraversed = case lhs of
+      Left a -> Left <$> traverse f a
+      Right a -> Right <$> traverse f a
+    rhsTraversed = case rhs of
+      Left a -> Left <$> traverse f a
+      Right a -> Right <$> traverse f a
 
 -- Effect handler item definitions, parameterized by callable body type
 data EffectItemDefinitionF lhsExpr pat ty expr ann
-  = EDefinitionLetF (LetDefinitionF pat ty expr ann)
-  | EDefinitionFnF (FnDefinitionF lhsExpr pat ty expr ann)
-  | EDefinitionFnInfixF (FnInfixDefinitionF lhsExpr pat ty expr ann)
-  | EDefinitionOpF (OpDefinitionF lhsExpr pat ty expr ann)
-  | EDefinitionOpInfixF (OpInfixDefinitionF lhsExpr pat ty expr ann)
+  = EDefinitionLetF (LetDefinitionF pat ty expr ann) ann
+  | EDefinitionFnF (FnDefinitionF lhsExpr pat ty expr ann) ann
+  | EDefinitionFnInfixF (FnInfixDefinitionF lhsExpr pat ty expr ann) ann
+  | EDefinitionOpF (OpDefinitionF lhsExpr pat ty expr ann) ann
+  | EDefinitionOpInfixF (OpInfixDefinitionF lhsExpr pat ty expr ann) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

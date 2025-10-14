@@ -5,7 +5,7 @@ module Flow.AST.Surface.Callable where
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
-import Flow.AST.Common (ScopeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (ScopeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
 import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
 

@@ -1,4 +1,4 @@
-module Flow.Parser.LexerSpec (spec) where
+module Flow.LexerSpec (spec) where
 
 import "base" Data.Word (Word8)
 import "bytestring" Data.ByteString (ByteString)
@@ -13,7 +13,7 @@ import "text" Data.Text (Text)
 import "vector" Data.Vector (Vector)
 import "vector" Data.Vector qualified as Vector
 
-import "flow-parser" Flow.Parser.Lexer
+import "flow-parser" Flow.Lexer
 
 spec :: Spec
 spec = do
@@ -236,6 +236,9 @@ punctuationSpec = describe "Punctuation" do
   it "parses '@'" $
     parse tokens "" "@" `shouldParse` singleToken (Punctuation At)
 
+  it "parses '.'" $
+    parse tokens "" ".." `shouldParse` singleToken (Punctuation DotDot)
+
   it "parses '..'" $
     parse tokens "" ".." `shouldParse` singleToken (Punctuation DotDot)
 
@@ -323,13 +326,13 @@ identifierSpec = describe "Identifiers" do
 dotIdentifierSpec :: Spec
 dotIdentifierSpec = describe "Dot identifiers" do
   it "parses simple dot identifier" $
-    parse tokens "" ".bar" `shouldParse` singleToken (DotIdentifier "bar")
+    parse tokens "" ".bar" `shouldParse` Vector.fromList [Punctuation Dot, Identifier "bar"]
 
   it "parses dot identifier with numbers" $
-    parse tokens "" ".bar123" `shouldParse` singleToken (DotIdentifier "bar123")
+    parse tokens "" ".bar123" `shouldParse` Vector.fromList [Punctuation Dot, Identifier "bar123"]
 
   it "parses dot tuple field identifier" $
-    parse tokens "" ".123" `shouldParse` singleToken (DotIdentifier "123")
+    parse tokens "" ".123" `shouldParse` Vector.fromList [Punctuation Dot, IntegerLiteral 123]
 
 -- | Test ref scopes
 refScopeSpec :: Spec
@@ -707,7 +710,8 @@ combinedTokensSpec = describe "Combined token sequences" do
         , Identifier "b"
         , Punctuation Star
         , Identifier "c"
-        , DotIdentifier "d"
+        , Punctuation Dot
+        , Identifier "d"
         , Punctuation LeftBracket
         , IntegerLiteral 0
         , Punctuation RightBracket

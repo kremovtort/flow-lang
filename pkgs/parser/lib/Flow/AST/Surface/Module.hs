@@ -3,7 +3,7 @@ module Flow.AST.Surface.Module where
 import "base" Prelude hiding (Enum)
 import "vector" Data.Vector (Vector)
 
-import Flow.AST.Common (ModuleIdentifier)
+import Flow.AST.Surface.Common (ModuleIdentifier)
 import Flow.AST.Surface.Constraint (TypeDefinitionF)
 import Flow.AST.Surface.Callable (FnDefinitionF, FnInfixDefinitionF, OpDefinitionF, OpInfixDefinitionF)
 import Flow.AST.Surface.Decl qualified as Decl
