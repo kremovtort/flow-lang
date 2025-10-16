@@ -146,3 +146,7 @@ eOfType expr ty = do
             ann
       , ann
       }
+
+-- | Top-level expression parser (stub for TDD phase)
+pExpression :: Parser (Expression Lexer.SourceRegion)
+pExpression = fail "Flow.Parser.Expr.pExpression: not implemented"

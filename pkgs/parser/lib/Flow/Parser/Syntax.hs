@@ -133,6 +133,10 @@ statement lhsExpr pat ty expr = do
     expr' <- forExpression pat expr
     pure $ SForF expr' expr'.ann
 
+-- | LHSExpression parser (stub)
+pLHSExpression :: Parser (LHSExpression Lexer.SourceRegion)
+pLHSExpression = fail "Flow.Parser.Syntax.pLHSExpression: not implemented"
+
 matchExpression ::
   Parser (Pattern Lexer.SourceRegion) ->
   Parser (Expression Lexer.SourceRegion) ->

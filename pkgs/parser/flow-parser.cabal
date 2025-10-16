@@ -46,7 +46,10 @@ library
     Flow.Parser
     Flow.Parser.Common
     Flow.Parser.Expr
+    Flow.Parser.Module
+    Flow.Parser.Pattern
     Flow.Parser.Syntax
+    Flow.Parser.Type
 
   build-depends:
     base ^>=4.21.0.0,
@@ -68,6 +71,12 @@ test-suite flow-parser-test
   default-language: GHC2024
   other-modules:
     Flow.LexerSpec
+    Flow.Parser.ExpressionSpec
+    Flow.Parser.Helpers
+    Flow.Parser.LHSExpressionSpec
+    Flow.Parser.ModuleSpec
+    Flow.Parser.PatternSpec
+    Flow.Parser.TypeSpec
 
   -- other-extensions:
   type: exitcode-stdio-1.0
