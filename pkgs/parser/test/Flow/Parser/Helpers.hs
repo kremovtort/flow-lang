@@ -1,6 +1,7 @@
 module Flow.Parser.Helpers where
 
 import "base" Data.Foldable (toList)
+import "base" Data.Functor (void)
 import "hspec" Test.Hspec (expectationFailure)
 import "megaparsec" Text.Megaparsec (parse)
 import "text" Data.Text (Text)
@@ -21,7 +22,7 @@ testParser ::
   IO ()
 testParser txt parser expected = do
   toks <- lexTokens txt
-  case parse (fmap (const ()) <$> parser) "<parser>" toks of
+  case parse (void <$> parser) "<parser>" toks of
     Left e ->
       case expected of
         Nothing -> pure ()

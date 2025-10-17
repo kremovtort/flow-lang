@@ -9,22 +9,21 @@ import "bytestring" Data.ByteString ()
 import "base" Data.Word ()
 import "base" Data.Char ()
 
-import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyTypeIdentifier)
+import Flow.AST.Surface.Common (SimpleVarIdentifier)
 import Flow.AST.Surface.Literal (Literal)
-import Flow.AST.Surface.Fields (Fields)
+import Flow.AST.Surface.Syntax (ConstructorApp)
 
-data PatternF pat ann
-  = PatternWildcardF ann
-  | PatternLiteralF (Literal ann) ann
-  | PatternVarF (SimpleVarIdentifier ann) ann
-  | PatternTupleF (NonEmptyVector (pat ann)) ann
-  | PatternConsF (ConstructorApp pat ann) ann
-  | PatternOrF (NonEmptyVector (pat ann)) ann
+data PatternF pat ty ann
+  = PatternSimpleF (PatternSimpleF pat ty ann) ann
+  | PatternOrF (NonEmptyVector (PatternSimpleF pat ty ann)) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data ConstructorApp a ann = ConstructorApp
-  { name :: AnyTypeIdentifier ann
-  , fields :: Fields a ann
-  , ann :: ann
-  }
+data PatternSimpleF pat ty ann
+  = PatternSimpleWildcardF ann
+  | PatternSimpleLiteralF (Literal ann) ann
+  | PatternSimpleVarF (SimpleVarIdentifier ann) ann
+  | PatternSimpleTupleF (NonEmptyVector (pat ann)) ann
+  | PatternSimpleConsF (ConstructorApp pat ty ann) ann
+  | PatternSimpleOfTypeF (pat ann) (ty ann) ann
+  | PatternSimpleAsF (pat ann) (SimpleVarIdentifier ann) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

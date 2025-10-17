@@ -36,7 +36,6 @@ library
     Flow.AST.Surface.Constraint
     Flow.AST.Surface.Decl
     Flow.AST.Surface.Expr
-    Flow.AST.Surface.Fields
     Flow.AST.Surface.Literal
     Flow.AST.Surface.Module
     Flow.AST.Surface.Pattern
@@ -89,6 +88,7 @@ test-suite flow-parser-test
     hspec,
     hspec-megaparsec,
     megaparsec,
+    nonempty-vector,
     scientific,
     text,
     vector,

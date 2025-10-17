@@ -13,7 +13,7 @@ data BinderF ty ann = BinderF -- A | A :< Monoid
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data BinderWoConstraintF ty ann = BinderWoConstraint
+data BinderWoConstraintF ty ann = BinderWoConstraintF
   { name :: SimpleTypeIdentifier ann
   , typeType :: Maybe (ty ann)
   , ann :: ann

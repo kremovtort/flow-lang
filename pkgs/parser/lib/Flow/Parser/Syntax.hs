@@ -5,7 +5,7 @@ import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
 import Data.Set qualified as Set
-import Flow.AST.Surface (Expression (..), LHSExpression (..), Pattern (..), Type (..))
+import Flow.AST.Surface (Expression (..), LHSExpression (..), Pattern (..), Type (..), PatternSimple (..))
 import Flow.AST.Surface.Common (SimpleVarIdentifier (..))
 import Flow.AST.Surface.Syntax
 import Flow.Lexer qualified as Lexer
@@ -13,13 +13,14 @@ import Flow.Parser.Common
 
 codeBlock ::
   Parser (LHSExpression Lexer.SourceRegion) ->
+  Parser (PatternSimple Lexer.SourceRegion) ->
   Parser (Pattern Lexer.SourceRegion) ->
   Parser (Type Lexer.SourceRegion) ->
   Parser (Expression Lexer.SourceRegion) ->
-  Parser (CodeBlockF LHSExpression Pattern Type Expression Lexer.SourceRegion)
-codeBlock lhsExpr pat ty expr = do
+  Parser (CodeBlockF LHSExpression PatternSimple Pattern Type Expression Lexer.SourceRegion)
+codeBlock lhsExpr simPat pat ty expr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
-  statements <- Megaparsec.many (statement lhsExpr pat ty expr)
+  statements <- Megaparsec.many (statement lhsExpr simPat pat ty expr)
   result <- Megaparsec.optional expr
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
   let ann = Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
@@ -27,11 +28,12 @@ codeBlock lhsExpr pat ty expr = do
 
 statement ::
   Parser (LHSExpression Lexer.SourceRegion) ->
+  Parser (PatternSimple Lexer.SourceRegion) ->
   Parser (Pattern Lexer.SourceRegion) ->
   Parser (Type Lexer.SourceRegion) ->
   Parser (Expression Lexer.SourceRegion) ->
-  Parser (StatementF LHSExpression Pattern Type Expression Lexer.SourceRegion)
-statement lhsExpr pat ty expr = do
+  Parser (StatementF LHSExpression PatternSimple Pattern Type Expression Lexer.SourceRegion)
+statement lhsExpr simPat pat ty expr = do
   Megaparsec.choice
     [ letStatement
     , assignStatement
@@ -49,7 +51,7 @@ statement lhsExpr pat ty expr = do
   letStatement = do
     letTok <- single (Lexer.Keyword Lexer.Let)
     mutTok <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
-    lhs <- pat
+    lhs <- simPat
     lhsType <- Megaparsec.optional do
       colonTok <- single (Lexer.Punctuation Lexer.Colon)
       ty' <- ty

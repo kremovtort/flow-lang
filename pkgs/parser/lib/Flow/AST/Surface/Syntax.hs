@@ -3,15 +3,15 @@ module Flow.AST.Surface.Syntax where
 import "base" Prelude hiding (Enum)
 import "vector" Data.Vector (Vector)
 
-import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyVarIdentifier)
+import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyVarIdentifier, AnyTypeIdentifier)
 import Data.Vector.NonEmpty (NonEmptyVector)
 
 data UnitF a = UnitF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- Statements and related nodes
-data StatementF lhsExpr pat ty expr ann
-  = SLetF (LetDefinitionF pat ty expr ann)
+data StatementF lhsExpr simPat pat ty expr ann
+  = SLetF (LetDefinitionF simPat ty expr ann)
   | SAssignF (AssignStatementF lhsExpr expr ann)
   | SReturnF (expr ann) ann
   | SContinueF (Maybe (SimpleVarIdentifier ann)) ann
@@ -24,9 +24,9 @@ data StatementF lhsExpr pat ty expr ann
   | SExpressionF (expr ann) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data LetDefinitionF pat ty expr ann = LetDefinitionF
+data LetDefinitionF simPat ty expr ann = LetDefinitionF
   { mutability :: Maybe ann
-  , lhs :: pat ann
+  , lhs :: simPat ann
   , lhsAnn :: ann
   , lhsType :: Maybe (ty ann, ann)
   , rhs :: expr ann
@@ -56,8 +56,8 @@ newtype LHSUnOpExpression expr ann
   = LHSUnOpExpressionDeref (expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data CodeBlockF lhsExpr pat ty expr ann = CodeBlock
-  { statements :: Vector (StatementF lhsExpr pat ty expr ann)
+data CodeBlockF lhsExpr simPat pat ty expr ann = CodeBlock
+  { statements :: Vector (StatementF lhsExpr simPat pat ty expr ann)
   , result :: Maybe (expr ann)
   , ann :: ann
   }
@@ -123,4 +123,17 @@ data ForExpression pat expr ann = ForExpression
   , bodyAnn :: ann
   , ann :: ann
   }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data ConstructorApp a ty ann = ConstructorApp
+  { name :: AnyTypeIdentifier ann
+  , params :: Maybe (Vector (ty ann), ann)
+  , fields :: Maybe (Fields a ann, ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data Fields inner ann
+  = FieldsTuple (Vector (inner ann)) ann
+  | FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann)) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

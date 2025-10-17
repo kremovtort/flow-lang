@@ -34,13 +34,22 @@ ref :: Maybe (C.ScopeIdentifier ()) -> Bool -> Surface.Type () -> Surface.Type (
 ref mscope mut inner =
   Surface.Type
     { ty =
-        Ty.TyRefF
-          Ty.RefF
-            { scope = mscope
-            , mutability = mut
-            , inner = inner
+      Ty.TyAppF Ty.AppF
+        { head = Surface.Type
+            { ty = Ty.TyRefF
+              Ty.RefF
+                { scope = mscope
+                , mutability = mut
+                , mutabilityAnn = ()
+                , ann = ()
+                }
             , ann = ()
             }
+        , headAnn = ()
+        , args = Vector.fromList [inner]
+        , argsAnn = ()
+        , ann = ()
+        }
     , ann = ()
     }
 
@@ -51,8 +60,11 @@ fnType args eff res =
         Ty.TyFnF
           Ty.FnF
             { args = Vector.fromList args
+            , argsAnn = ()
             , effects = eff
+            , effectsAnn = ()
             , result = res
+            , resultAnn = ()
             , ann = ()
             }
     , ann = ()
@@ -86,7 +98,7 @@ spec = describe "Type parser (minimal subset)" do
     let headT = simpleType "Option"
         i32T = builtin Ty.BuiltinI32
         app = Surface.Type
-          { ty = Ty.TyAppF Ty.AppF{head = headT, args = Vector.fromList [i32T], ann = ()}
+          { ty = Ty.TyAppF Ty.AppF{head = headT, headAnn = (), args = Vector.fromList [i32T], argsAnn = (), ann = ()}
           , ann = ()
           }
     testParser "Option<i32>" PType.pType (Just app)

@@ -10,10 +10,10 @@ data TypeF ty ann
   | TyIdentifierF (AnyTypeIdentifier ann) -- MyType
   | TyAppF (AppF ty ann) -- Option<A>
   | TyTupleF (Vector (ty ann)) ann -- (A, B, C)
-  | TyRefF (RefF ty ann) -- &'s T | &'s mut T | &T | &mut T
+  | TyRefF (RefF ann) -- &'s T | &'s mut T | &T | &mut T
   | TyForallF (ForallF ty ann) -- <A :< Monoid> fn(List<A>) -> A
   | TyFnF (FnF ty ann) -- fn(List<A>) -> A
-  | TyEffectRowF (EffectRowF ty ann) -- [IO, State<S>] | ['s, IO], | [IO, ..R, ..S, ..] | etc
+  | TyEffectRowF (EffectRowF ty ann) -- @[IO, State<S>] | @['s, IO] | @['s, IO, s: State<S>, ..R] | etc
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data Builtin
@@ -41,15 +41,17 @@ data Builtin
 
 data AppF ty ann = AppF -- Option<A>
   { head :: ty ann
+  , headAnn :: ann
   , args :: Vector (ty ann)
+  , argsAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data RefF ty ann = RefF -- &'s T | &'s mut T | &T | &mut T
+data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
   { scope :: Maybe (ScopeIdentifier ann)
   , mutability :: Bool
-  , inner :: ty ann
+  , mutabilityAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -57,16 +59,22 @@ data RefF ty ann = RefF -- &'s T | &'s mut T | &T | &mut T
 data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
   { scopes :: Vector (ScopeIdentifier ann)
   , binders :: Vector (BinderF ty ann)
+  , paramsAnn :: ann
   , result :: ty ann
+  , resultAnn :: ann
   , whereClauses :: Vector (WhereClauseF ty ann)
+  , whereAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data FnF ty ann = FnF -- fn(List<A>) -> A
   { args :: Vector (ty ann)
+  , argsAnn :: ann
   , effects :: Maybe (ty ann)
+  , effectsAnn :: ann
   , result :: ty ann
+  , resultAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

@@ -1,25 +1,21 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-module Flow.Parser where
 
-import "text" Data.Text (Text)
+module Flow.Parser where
 
 import Flow.AST.Surface qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common qualified as P
-import Flow.Parser.Type qualified as PType
 import Flow.Parser.Expr qualified as PExpr
-import Flow.Parser.Syntax qualified as PSyn
-import Flow.Parser.Pattern qualified as PPat
 import Flow.Parser.Module qualified as PMod
-import "megaparsec" Text.Megaparsec qualified as Megaparsec
-import "megaparsec" Text.Megaparsec (parse)
-import "text" Data.Text qualified as Text
-import "vector" Data.Vector qualified as Vector
+import Flow.Parser.Pattern qualified as PPat
+import Flow.Parser.Syntax qualified as PSyn
+import Flow.Parser.Type qualified as PType
 import "base" Data.Foldable (toList)
+import "megaparsec" Text.Megaparsec (parse)
+import "megaparsec" Text.Megaparsec qualified as Megaparsec
+import "text" Data.Text (Text)
 
 -- | Temporary public API stubs for TDD phase.
 -- Tests will call these; implementations will be provided later.
-
 parseModText :: Text -> Either String (Surface.Mod Lexer.SourceRegion)
 parseModText txt =
   case textToTokens txt of

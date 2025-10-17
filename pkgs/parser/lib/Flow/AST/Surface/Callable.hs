@@ -90,34 +90,34 @@ type OpInfixDeclarationF ty ann =
     UnitF
     ann
 
-type FnDefinitionF lhsExpr pat ty expr ann =
+type FnDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KFn
     'Plain
     ty
-    (CodeBlockF lhsExpr pat ty expr)
+    (CodeBlockF lhsExpr simPat pat ty expr)
     ann
 
-type FnInfixDefinitionF lhsExpr pat ty expr ann =
+type FnInfixDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KFn
     'Infix
     ty
-    (CodeBlockF lhsExpr pat ty expr)
+    (CodeBlockF lhsExpr simPat pat ty expr)
     ann
 
-type OpDefinitionF lhsExpr pat ty expr ann =
+type OpDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KOp
     'Plain
     ty
-    (CodeBlockF lhsExpr pat ty expr)
+    (CodeBlockF lhsExpr simPat pat ty expr)
     ann
 
-type OpInfixDefinitionF lhsExpr pat ty expr ann =
+type OpInfixDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KOp
     'Infix
     ty
-    (CodeBlockF lhsExpr pat ty expr)
+    (CodeBlockF lhsExpr simPat pat ty expr)
     ann

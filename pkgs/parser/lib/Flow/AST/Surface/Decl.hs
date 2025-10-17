@@ -16,8 +16,7 @@ import Flow.AST.Surface.Callable (
   OpInfixDefinitionF,
  )
 import Flow.AST.Surface.Constraint (BinderF, BinderWoConstraintF, TypeDefinitionF, WhereClauseF)
-import Flow.AST.Surface.Fields (Fields)
-import Flow.AST.Surface.Syntax (LetDefinitionF)
+import Flow.AST.Surface.Syntax (LetDefinitionF, Fields)
 import Flow.AST.Surface.Type (ForallF, TypeF)
 
 data StructF ty ann = StructF
@@ -60,67 +59,67 @@ data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data Trait lhsExpr pat ty expr ann = Trait
+data Trait lhsExpr simPat pat ty expr ann = Trait
   { name :: SimpleTypeIdentifier ann
   , scopeParams :: Vector (ScopeIdentifier ann)
   , typeParams :: Vector (BinderWoConstraintF ty ann)
   , superTraits :: Vector (ty ann)
-  , traitBody :: Vector (TraitItem lhsExpr pat ty expr ann)
+  , traitBody :: Vector (TraitItem lhsExpr simPat pat ty expr ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data TraitItem lhsExpr pat ty expr ann
+data TraitItem lhsExpr simPat pat ty expr ann
   = TItemTypeDeclaration (TypeDeclarationF ty ann)
   | TItemLetDeclaration (LetDeclarationF ty ann)
   | TItemFnDeclaration (FnDeclarationF ty ann)
   | TItemFnInfixDeclaration (FnInfixDeclarationF ty ann)
   | TItemOpDeclaration (OpDeclarationF ty ann)
   | TItemOpInfixDeclaration (OpInfixDeclarationF ty ann)
-  | TItemFnDefinition (FnDefinitionF lhsExpr pat ty expr ann)
-  | TItemFnInfixDefinition (FnInfixDefinitionF lhsExpr pat ty expr ann)
-  | TItemOpDefinition (OpDefinitionF lhsExpr pat ty expr ann)
-  | TItemOpInfixDefinition (OpInfixDefinitionF lhsExpr pat ty expr ann)
+  | TItemFnDefinition (FnDefinitionF lhsExpr simPat pat ty expr ann)
+  | TItemFnInfixDefinition (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
+  | TItemOpDefinition (OpDefinitionF lhsExpr simPat pat ty expr ann)
+  | TItemOpInfixDefinition (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data Impl lhsExpr pat ty expr ann = Impl
+data Impl lhsExpr simPat pat ty expr ann = Impl
   { scopeParams :: Vector (ScopeIdentifier ann)
   , typeParams :: Vector (BinderF ty ann)
   , trait :: TypeF ty ann
   , whereClauses :: Vector (WhereClauseF ty ann)
-  , body :: Vector (ImplItemF lhsExpr pat ty expr ann)
+  , body :: Vector (ImplItemF lhsExpr simPat pat ty expr ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data ImplItemF lhsExpr pat ty expr ann
+data ImplItemF lhsExpr simPat pat ty expr ann
   = ImplItemType (TypeDefinitionF ty ann)
-  | ImplItemLet (LetDefinitionF pat ty expr ann)
-  | ImplItemFn (FnDefinitionF lhsExpr pat ty expr ann)
-  | ImplItemFnInfix (FnInfixDefinitionF lhsExpr pat ty expr ann)
-  | ImplItemOp (OpDefinitionF lhsExpr pat ty expr ann)
-  | ImplItemOpInfix (OpInfixDefinitionF lhsExpr pat ty expr ann)
+  | ImplItemLet (LetDefinitionF simPat ty expr ann)
+  | ImplItemFn (FnDefinitionF lhsExpr simPat pat ty expr ann)
+  | ImplItemFnInfix (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
+  | ImplItemOp (OpDefinitionF lhsExpr simPat pat ty expr ann)
+  | ImplItemOpInfix (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data EffectF lhsExpr pat ty expr ann = EffectF
+data EffectF lhsExpr simPat pat ty expr ann = EffectF
   { name :: SimpleTypeIdentifier ann
   , scopeParams :: Vector (ScopeIdentifier ann)
   , typeParams :: Vector (BinderF ty ann)
   , superEffects :: Vector (ty ann)
   , whereClauses :: Vector (WhereClauseF ty ann)
-  , effectContent :: Vector (EffectItemDeclarationF lhsExpr pat ty expr ann)
+  , effectContent :: Vector (EffectItemDeclarationF lhsExpr simPat pat ty expr ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data EffectItemDeclarationF lhsExpr pat ty expr ann
+data EffectItemDeclarationF lhsExpr simPat pat ty expr ann
   = EItemLetDeclaration (LetDeclarationF ty ann)
   | EItemFn (FnDeclarationF ty ann)
   | EItemFnInfix (FnInfixDeclarationF ty ann)
   | EItemOp (OpDeclarationF ty ann)
   | EItemOpInfix (OpInfixDeclarationF ty ann)
-  | EItemFnDef (FnDefinitionF lhsExpr pat ty expr ann)
-  | EItemFnInfixDef (FnInfixDefinitionF lhsExpr pat ty expr ann)
-  | EItemOpDef (OpDefinitionF lhsExpr pat ty expr ann)
-  | EItemOpInfixDef (OpInfixDefinitionF lhsExpr pat ty expr ann)
+  | EItemFnDef (FnDefinitionF lhsExpr simPat pat ty expr ann)
+  | EItemFnInfixDef (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
+  | EItemOpDef (OpDefinitionF lhsExpr simPat pat ty expr ann)
+  | EItemOpInfixDef (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data TypeDeclarationF ty ann = TypeDeclarationF
