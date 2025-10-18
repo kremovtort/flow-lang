@@ -21,12 +21,12 @@ fn
   withLock<'o, A, X, R>(
     mutex: Mutex<A>,
     f: <'i> fn(&'i mut A) -> @['i, 'o, ..R] X
-  ) -> @R X {
+  ) -> @[Sync, ..R] X {
   ...
 }
 
 // доступ только к внутреннему mutability scope
-fn atomically<X>(action: <'i> fn() -> @['i, STM] X) -> @['global] X {
+fn atomically<X>(action: <'i> fn() -> @['i, STM] X) -> @[Sync] X {
   ...
 }
 
