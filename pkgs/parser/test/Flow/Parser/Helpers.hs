@@ -8,6 +8,7 @@ import "text" Data.Text (Text)
 
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser)
+import qualified Text.Megaparsec as Megaparsec
 
 lexTokens :: Text -> IO [Lexer.TokenWithSourceRegion]
 lexTokens s = case parse Lexer.tokensWithSourceRegion "<lex>" s of
@@ -22,7 +23,7 @@ testParser ::
   IO ()
 testParser txt parser expected = do
   toks <- lexTokens txt
-  case parse (void <$> parser) "<parser>" toks of
+  case parse (void <$> (parser <* Megaparsec.eof)) "<parser>" toks of
     Left e ->
       case expected of
         Nothing -> pure ()

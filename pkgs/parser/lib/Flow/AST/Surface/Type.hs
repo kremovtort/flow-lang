@@ -4,12 +4,13 @@ import "vector" Data.Vector (Vector)
 
 import Flow.AST.Surface.Common (ScopeIdentifier, AnyTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
+import Data.Vector.NonEmpty (NonEmptyVector)
 
 data TypeF ty ann
   = TyBuiltinF Builtin ann
   | TyIdentifierF (AnyTypeIdentifier ann) -- MyType
   | TyAppF (AppF ty ann) -- Option<A>
-  | TyTupleF (Vector (ty ann)) ann -- (A, B, C)
+  | TyTupleF (NonEmptyVector (ty ann)) ann -- (A, B, C)
   | TyRefF (RefF ann) -- &'s T | &'s mut T | &T | &mut T
   | TyForallF (ForallF ty ann) -- <A :< Monoid> fn(List<A>) -> A
   | TyFnF (FnF ty ann) -- fn(List<A>) -> A
@@ -42,7 +43,7 @@ data Builtin
 data AppF ty ann = AppF -- Option<A>
   { head :: ty ann
   , headAnn :: ann
-  , args :: Vector (ty ann)
+  , args :: NonEmptyVector (ty ann)
   , argsAnn :: ann
   , ann :: ann
   }
@@ -50,8 +51,7 @@ data AppF ty ann = AppF -- Option<A>
 
 data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
   { scope :: Maybe (ScopeIdentifier ann)
-  , mutability :: Bool
-  , mutabilityAnn :: ann
+  , mutability :: Maybe ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
@@ -71,8 +71,7 @@ data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
 data FnF ty ann = FnF -- fn(List<A>) -> A
   { args :: Vector (ty ann)
   , argsAnn :: ann
-  , effects :: Maybe (ty ann)
-  , effectsAnn :: ann
+  , effects :: Maybe (ty ann, ann)
   , result :: ty ann
   , resultAnn :: ann
   , ann :: ann
@@ -81,14 +80,13 @@ data FnF ty ann = FnF -- fn(List<A>) -> A
 
 data EffectRowF ty ann = EffectRowF
   { effects :: Vector (EffectAtomF ty ann)
-  , tailVar :: Maybe (SimpleVarIdentifier ann)
+  , tailVar :: Maybe (AnyTypeIdentifier ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data EffectAtomF ty ann
-  = EAtomNameF (SimpleVarIdentifier ann) ann -- e1
-  | EAtomTypeF (ty ann) ann -- E1
+  = EAtomTypeF (ty ann) ann -- E1
   | EAtomNameTypeF (SimpleVarIdentifier ann) (ty ann) ann -- e1: E1
   | EAtomScopeF (ScopeIdentifier ann) ann -- 's
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

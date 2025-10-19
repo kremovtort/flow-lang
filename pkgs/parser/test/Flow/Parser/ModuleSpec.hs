@@ -1,6 +1,7 @@
 module Flow.Parser.ModuleSpec (spec) where
 
 import "base" Data.Bifunctor qualified as Bifunctor
+import "base" Data.Maybe (fromJust)
 import "hspec" Test.Hspec (Spec, describe, it)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
 import "text" Data.Text (Text)
@@ -71,11 +72,12 @@ useClauseLeaf path =
         buildTree [segment] = M.UseTreeLeaf (modIdent segment)
         buildTree (segment : segments) =
           M.UseTreeBranch (modIdent segment) (buildTree segments)
-      in M.UseClause
-        { root = modIdent root
-        , tree = buildTree rest
-        , ann = ()
-        }
+       in
+        M.UseClause
+          { root = modIdent root
+          , tree = buildTree rest
+          , ann = ()
+          }
 
 useClauseAs :: [Text] -> Text -> M.UseClause ()
 useClauseAs path alias =
@@ -86,11 +88,12 @@ useClauseAs path alias =
         build [] = M.UseTreeLeafAs (modIdent root) (modIdent alias)
         build [segment] = M.UseTreeLeafAs (modIdent segment) (modIdent alias)
         build (segment : segments) = M.UseTreeBranch (modIdent segment) (build segments)
-      in M.UseClause
-        { root = modIdent root
-        , tree = build rest
-        , ann = ()
-        }
+       in
+        M.UseClause
+          { root = modIdent root
+          , tree = build rest
+          , ann = ()
+          }
 
 modDefUses :: Text -> [M.UseClause ()] -> Surface.Mod ()
 modDefUses name uses = modDef name uses []
@@ -177,7 +180,7 @@ letItem name ty expr =
       }
 
 tupleType :: [Surface.Type ()] -> Surface.Type ()
-tupleType tys = Surface.Type{ty = Ty.TyTupleF (Vector.fromList tys) (), ann = ()}
+tupleType tys = Surface.Type{ty = Ty.TyTupleF (fromJust $ NE.fromList tys) (), ann = ()}
 
 literalInt :: Integer -> Surface.Expression ()
 literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n ()) (), ann = ()}

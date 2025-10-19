@@ -91,7 +91,7 @@ simpleVarIdentifier = do
 
 anyTypeIdentifier :: Parser (AnyTypeIdentifier Lexer.SourceRegion)
 anyTypeIdentifier = do
-  qualifier <- Megaparsec.sepBy moduleIdentifier moduleSeparator
+  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
   identifier <- simpleTypeIdentifier
   pure $
     AnyTypeIdentifier
@@ -114,7 +114,7 @@ anyTypeIdentifier = do
 
 anyVarIdentifier :: Parser (AnyVarIdentifier Lexer.SourceRegion)
 anyVarIdentifier = do
-  qualifier <- Megaparsec.sepBy moduleIdentifier moduleSeparator
+  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
   identifier <- simpleVarIdentifier
   pure $
     AnyVarIdentifier
