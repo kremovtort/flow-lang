@@ -46,6 +46,7 @@ library
     Flow.Parser.Common
     Flow.Parser.Expr
     Flow.Parser.Module
+    Flow.Parser.Literal
     Flow.Parser.Pattern
     Flow.Parser.Syntax
     Flow.Parser.Type

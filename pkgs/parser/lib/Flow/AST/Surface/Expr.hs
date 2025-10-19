@@ -12,7 +12,7 @@ import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF,
-  ConstructorApp,
+  ConstructorAppF,
   ForExpression,
   IfExpression,
   LetDefinitionF,
@@ -24,27 +24,27 @@ import Flow.AST.Surface.Syntax (
 -- Expressions
 
 data ExpressionF lhsExpr simPat pat ty expr ann
-  = EWildcard ann -- _
-  | ELiteral (Literal ann) ann -- 0 | true | "str"
-  | EOfType (expr ann) (ty ann) ann -- expr : T
-  | EParens (expr ann) ann -- (expr)
-  | EVar (AnyVarIdentifier ann) ann -- ident | someModule::ident
-  | EIndex (expr ann) (expr ann) ann -- expr[index]
-  | EDotAccess (expr ann) (AnyVarIdentifier ann) ann -- expr.ident
-  | EFnCall (FnCallF ty expr ann) ann -- f(a, b) | f(arg1 = a, arg2 = b) | f<T>(a, b) | f() with { State<S> = e }
-  | EUnOp (UnOpExpression expr ann) ann -- -a | !a | *a | &a | &mut a | &'s mut a
-  | EBinOp (BinOpExpression expr ann) ann -- a * b | a + b | a ++ b | etc
-  | EConstructorAsFn (AnyTypeIdentifier ann) ann -- EnumVariant | Some | Cons
-  | EConstructorApp (ConstructorApp expr ty ann) ann -- EnumVariant | Some(1) | Cons { a = 1, b = 2 }
-  | ETuple (NonEmptyVector (expr ann)) ann -- (a, b, c)
-  | EMatch (MatchExpression pat expr ann) ann -- match expr { Pattern => expr, ... }
-  | EIf (IfExpression expr ann) ann -- if expr { then_ } else { else_ }
-  | ELoop (LoopExpression expr ann) ann -- loop { ... } | 'label: loop { ... }
-  | EWhile (WhileExpression expr ann) ann -- while expr { ... } | 'label: while expr { ... }
-  | EFor (ForExpression pat expr ann) ann -- for pattern in iterable { ... }
-  | EBlock (CodeBlockF lhsExpr simPat pat ty expr ann) ann -- { ... }
+  = EWildcard -- _
+  | ELiteral Literal -- 0 | true | "str"
+  | EOfType (expr ann) (ty ann) -- expr : T
+  | EParens (expr ann) -- (expr)
+  | EVar (AnyVarIdentifier ann) -- ident | someModule::ident
+  | EIndex (expr ann) (expr ann) -- expr[index]
+  | EDotAccess (expr ann) (AnyVarIdentifier ann) -- expr.ident
+  | EFnCall (FnCallF ty expr ann) -- f(a, b) | f(arg1 = a, arg2 = b) | f<T>(a, b) | f() with { State<S> = e }
+  | EUnOp (UnOpExpression expr ann) -- -a | !a | *a | &a | &mut a | &'s mut a
+  | EBinOp (BinOpExpression expr ann) -- a * b | a + b | a ++ b | etc
+  | EConstructorAsFn (AnyTypeIdentifier ann) -- EnumVariant | Some | Cons
+  | EConstructorApp (ConstructorAppF expr ty ann) -- EnumVariant | Some(1) | Cons { a = 1, b = 2 }
+  | ETuple (NonEmptyVector (expr ann)) -- (a, b, c)
+  | EMatch (MatchExpression pat expr ann) -- match expr { Pattern => expr, ... }
+  | EIf (IfExpression expr ann) -- if expr { then_ } else { else_ }
+  | ELoop (LoopExpression expr ann) -- loop { ... } | 'label: loop { ... }
+  | EWhile (WhileExpression expr ann) -- while expr { ... } | 'label: while expr { ... }
+  | EFor (ForExpression pat expr ann) -- for pattern in iterable { ... }
+  | EBlock (CodeBlockF lhsExpr simPat pat ty expr ann) -- { ... }
   | EHandle (HandleExpressionF lhsExpr simPat pat ty expr ann) -- handle Effect
-  | ELambda (LambdaExpressionF ty expr ann) ann -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
+  | ELambda (LambdaExpressionF ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 -- Pieces used by both Expr and Stmt

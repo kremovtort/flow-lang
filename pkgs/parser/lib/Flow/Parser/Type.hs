@@ -25,6 +25,7 @@ pTypeAtom =
     , (\r -> Surface.Type{ty = Surface.TyRefF r, ann = r.ann}) <$> tyRef
     , (\fn -> Surface.Type{ty = Surface.TyFnF fn, ann = fn.ann}) <$> tyFn pType
     , (\(row, ann) -> Surface.Type{ty = Surface.TyEffectRowF row, ann}) <$> tyEffectRow pType
+    -- TODO: forall
     ]
 
 -- Top-level type parser: parse an atom, then optionally parse application(s)

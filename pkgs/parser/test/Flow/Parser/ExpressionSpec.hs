@@ -19,10 +19,10 @@ import Flow.Parser.Helpers (testParser)
 type Statement = Syn.StatementF Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
 
 wildcard :: Surface.Expression ()
-wildcard = Surface.Expression{expr = Expr.EWildcard (), ann = ()}
+wildcard = Surface.Expression{expr = Expr.EWildcard, ann = ()}
 
 literalInt :: Integer -> Surface.Expression ()
-literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n ()) (), ann = ()}
+literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n), ann = ()}
 
 var :: Text -> Surface.Expression ()
 var name =
@@ -36,20 +36,19 @@ var name =
             , identifierAnn = ()
             , ann = ()
             }
-          ()
     , ann = ()
     }
 
 parens :: Surface.Expression () -> Surface.Expression ()
-parens inner = Surface.Expression{expr = Expr.EParens inner (), ann = ()}
+parens inner = Surface.Expression{expr = Expr.EParens inner, ann = ()}
 
 unOp :: Expr.UnOp () -> Surface.Expression () -> Surface.Expression ()
-unOp op expr = Surface.Expression{expr = Expr.EUnOp Expr.UnOpExpression{op, operand = expr, ann = ()} (), ann = ()}
+unOp op expr = Surface.Expression{expr = Expr.EUnOp Expr.UnOpExpression{op, operand = expr, ann = ()}, ann = ()}
 
 binOp :: Expr.BinOp () -> Surface.Expression () -> Surface.Expression () -> Surface.Expression ()
 binOp op l r =
   Surface.Expression
-    { expr = Expr.EBinOp Expr.BinOpExpression{op, left = l, right = r, ann = ()} ()
+    { expr = Expr.EBinOp Expr.BinOpExpression{op, left = l, right = r, ann = ()}
     , ann = ()
     }
 
@@ -58,7 +57,7 @@ tupleExpr exprs =
   let neVec = case NE.fromList exprs of
         Nothing -> error "Expected non-empty tuple"
         Just v -> v
-  in Surface.Expression{expr = Expr.ETuple neVec (), ann = ()}
+  in Surface.Expression{expr = Expr.ETuple neVec, ann = ()}
 
 callUnnamed :: Text -> [Surface.Expression ()] -> Surface.Expression ()
 callUnnamed fname args =
@@ -76,7 +75,6 @@ callUnnamed fname args =
             , withEffects = Nothing
             , withEffectsAnn = ()
             }
-          ()
     , ann = ()
     }
 
@@ -106,7 +104,6 @@ callNamed fname args =
             , withEffects = Nothing
             , withEffectsAnn = ()
             }
-          ()
     , ann = ()
     }
 
@@ -126,7 +123,6 @@ callWithParams fname scopes types args =
             , withEffects = Nothing
             , withEffectsAnn = ()
             }
-          ()
     , ann = ()
     }
 
@@ -159,17 +155,16 @@ dotExpr base field =
             , identifierAnn = ()
             , ann = ()
             }
-          ()
     , ann = ()
     }
 
 indexExpr :: Surface.Expression () -> Surface.Expression () -> Surface.Expression ()
-indexExpr arr idx = Surface.Expression{expr = Expr.EIndex arr idx (), ann = ()}
+indexExpr arr idx = Surface.Expression{expr = Expr.EIndex arr idx, ann = ()}
 
 patternSimpleVar :: Text -> Surface.PatternSimple ()
 patternSimpleVar name =
   Surface.PatternSimple
-    { patternSimple = Pat.PatternSimpleVarF (C.SimpleVarIdentifier{name, ann = ()}) ()
+    { patternSimple = Pat.PatternSimpleVarF (C.SimpleVarIdentifier{name, ann = ()})
     , ann = ()
     }
 
@@ -196,7 +191,6 @@ blockExpr stmts resultExpr =
             , result = resultExpr
             , ann = ()
             }
-          ()
     , ann = ()
     }
 

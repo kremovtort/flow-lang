@@ -125,7 +125,7 @@ data ForExpression pat expr ann = ForExpression
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data ConstructorApp a ty ann = ConstructorApp
+data ConstructorAppF a ty ann = ConstructorAppF
   { name :: AnyTypeIdentifier ann
   , params :: Maybe (Vector (ty ann), ann)
   , fields :: Maybe (Fields a ann, ann)
@@ -134,6 +134,6 @@ data ConstructorApp a ty ann = ConstructorApp
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data Fields inner ann
-  = FieldsTuple (Vector (inner ann)) ann
-  | FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann)) ann
+  = FieldsTuple (Vector (inner ann, ann))
+  | FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann, ann))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

@@ -51,14 +51,16 @@ lhsDeref expr =
 exprVar :: Text -> Surface.Expression ()
 exprVar name =
   Surface.Expression
-    { expr = Surface.EVar C.AnyVarIdentifier
-        { qualifier = mempty
-        , qualifierAnn = Nothing
-        , identifier = C.SimpleVarIdentifier{name, ann = ()}
-        , identifierAnn = ()
-        , ann = ()
-        }
-      ()
+    { expr =
+        Surface.EVar
+          ( C.AnyVarIdentifier
+              { qualifier = mempty
+              , qualifierAnn = Nothing
+              , identifier = C.SimpleVarIdentifier{name, ann = ()}
+              , identifierAnn = ()
+              , ann = ()
+              }
+          )
     , ann = ()
     }
 

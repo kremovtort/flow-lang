@@ -34,15 +34,6 @@ parseTypeText txt =
         Left e -> Left (show e)
         Right r -> Right r
 
-parsePatternText :: Text -> Either String (Surface.Pattern Lexer.SourceRegion)
-parsePatternText txt =
-  case textToTokens txt of
-    Left err -> Left err
-    Right toks ->
-      case parse PPat.pPattern "<pattern>" toks of
-        Left e -> Left (show e)
-        Right r -> Right r
-
 parseLhsExprText :: Text -> Either String (Surface.LHSExpression Lexer.SourceRegion)
 parseLhsExprText txt =
   case textToTokens txt of

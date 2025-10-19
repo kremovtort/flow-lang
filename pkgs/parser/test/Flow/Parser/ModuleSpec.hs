@@ -171,7 +171,7 @@ letItem name ty expr =
   M.ModuleItemLet
     Syn.LetDefinitionF
       { mutability = Nothing
-      , lhs = Surface.PatternSimple (Pat.PatternSimpleVarF (simpleVar name) ()) ()
+      , lhs = Surface.PatternSimple (Pat.PatternSimpleVarF (simpleVar name)) ()
       , lhsAnn = ()
       , lhsType = Just (ty, ())
       , rhs = expr
@@ -183,7 +183,7 @@ tupleType :: [Surface.Type ()] -> Surface.Type ()
 tupleType tys = Surface.Type{ty = Ty.TyTupleF (fromJust $ NE.fromList tys) (), ann = ()}
 
 literalInt :: Integer -> Surface.Expression ()
-literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n ()) (), ann = ()}
+literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n), ann = ()}
 
 rootModuleName :: Text
 rootModuleName = "_"

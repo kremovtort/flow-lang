@@ -5,112 +5,20 @@ import "megaparsec" Text.Megaparsec qualified as Megaparsec
 
 import Flow.AST.Surface (Expression (..), Type (..))
 import Flow.AST.Surface.Expr
-import Flow.AST.Surface.Literal
+    ( ExpressionF(..) )
+import Flow.Parser.Literal (literal)
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common
+import Flow.Parser.Common ( Parser, single )
 
 eWildcard :: Parser (Expression Lexer.SourceRegion)
 eWildcard = do
   tok <- single (Lexer.Punctuation Lexer.Underscore)
-  pure $ Expression{expr = EWildcard tok.payload, ann = tok.payload}
+  pure $ Expression{expr = EWildcard, ann = tok.payload}
 
 eLiteral :: Parser (Expression Lexer.SourceRegion)
 eLiteral = do
-  Megaparsec.choice [unit, bool, integer, float, byte, byteString, char, string]
- where
-  unit = do
-    tok <- single (Lexer.Punctuation Lexer.LeftRightParen)
-    pure $ Expression{expr = ELiteral (LitUnit tok.payload) tok.payload, ann = tok.payload}
-  bool = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "bool literal")
-        \case
-            Lexer.BoolLiteral b -> Just b
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitBool tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
-
-  integer = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "integer literal")
-        \case
-            Lexer.IntegerLiteral i -> Just i
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitInteger tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
-
-  float = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "float literal")
-        \case
-            Lexer.FloatLiteral f -> Just f
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitFloat tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
-
-  byte = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "byte literal")
-        \case
-            Lexer.ByteLiteral b -> Just b
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitByte tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
-
-  byteString = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "byte string literal")
-        \case
-            Lexer.ByteStringLiteral b -> Just b
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitByteString tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
-
-  char = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "char literal")
-        \case
-            Lexer.CharLiteral c -> Just c
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitChar tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
-
-  string = do
-    tok <-
-      token
-        (Set.singleton $ Megaparsec.Label "string literal")
-        \case
-            Lexer.StringLiteral s -> Just s
-            _ -> Nothing
-    pure $
-      Expression
-        { expr = ELiteral (LitString tok.token tok.payload) tok.payload
-        , ann = tok.payload
-        }
+  (lit, ann) <- literal
+  pure $ Expression{expr = ELiteral lit, ann}
 
 eParens ::
   Parser (Expression Lexer.SourceRegion) ->
@@ -122,10 +30,7 @@ eParens expr = do
   let ann = Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
   pure $
     Expression
-      { expr =
-          EParens
-            expr'
-            ann
+      { expr = EParens expr'
       , ann
       }
 
@@ -139,11 +44,7 @@ eOfType expr ty = do
   let ann = Lexer.SourceRegion{start = expr'.ann.start, end = ty'.ann.end}
   pure $
     Expression
-      { expr =
-          EOfType
-            expr'
-            ty'
-            ann
+      { expr = EOfType expr' ty'
       , ann
       }
 
