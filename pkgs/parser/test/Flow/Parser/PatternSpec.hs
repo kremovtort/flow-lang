@@ -1,6 +1,5 @@
 module Flow.Parser.PatternSpec (spec) where
 
-import "base" Data.Bifunctor qualified as Bifunctor
 import "base" Data.Functor ((<&>))
 import "base" Data.List.NonEmpty qualified as ListNE
 import "hspec" Test.Hspec (Spec, describe, it)
@@ -8,19 +7,20 @@ import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
 import "text" Data.Text (Text)
 import "vector" Data.Vector qualified as Vector
 
+import Data.Maybe (fromJust)
 import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as C
+import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Literal qualified as Lit
 import Flow.AST.Surface.Pattern qualified as Pat
-import Flow.AST.Surface.Syntax qualified as Syn
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser)
 import Flow.Parser.Helpers (testParser)
 import Flow.Parser.Pattern qualified as PPat
 
-pPatternSimple :: Parser (Surface.PatternSimple Lexer.SourceRegion, Lexer.SourceRegion)
-pPatternSimple = PPat.pPatternSimple pPatternSimple <&> \(simpleF, ann) ->
-  (Surface.PatternSimple simpleF ann, ann)
+pPatternSimple :: Parser (Surface.PatternSimple Lexer.SourceRegion)
+pPatternSimple =
+  PPat.pPatternSimple pPatternSimple (fail "anyType") <&> uncurry Surface.PatternSimple
 
 anyType :: C.SimpleTypeIdentifier () -> C.AnyTypeIdentifier ()
 anyType ident =
@@ -45,49 +45,90 @@ wrapSimple simple =
     }
 
 wildcardPattern :: Surface.PatternSimple ()
-wildcardPattern = wrapSimple Pat.PatternSimpleWildcardF
+wildcardPattern = wrapSimple Pat.PatSimWildcardF
 
 literalBoolPattern :: Bool -> Surface.PatternSimple ()
 literalBoolPattern value =
-  wrapSimple (Pat.PatternSimpleLiteralF (Lit.LitBool value))
+  wrapSimple (Pat.PatSimLiteralF (Lit.LitBool value))
 
 literalIntPattern :: Integer -> Surface.PatternSimple ()
 literalIntPattern value =
-  wrapSimple (Pat.PatternSimpleLiteralF (Lit.LitInteger value))
+  wrapSimple (Pat.PatSimLiteralF (Lit.LitInteger value))
 
 varPattern :: Text -> Surface.PatternSimple ()
-varPattern name = wrapSimple (Pat.PatternSimpleVarF (mkVar name))
+varPattern name =
+  wrapSimple
+    ( Pat.PatSimVarF
+        ( Pat.PatternVariableF
+            { mut = Nothing
+            , name = mkVar name
+            , ann = ()
+            }
+        )
+    )
 
 tuplePattern :: [Surface.PatternSimple ()] -> Surface.PatternSimple ()
-tuplePattern ps = wrapSimple (Pat.PatternSimpleTupleF (requireVector "tuplePattern" ps))
+tuplePattern ps = wrapSimple (Pat.PatSimTupleF (requireVector "tuplePattern" ps))
 
 constructorPattern ::
   Text ->
   Maybe [C.SimpleTypeIdentifier ()] ->
-  Maybe (Syn.Fields Surface.PatternSimple ()) ->
+  Maybe (Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()) ->
   Surface.PatternSimple ()
 constructorPattern name params fields =
   wrapSimple
-    ( Pat.PatternSimpleConsF
-        Syn.ConstructorAppF
+    ( Pat.PatSimConstructorAppF
+        Pat.PatternConsturctorAppF
           { name = anyType C.SimpleTypeIdentifier{name, ann = ()}
-          , params = fmap ((,()) . Vector.fromList) params
-          , fields = fmap (,()) fields
+          , typeParams =
+              params <&> \params' ->
+                Surface.BindersF
+                  { scopes = mempty
+                  , types =
+                      Vector.fromList $
+                        params' <&> \param'' ->
+                          Surface.BinderWoConstraintF
+                            { name = param''
+                            , typeType = Nothing
+                            , ann = ()
+                            }
+                  , ann = ()
+                  }
+          , fields = (,()) <$> fields
           , ann = ()
           }
     )
 
-fieldsTuple :: [Surface.PatternSimple ()] -> Syn.Fields Surface.PatternSimple ()
-fieldsTuple ps = Syn.FieldsTuple (Vector.fromList (map (,()) ps))
+fieldsTuple ::
+  [Surface.PatternSimple ()] ->
+  Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()
+fieldsTuple ps =
+  Pat.PatFldsUnnamedF
+    ( requireVector
+        "fieldsTuple"
+        ( ps <&> \p ->
+            Pat.PatternFieldUnnamedF
+              { value = p
+              , optional = Nothing
+              , ann = ()
+              }
+        )
+    )
 
-fieldsNamed :: [(Text, Surface.PatternSimple ())] -> Syn.Fields Surface.PatternSimple ()
+fieldsNamed ::
+  [(Text, Surface.PatternSimple ())] ->
+  Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()
 fieldsNamed ps =
   let mapped =
-        map (\(a, b) -> (a, b, ())) $
-          fmap
-            (Bifunctor.first mkVar)
-            ps
-   in Syn.FieldsNamed (Vector.fromList mapped)
+        ps <&> \(a, b) ->
+          Pat.PatFldNmdValueF $
+            Pat.PatternFieldNamedValueF
+              { name = mkVar a
+              , optional = Nothing
+              , value = b
+              , ann = ()
+              }
+   in Pat.PatFldsNamedF (fromJust $ NE.fromList mapped)
 
 requireList :: String -> [a] -> ListNE.NonEmpty a
 requireList label [] = error (label <> ": expected non-empty list")
@@ -99,16 +140,16 @@ requireVector label = NE.fromNonEmpty . requireList label
 spec :: Spec
 spec = describe "Pattern parser (minimal subset)" do
   it "parses wildcard _" do
-    testParser "_" (fst <$> pPatternSimple) (Just wildcardPattern)
+    testParser "_" pPatternSimple (Just wildcardPattern)
 
   it "parses literal true" do
-    testParser "true" (fst <$> pPatternSimple) (Just (literalBoolPattern True))
+    testParser "true" pPatternSimple (Just (literalBoolPattern True))
 
   it "parses variable x" do
-    testParser "x" (fst <$> pPatternSimple) (Just (varPattern "x"))
+    testParser "x" pPatternSimple (Just (varPattern "x"))
 
   it "parses tuple (x, y)" do
-    testParser "(x, y)" (fst <$> pPatternSimple) (Just (tuplePattern [varPattern "x", varPattern "y"]))
+    testParser "(x, y)" pPatternSimple (Just (tuplePattern [varPattern "x", varPattern "y"]))
 
   it "parses constructor Some(1)" do
     let expected =
@@ -116,7 +157,7 @@ spec = describe "Pattern parser (minimal subset)" do
             "Some"
             Nothing
             (Just (fieldsTuple [literalIntPattern 1]))
-    testParser "Some(1)" (fst <$> pPatternSimple) (Just expected)
+    testParser "Some(1)" pPatternSimple (Just expected)
 
   it "parses constructor with named fields Cons { head = 1, tail = xs }" do
     let expected =
@@ -130,4 +171,12 @@ spec = describe "Pattern parser (minimal subset)" do
                     ]
                 )
             )
-    testParser "Cons { head = 1, tail = xs }" (fst <$> pPatternSimple) (Just expected)
+    testParser "Cons { head = 1, tail = xs }" pPatternSimple (Just expected)
+
+  it "parses constructor with fields punning Cons { head, tail }" do
+    let expected =
+          constructorPattern
+            "Cons"
+            Nothing
+            (Just (fieldsNamed [("head", literalIntPattern 1), ("tail", varPattern "xs")]))
+    testParser "Cons { head, tail }" pPatternSimple (Just expected)

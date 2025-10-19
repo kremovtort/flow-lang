@@ -5,19 +5,20 @@ module Flow.AST.Surface.Callable where
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
-import Flow.AST.Surface.Common (ScopeIdentifier, SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
+import Flow.AST.Surface.Common (SimpleVarIdentifier)
+import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereClauseF, WhereBlockF)
 import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
+import Data.Vector.NonEmpty (NonEmptyVector)
 
 data CallKind = KFn | KOp
 data Fixity = Plain | Infix
 
 -- | Receiver header for infix calls
 data ReceiverHeader ty ann = ReceiverHeader
-  { calleeScopeParams :: Vector (ScopeIdentifier ann)
-  , calleeTypeParams :: Vector (BinderF ty ann)
-  , calleeName :: SimpleVarIdentifier ann
-  , calleeType :: ty ann
+  { typeParams :: Maybe (BindersWConstraintsF ty ann)
+  , name :: SimpleVarIdentifier ann
+  , type_ :: ty ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -25,17 +26,19 @@ data ReceiverHeader ty ann = ReceiverHeader
 data CallableHeader ty reciever ann = CallableHeader
   { receiver :: reciever ann
   , name :: SimpleVarIdentifier ann
-  , scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderF ty ann)
-  , args :: Vector (SimpleVarIdentifier ann, ty ann)
-  , effects :: Maybe (ty ann)
-  , result :: Maybe (ty ann)
-  , whereClauses :: Vector (WhereClauseF ty ann)
+  , typeParams :: Maybe (BindersWConstraintsF ty ann)
+  , argsRequired :: Vector (ArgF ty ann)
+  , argsRequiredAnn :: ann
+  , argsOptional :: Vector (ArgF ty ann)
+  , argsOptionalAnn :: ann
+  , effects :: Maybe (ty ann, ann)
+  , result :: Maybe (ty ann, ann)
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data RecieverF (fixity :: Fixity) ty ann where
-  RecieverFPlain :: () -> RecieverF Plain ty ann
+  RecieverFPlain :: RecieverF Plain ty ann
   RecieverFInfix :: ReceiverHeader ty ann -> RecieverF Infix ty ann
 
 deriving instance (Show ann, Show (ty ann)) => Show (RecieverF f ty ann)
@@ -44,6 +47,14 @@ deriving instance (Ord ann, Ord (ty ann)) => Ord (RecieverF f ty ann)
 deriving instance (Functor ty) => Functor (RecieverF fixity ty)
 deriving instance (Foldable ty) => Foldable (RecieverF fixity ty)
 deriving instance (Traversable ty) => Traversable (RecieverF fixity ty)
+
+data ArgF ty ann = ArgF
+  { mut :: Maybe ann
+  , name :: SimpleVarIdentifier ann
+  , type_ :: ty ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data
   CallableF

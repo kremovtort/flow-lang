@@ -8,7 +8,7 @@ import "base" Prelude hiding (Enum)
 
 import Flow.AST.Surface.Callable
 import Flow.AST.Surface.Common (AnyTypeIdentifier, AnyVarIdentifier, ScopeIdentifier, SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
+import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF,
@@ -97,18 +97,14 @@ data BinOp ann
 -- Higher-level expression nodes
 
 data LambdaExpressionF ty expr ann = LambdaExpressionF
-  { scopes :: Vector (ScopeIdentifier ann)
-  , binders :: Vector (BinderF ty ann)
-  , typeParamsAnn :: ann
+  { typeParams :: Maybe (BindersWConstraintsF ty ann)
   , effects :: Maybe (ty ann)
   , effectsAnn :: ann
   , result :: ty ann
   , resultAnn :: ann
   , body :: expr ann
   , bodyAnn :: ann
-  , whereClauses :: Vector (WhereClauseF ty ann)
-  , whereClausesAnn :: ann
-  , ann :: ann
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 

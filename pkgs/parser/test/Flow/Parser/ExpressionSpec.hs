@@ -1,9 +1,9 @@
 module Flow.Parser.ExpressionSpec (spec) where
 
 import "hspec" Test.Hspec (Spec, describe, it)
+import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
 import "text" Data.Text (Text)
 import "vector" Data.Vector qualified as Vector
-import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
 
 import Data.Bifunctor qualified as Bifunctor
 import Flow.AST.Surface qualified as Surface
@@ -57,7 +57,7 @@ tupleExpr exprs =
   let neVec = case NE.fromList exprs of
         Nothing -> error "Expected non-empty tuple"
         Just v -> v
-  in Surface.Expression{expr = Expr.ETuple neVec, ann = ()}
+   in Surface.Expression{expr = Expr.ETuple neVec, ann = ()}
 
 callUnnamed :: Text -> [Surface.Expression ()] -> Surface.Expression ()
 callUnnamed fname args =
@@ -132,13 +132,15 @@ scopeIdent name = C.ScopeIdentifier{name, ann = ()}
 typeVar :: Text -> Surface.Type ()
 typeVar name =
   Surface.Type
-    { ty = Ty.TyIdentifierF C.AnyTypeIdentifier
-        { qualifier = Vector.empty
-        , qualifierAnn = Nothing
-        , identifier = C.SimpleTypeIdentifier{name, ann = ()}
-        , identifierAnn = ()
-        , ann = ()
-        }
+    { ty =
+        Ty.TyIdentifierF
+          C.AnyTypeIdentifier
+            { qualifier = Vector.empty
+            , qualifierAnn = Nothing
+            , identifier = C.SimpleTypeIdentifier{name, ann = ()}
+            , identifierAnn = ()
+            , ann = ()
+            }
     , ann = ()
     }
 
@@ -161,10 +163,17 @@ dotExpr base field =
 indexExpr :: Surface.Expression () -> Surface.Expression () -> Surface.Expression ()
 indexExpr arr idx = Surface.Expression{expr = Expr.EIndex arr idx, ann = ()}
 
-patternSimpleVar :: Text -> Surface.PatternSimple ()
-patternSimpleVar name =
+patternSimpleVar :: Bool -> Text -> Surface.PatternSimple ()
+patternSimpleVar mut name =
   Surface.PatternSimple
-    { patternSimple = Pat.PatternSimpleVarF (C.SimpleVarIdentifier{name, ann = ()})
+    { patternSimple =
+        Pat.PatSimVarF
+          ( Pat.PatternVariableF
+              { mut = if mut then Just () else Nothing
+              , name = C.SimpleVarIdentifier{name, ann = ()}
+              , ann = ()
+              }
+          )
     , ann = ()
     }
 
@@ -172,8 +181,7 @@ letStatement :: Text -> Surface.Expression () -> Statement ()
 letStatement name rhsExpr =
   Syn.SLetF
     Syn.LetDefinitionF
-      { mutability = Nothing
-      , lhs = patternSimpleVar name
+      { lhs = patternSimpleVar False name
       , lhsAnn = ()
       , lhsType = Nothing
       , rhs = rhsExpr
@@ -228,9 +236,9 @@ spec = describe @() "Expression parser (minimal subset)" do
             (binOp (Expr.BinOpMul ()) (literalInt 2) (literalInt 3))
     testParser "1 + 2 * 3" PExpr.pExpression (Just expected)
 
-  it "parses calls f(a, b) and with named args f(x = 1, y = 2)" do
+  it "parses calls f(a, b) and with named args f { x = 1, y = 2 }" do
     testParser "f(a, b)" PExpr.pExpression (Just (callUnnamed "f" [var "a", var "b"]))
-    testParser "f(x = 1, y = 2)" PExpr.pExpression (Just (callNamed "f" [("x", literalInt 1), ("y", literalInt 2)]))
+    testParser "f { x = 1, y = 2 }" PExpr.pExpression (Just (callNamed "f" [("x", literalInt 1), ("y", literalInt 2)]))
 
   it "parses call with type/scope params f<'s, T>(a)" do
     let expected = callWithParams "f" [scopeIdent "s"] [typeVar "T"] [var "a"]

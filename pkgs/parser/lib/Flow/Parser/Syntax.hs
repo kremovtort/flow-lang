@@ -50,7 +50,6 @@ statement lhsExpr simPat pat ty expr = do
  where
   letStatement = do
     letTok <- single (Lexer.Keyword Lexer.Let)
-    mutTok <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
     lhs <- simPat
     lhsType <- Megaparsec.optional do
       colonTok <- single (Lexer.Punctuation Lexer.Colon)
@@ -66,7 +65,6 @@ statement lhsExpr simPat pat ty expr = do
           { lhs = lhs
           , lhsAnn = lhs.ann
           , lhsType = lhsType
-          , mutability = (.payload) <$> mutTok
           , rhs = rhs
           , rhsAnn = rhs.ann
           , ann = ann

@@ -1,10 +1,9 @@
 module Flow.AST.Surface.Type where
 
-import "vector" Data.Vector (Vector)
-
-import Flow.AST.Surface.Common (ScopeIdentifier, AnyTypeIdentifier, SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (BinderF, WhereClauseF)
 import Data.Vector.NonEmpty (NonEmptyVector)
+import Flow.AST.Surface.Common (AnyTypeIdentifier, ScopeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
+import "vector" Data.Vector (Vector)
 
 data TypeF ty ann
   = TyBuiltinF Builtin ann
@@ -57,12 +56,11 @@ data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
-  { scopes :: Vector (ScopeIdentifier ann)
-  , binders :: Vector (BinderF ty ann)
+  { params :: BindersWConstraintsF ty ann
   , paramsAnn :: ann
   , result :: ty ann
   , resultAnn :: ann
-  , whereClauses :: Vector (WhereClauseF ty ann)
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   , whereAnn :: ann
   , ann :: ann
   }

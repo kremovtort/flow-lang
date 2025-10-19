@@ -1,6 +1,5 @@
 module Flow.Parser.ModuleSpec (spec) where
 
-import "base" Data.Bifunctor qualified as Bifunctor
 import "base" Data.Maybe (fromJust)
 import "hspec" Test.Hspec (Spec, describe, it)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
@@ -9,6 +8,7 @@ import "text" Data.Text qualified as Text
 import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface qualified as Surface
+import Flow.AST.Surface.Callable (CallableHeader (whereBlock))
 import Flow.AST.Surface.Callable qualified as Callable
 import Flow.AST.Surface.Common qualified as C
 import Flow.AST.Surface.Constraint qualified as Constraint
@@ -95,16 +95,12 @@ useClauseAs path alias =
           , ann = ()
           }
 
-modDefUses :: Text -> [M.UseClause ()] -> Surface.Mod ()
-modDefUses name uses = modDef name uses []
-
 structItem :: Text -> ModuleItem ()
 structItem name =
   M.ModuleItemStruct
     Decl.StructF
       { name = C.SimpleTypeIdentifier{name, ann = ()}
-      , scopeParams = mempty
-      , typeParams = mempty
+      , typeParams = Nothing
       , fields = mempty
       }
 
@@ -113,8 +109,7 @@ enumItem name variants =
   M.ModuleItemEnum
     Decl.EnumF
       { name = C.SimpleTypeIdentifier{name, ann = ()}
-      , scopeParams = mempty
-      , typeParams = mempty
+      , typeParams = Nothing
       , variants =
           Decl.EVariantsSimpleF
             ( case NE.fromList
@@ -125,7 +120,8 @@ enumItem name variants =
                 Nothing -> error "enumItem: expected non-empty variants"
                 Just ne -> ne
             )
-            ()
+      , ann = ()
+      , variantsAnn = ()
       }
 
 typeAliasItem :: Text -> Surface.Type () -> ModuleItem ()
@@ -143,35 +139,50 @@ typeAliasItem name ty =
       , ann = ()
       }
 
-fnItem :: Text -> [(Text, Surface.Type ())] -> Maybe (Surface.Type ()) -> Maybe (Surface.Type ()) -> ModuleItem ()
+fnItem :: Text -> [(Bool, Text, Surface.Type ())] -> Maybe (Surface.Type ()) -> Maybe (Surface.Type ()) -> ModuleItem ()
 fnItem name args effects result =
   M.ModuleItemFn
     Callable.CallableF
       { header =
           Callable.CallableHeader
-            { receiver = Callable.RecieverFPlain ()
+            { receiver = Callable.RecieverFPlain
             , name = simpleVar name
-            , scopeParams = mempty
-            , typeParams = mempty
-            , args =
-                Vector.fromList
-                  ( fmap
-                      (Bifunctor.first simpleVar)
-                      args
-                  )
-            , effects = effects
-            , result = result
-            , whereClauses = mempty
+            , typeParams = Nothing
+            , argsRequired = Vector.fromList (map buildArg args)
+            , argsRequiredAnn = ()
+            , argsOptional = mempty
+            , argsOptionalAnn = ()
+            , effects = (,()) <$> effects
+            , result = (,()) <$> result
+            , whereBlock = Nothing
             }
       , body = Syn.CodeBlock{statements = mempty, result = Nothing, ann = ()}
+      }
+ where
+  buildArg (mut, name', ty) =
+    Callable.ArgF
+      { mut = if mut then Just () else Nothing
+      , name = simpleVar name'
+      , type_ = ty
+      , ann = ()
       }
 
 letItem :: Text -> Surface.Type () -> Surface.Expression () -> ModuleItem ()
 letItem name ty expr =
   M.ModuleItemLet
     Syn.LetDefinitionF
-      { mutability = Nothing
-      , lhs = Surface.PatternSimple (Pat.PatternSimpleVarF (simpleVar name)) ()
+      { lhs =
+          Surface.PatternSimple
+            { patternSimple =
+                Pat.PatSimVarF
+                  ( Pat.PatternVariableF
+                      { mut = Nothing
+                      , name = simpleVar name
+                      , ann = ()
+                      }
+                  )
+            , ann = ()
+            }
       , lhsAnn = ()
       , lhsType = Just (ty, ())
       , rhs = expr
@@ -241,8 +252,8 @@ spec = describe "Module parser (minimal subset)" do
           , typeAliasItem "Pair" (tupleType [simpleType "X", simpleType "Y"])
           , fnItem
               "add"
-              [ ("a", Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
-              , ("b", Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
+              [ (False, "a", Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
+              , (False, "b", Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
               ]
               Nothing
               (Just Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})

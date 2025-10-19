@@ -25,8 +25,7 @@ data StatementF lhsExpr simPat pat ty expr ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data LetDefinitionF simPat ty expr ann = LetDefinitionF
-  { mutability :: Maybe ann
-  , lhs :: simPat ann
+  { lhs :: simPat ann
   , lhsAnn :: ann
   , lhsType :: Maybe (ty ann, ann)
   , rhs :: expr ann
@@ -135,5 +134,34 @@ data ConstructorAppF a ty ann = ConstructorAppF
 
 data Fields inner ann
   = FieldsTuple (Vector (inner ann, ann))
+  -- TODO: add punning fields syntax e.g. Cons { head, tail }
   | FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann, ann))
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+{-
+- Fields syntax:
+  struct X { a: i32, b?: string }
+  let x = X { a = 1, b ?= "hello" }; // direct construction, b wrapped in Some
+  { let b = "hello"; let x = X { a = 1, b? }; } // optional field punning
+  let x = X { a = 1, b = Some("hello") };
+  { let b = Some("hello"); let x = X { a = 1, b }; } // field punning
+
+- Fields syntax in function arguments:
+    fn f(a: i32, b?: string)
+  - For unnamed arguments call:
+      f(1, "hello"?);
+      f(1, Some("hello"));
+  - For named arguments call:
+      f { a = 1, b ?= "hello" };
+      f { a = 1, b = Some("hello") };
+      { let b = "hello"; f { a = 1, b? }; }
+      { let b = Some("hello"); f { a = 1, b }; }
+-}
+
+data FieldNamedF inner ann = FieldNamedF
+  { name :: SimpleVarIdentifier ann
+  , optional :: Maybe ann
+  , value :: Maybe (inner ann)
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

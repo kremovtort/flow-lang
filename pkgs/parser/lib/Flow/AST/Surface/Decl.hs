@@ -4,7 +4,7 @@ import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
-import Flow.AST.Surface.Common (ScopeIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (SimpleTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Callable (
   FnDeclarationF,
   FnDefinitionF,
@@ -15,28 +15,28 @@ import Flow.AST.Surface.Callable (
   OpInfixDeclarationF,
   OpInfixDefinitionF,
  )
-import Flow.AST.Surface.Constraint (BinderF, BinderWoConstraintF, TypeDefinitionF, WhereClauseF)
+import Flow.AST.Surface.Constraint (BindersWoConstraintsF, TypeDefinitionF, WhereBlockF, BindersWConstraintsF)
 import Flow.AST.Surface.Syntax (LetDefinitionF, Fields)
-import Flow.AST.Surface.Type (ForallF, TypeF)
+import Flow.AST.Surface.Type (TypeF)
 
 data StructF ty ann = StructF
   { name :: SimpleTypeIdentifier ann
-  , scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderWoConstraintF ty ann)
+  , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , fields :: Vector (Fields ty ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data EnumF ty ann = EnumF
   { name :: SimpleTypeIdentifier ann
-  , scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderWoConstraintF ty ann)
+  , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , variants :: EnumVariantsF ty ann
+  , variantsAnn :: ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data EnumVariantsF ty ann
-  = EVariantsSimpleF (NonEmptyVector (EnumVariantF ty ann)) ann
+  = EVariantsSimpleF (NonEmptyVector (EnumVariantF ty ann))
   | EVariantsGeneralized (NonEmptyVector (EnumVariantGeneralizedF ty ann))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -47,10 +47,17 @@ data EnumVariantF ty ann = EnumVariantF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-data EnumVariantGeneralizedF ty ann
-  = EVariantGeneralizedSimpleF (EnumVariantGeneralizedSimpleF ty ann)
-  | EVariantGeneralizedForallF (ForallF ty ann) (EnumVariantGeneralizedSimpleF ty ann)
+data EnumVariantGeneralizedF ty ann = EnumVariantGeneralizedF
+  { name :: SimpleTypeIdentifier ann
+  , typeParams :: Maybe (BindersWConstraintsF ty ann)
+  , result :: ty ann
+  , resultAnn :: ann
+  , whereBlock :: Maybe (WhereBlockF ty ann)
+  , whereAnn :: ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
 
 data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
   { enumVariant :: EnumVariantF ty ann
@@ -61,8 +68,7 @@ data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
 
 data Trait lhsExpr simPat pat ty expr ann = Trait
   { name :: SimpleTypeIdentifier ann
-  , scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderWoConstraintF ty ann)
+  , typeParams :: Maybe (BindersWConstraintsF ty ann)
   , superTraits :: Vector (ty ann)
   , traitBody :: Vector (TraitItem lhsExpr simPat pat ty expr ann)
   , ann :: ann
@@ -83,11 +89,11 @@ data TraitItem lhsExpr simPat pat ty expr ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data Impl lhsExpr simPat pat ty expr ann = Impl
-  { scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderF ty ann)
+  { typeParams :: Maybe (BindersWConstraintsF ty ann)
   , trait :: TypeF ty ann
-  , whereClauses :: Vector (WhereClauseF ty ann)
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   , body :: Vector (ImplItemF lhsExpr simPat pat ty expr ann)
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -102,10 +108,9 @@ data ImplItemF lhsExpr simPat pat ty expr ann
 
 data EffectF lhsExpr simPat pat ty expr ann = EffectF
   { name :: SimpleTypeIdentifier ann
-  , scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderF ty ann)
+  , typeParams :: Maybe (BindersWConstraintsF ty ann)
   , superEffects :: Vector (ty ann)
-  , whereClauses :: Vector (WhereClauseF ty ann)
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   , effectContent :: Vector (EffectItemDeclarationF lhsExpr simPat pat ty expr ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

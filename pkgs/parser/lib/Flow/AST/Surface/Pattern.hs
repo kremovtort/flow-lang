@@ -9,21 +9,69 @@ import "bytestring" Data.ByteString ()
 import "base" Data.Word ()
 import "base" Data.Char ()
 
-import Flow.AST.Surface.Common (SimpleVarIdentifier, SimpleTypeIdentifier)
+import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyTypeIdentifier)
 import Flow.AST.Surface.Literal (Literal)
-import Flow.AST.Surface.Syntax (ConstructorAppF)
+import Flow.AST.Surface.Constraint (BindersWoConstraintsF)
 
 data PatternF pat ty ann
-  = PatternSimpleF (PatternSimpleF pat ty ann) ann
-  | PatternOrF (NonEmptyVector (PatternSimpleF pat ty ann)) ann
+  = PatSimpleF (PatternSimpleF pat ty ann)
+  | PatOrF (NonEmptyVector (PatternSimpleF pat ty ann))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 data PatternSimpleF pat ty ann
-  = PatternSimpleWildcardF
-  | PatternSimpleLiteralF Literal
-  | PatternSimpleVarF (SimpleVarIdentifier ann)
-  | PatternSimpleTupleF (NonEmptyVector (pat ann))
-  | PatternSimpleConsF (ConstructorAppF pat SimpleTypeIdentifier ann)
-  | PatternSimpleOfTypeF (pat ann) (ty ann)
-  | PatternSimpleAsF (pat ann) (SimpleVarIdentifier ann)
+  = PatSimWildcardF
+  | PatSimLiteralF Literal
+  | PatSimVarF (PatternVariableF pat ty ann)
+  | PatSimTupleF (NonEmptyVector (pat ann))
+  | PatSimConstructorAppF (PatternConsturctorAppF pat ty ann)
+  | PatSimOfTypeF (pat ann) (ty ann)
+  | PatSimAsF (pat ann) (PatternVariableF pat ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternVariableF pat ty ann = PatternVariableF
+  { mut :: Maybe ann
+  , name :: SimpleVarIdentifier ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternConsturctorAppF pat ty ann = PatternConsturctorAppF
+  { name :: AnyTypeIdentifier ann
+  , typeParams :: Maybe (BindersWoConstraintsF ty ann)
+  , fields :: Maybe (PatternFieldsF pat ty ann, ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternFieldsF pat ty ann
+  = PatFldsUnnamedF (NonEmptyVector (PatternFieldUnnamedF pat ty ann))
+  | PatFldsNamedF (NonEmptyVector (PatternFieldNamedF pat ty ann))
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternFieldUnnamedF pat ty ann = PatternFieldUnnamedF
+  { value :: pat ann
+  , optional :: Maybe ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternFieldNamedF pat ty ann
+  = PatFldNmdValueF (PatternFieldNamedValueF pat ty ann)
+  | PatFldNmdPunningF (PatternFieldNamedPunningF pat ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternFieldNamedValueF pat ty ann = PatternFieldNamedValueF
+  { name :: SimpleVarIdentifier ann
+  , value :: pat ann
+  , optional :: Maybe ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+data PatternFieldNamedPunningF pat ty ann = PatternFieldNamedPunningF
+  { mut :: Maybe ann
+  , name :: SimpleVarIdentifier ann
+  , optional :: Maybe ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)

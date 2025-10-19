@@ -1,133 +1,190 @@
 module Flow.Parser.Pattern where
 
-import "base" Data.Maybe (fromJust)
 import "base" Data.Functor ((<&>))
-import "containers" Data.Set qualified as Set
+import "base" Data.Maybe (fromJust)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
-import "vector" Data.Vector qualified as Vector
 
+import Data.Bifunctor qualified as Bifunctor
 import Flow.AST.Surface.Common qualified as Surface
+import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
-import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, anyTypeIdentifier, simpleTypeIdentifier, simpleVarIdentifier, single, token)
+import Flow.Parser.Common (HasAnn, Parser, anyTypeIdentifier, simpleVarIdentifier, single)
+import Flow.Parser.Constraint (pBindersWoConstraints)
 import Flow.Parser.Literal (literal)
 
 pPattern ::
   forall pat ty.
-  Parser (pat Lexer.SourceRegion, Lexer.SourceRegion) ->
+  (HasAnn pat Lexer.SourceRegion, HasAnn ty Lexer.SourceRegion) =>
+  Parser (pat Lexer.SourceRegion) ->
+  Parser (ty Lexer.SourceRegion) ->
   Parser (Surface.PatternF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
-pPattern pPat = do
+pPattern pPat pTy = do
   Megaparsec.choice
-    [ pPatternSimple pPat <&> \(simple, ann) -> (Surface.PatternSimpleF simple ann, ann)
+    [ Bifunctor.first Surface.PatSimpleF <$> pPatternSimple pPat pTy
     ]
 
 pPatternSimple ::
   forall pat ty.
-  Parser (pat Lexer.SourceRegion, Lexer.SourceRegion) ->
+  (HasAnn pat Lexer.SourceRegion, HasAnn ty Lexer.SourceRegion) =>
+  Parser (pat Lexer.SourceRegion) ->
+  Parser (ty Lexer.SourceRegion) ->
   Parser (Surface.PatternSimpleF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
-pPatternSimple pPat =
+pPatternSimple pPat pTy =
   Megaparsec.choice
     [ pWildcard
     , pLiteral
-    , pVar
+    , pVar <&> \var -> (Surface.PatSimVarF var, var.ann)
     , pTuple pPat
-    , pCons pPat
+    , pCons pPat pTy <&> \cons -> (Surface.PatSimConstructorAppF cons, cons.ann)
     ]
 
 pWildcard :: Parser (Surface.PatternSimpleF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
 pWildcard = do
   tok <- single (Lexer.Punctuation Lexer.Underscore)
-  pure (Surface.PatternSimpleWildcardF, tok.payload)
+  pure (Surface.PatSimWildcardF, tok.payload)
 
 pLiteral :: Parser (Surface.PatternSimpleF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
 pLiteral = do
   (lit, ann) <- literal
-  pure (Surface.PatternSimpleLiteralF lit, ann)
+  pure (Surface.PatSimLiteralF lit, ann)
 
-pVar :: Parser (Surface.PatternSimpleF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
+pVar :: Parser (Surface.PatternVariableF pat ty Lexer.SourceRegion)
 pVar = do
+  mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
   name <- simpleVarIdentifier
-  pure (Surface.PatternSimpleVarF name, name.ann)
+  pure
+    Surface.PatternVariableF
+      { mut = (.payload) <$> mut
+      , name = name
+      , ann =
+          Lexer.SourceRegion
+            { start = case mut of
+                Just mut' -> mut'.payload.start
+                Nothing -> name.ann.start
+            , end = name.ann.end
+            }
+      }
 
 pTuple ::
-  Parser (pat Lexer.SourceRegion, Lexer.SourceRegion) ->
+  Parser (pat Lexer.SourceRegion) ->
   Parser (Surface.PatternSimpleF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
 pTuple p = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   items <- Megaparsec.sepEndBy1 p (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
   pure
-    ( Surface.PatternSimpleTupleF (fromJust $ NonEmptyVector.fromList (fmap fst items))
+    ( Surface.PatSimTupleF (fromJust $ NonEmptyVector.fromList items)
     , Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
     )
 
 pCons ::
   forall pat ty.
-  Parser (pat Lexer.SourceRegion, Lexer.SourceRegion) ->
-  Parser (Surface.PatternSimpleF pat ty Lexer.SourceRegion, Lexer.SourceRegion)
-pCons pPat = do
+  (HasAnn pat Lexer.SourceRegion, HasAnn ty Lexer.SourceRegion) =>
+  Parser (pat Lexer.SourceRegion) ->
+  Parser (ty Lexer.SourceRegion) ->
+  Parser (Surface.PatternConsturctorAppF pat ty Lexer.SourceRegion)
+pCons pPat pTy = do
   consName <- anyTypeIdentifier
-  params <- Megaparsec.optional do
-    tokS <- single (Lexer.Punctuation Lexer.LessThan)
-    items <- Megaparsec.sepEndBy1 simpleTypeIdentifier (single (Lexer.Punctuation Lexer.Comma))
-    tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
-    pure
-      ( Vector.fromList items
-      , Lexer.SourceRegion
-          { start = tokS.payload.start
-          , end = tokE.payload.end
-          }
-      )
+  typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   fields <- Megaparsec.optional pFields
   let end = case fields of
         Just (_, ann) -> ann.end
-        Nothing -> case params of
-          Just (_, ann) -> ann.end
+        Nothing -> case typeParams of
+          Just params -> params.ann.end
           Nothing -> consName.ann.end
   pure
-    ( Surface.PatternSimpleConsF
-        ( Surface.ConstructorAppF
-            { name = consName
-            , params = params
-            , fields = fields
-            , ann = Lexer.SourceRegion{start = consName.ann.start, end}
-            }
-        )
-    , Lexer.SourceRegion{start = consName.ann.start, end}
+    ( Surface.PatternConsturctorAppF
+        { name = consName
+        , typeParams = typeParams
+        , fields = fields
+        , ann = Lexer.SourceRegion{start = consName.ann.start, end}
+        }
     )
  where
   pFields = do
-    Megaparsec.choice [pFieldsTuple, pFieldsNamed]
+    Megaparsec.choice
+      [ Bifunctor.first Surface.PatFldsUnnamedF <$> pFieldsUnnamed
+      , Bifunctor.first Surface.PatFldsNamedF <$> pFieldsNamed
+      ]
 
-  pFieldsTuple = do
+  pFieldsUnnamed = do
     tokS <- single (Lexer.Punctuation Lexer.LeftParen)
-    items <- Megaparsec.sepEndBy1 pPat (single (Lexer.Punctuation Lexer.Comma))
+    fields <- Megaparsec.sepEndBy1 pFieldUnnamed (single (Lexer.Punctuation Lexer.Comma))
     tokE <- single (Lexer.Punctuation Lexer.RightParen)
     pure
-      ( Surface.FieldsTuple (Vector.fromList items)
-      , Lexer.SourceRegion
-          { start = tokS.payload.start
-          , end = tokE.payload.end
-          }
+      ( fromJust $ NonEmptyVector.fromList fields
+      , Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
       )
+
+  pFieldUnnamed = do
+    value <- pPat
+    optional <- Megaparsec.optional (single (Lexer.Punctuation Lexer.Question))
+    pure
+      Surface.PatternFieldUnnamedF
+        { value
+        , optional = (.payload) <$> optional
+        , ann =
+            Lexer.SourceRegion
+              { start = value.ann.start
+              , end = case optional of
+                  Just optional' -> optional'.payload.end
+                  Nothing -> value.ann.end
+              }
+        }
 
   pFieldsNamed = do
     tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
-    items <- Megaparsec.sepEndBy1 pFieldNamed (single (Lexer.Punctuation Lexer.Comma))
+    fields <- Megaparsec.sepEndBy1 pFieldNamed (single (Lexer.Punctuation Lexer.Comma))
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure
-      ( Surface.FieldsNamed (Vector.fromList items)
+      ( fromJust $ NonEmptyVector.fromList fields
       , Lexer.SourceRegion
           { start = tokS.payload.start
           , end = tokE.payload.end
           }
       )
-   where
-    pFieldNamed :: Parser (Surface.SimpleVarIdentifier Lexer.SourceRegion, pat Lexer.SourceRegion, Lexer.SourceRegion)
-    pFieldNamed = do
-      name <- simpleVarIdentifier
-      tok <- single (Lexer.Punctuation Lexer.Assign)
-      value <- pPat
-      pure (name, fst value, Lexer.SourceRegion{start = tok.payload.start, end = tok.payload.end})
+
+  pFieldNamed :: Parser (Surface.PatternFieldNamedF pat ty Lexer.SourceRegion)
+  pFieldNamed =
+    Megaparsec.choice
+      [ Surface.PatFldNmdValueF <$> pFieldNamedValue
+      , Surface.PatFldNmdPunningF <$> pFieldNamedPunning
+      ]
+
+  pFieldNamedValue :: Parser (Surface.PatternFieldNamedValueF pat ty Lexer.SourceRegion)
+  pFieldNamedValue = do
+    name <- simpleVarIdentifier
+    optional <-
+      Megaparsec.choice
+        [ Nothing <$ single (Lexer.Punctuation Lexer.Assign)
+        , Just . (.payload) <$> single (Lexer.Punctuation Lexer.QuestionAssign)
+        ]
+    value <- pPat
+    pure
+      Surface.PatternFieldNamedValueF
+        { name
+        , value
+        , optional = optional
+        , ann = Lexer.SourceRegion{start = name.ann.start, end = value.ann.end}
+        }
+
+  pFieldNamedPunning :: Parser (Surface.PatternFieldNamedPunningF pat ty Lexer.SourceRegion)
+  pFieldNamedPunning = do
+    mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
+    name <- simpleVarIdentifier
+    optional <- Megaparsec.optional $ single (Lexer.Punctuation Lexer.Question)
+    pure
+      Surface.PatternFieldNamedPunningF
+        { mut = (.payload) <$> mut
+        , name
+        , optional = (.payload) <$> optional
+        , ann =
+            Lexer.SourceRegion
+              { start = name.ann.start
+              , end = case optional of
+                  Just optional' -> optional'.payload.end
+                  Nothing -> name.ann.end
+              }
+        }

@@ -140,6 +140,8 @@ data Punctuation
   | Hash
   | Dollar
   | Question
+  | QuestionColon
+  | QuestionAssign
   | Underscore
   | LeftBrace
   | RightBrace
@@ -466,6 +468,8 @@ punctuationText = \case
   Hash -> "#"
   Dollar -> "$"
   Question -> "?"
+  QuestionColon -> "?:"
+  QuestionAssign -> "?="
   Underscore -> "_"
   LeftBrace -> "{"
   RightBrace -> "}"

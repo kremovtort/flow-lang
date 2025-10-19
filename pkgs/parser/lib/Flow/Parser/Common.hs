@@ -10,6 +10,7 @@ import "containers" Data.Set (Set)
 import "containers" Data.Set qualified as Set
 import "megaparsec" Text.Megaparsec (Parsec)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
+import "base" GHC.Records (HasField)
 
 import Data.Char qualified as Char
 import Data.Text qualified as Text
@@ -23,6 +24,8 @@ import Flow.AST.Surface.Common (
   SimpleVarIdentifier (..),
  )
 import Flow.Lexer qualified as Lexer
+
+type HasAnn f ann = HasField "ann" (f ann) ann
 
 type Parser = Parsec Void [Lexer.TokenWithSourceRegion]
 
