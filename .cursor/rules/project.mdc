@@ -13,5 +13,6 @@ Unlike Rust, this language has:
 - traits here are more like typeclasses in Haskell
 
 ## Structure
-All Haskell packages are located in the pkgs directory.
-Language design is located in design directory.
+All Haskell packages are located in the `./pkgs` directory.
+Language design is located in `./design` directory.
+Language surface AST and parser located in `./pkgs/parser` directory.
