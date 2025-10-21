@@ -31,7 +31,7 @@ pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do
     ( Surface.BindersF
         { scopes = Vector.fromList (fmap Surface.ScopeBinderWoConstraintsF scopeBinders)
         , types = Vector.fromList (fromMaybe [] typeBinders)
-        , ann = Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
+        , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
         }
     )
  where

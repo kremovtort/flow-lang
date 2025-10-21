@@ -13,10 +13,10 @@ import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Type (TypeF (TyEffectRowF))
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, anyTypeIdentifier, scopeIdentifier, simpleVarIdentifier, single, token)
+import Flow.Parser.Common (Parser, SourceRegion (..), anyTypeIdentifier, scopeIdentifier, simpleVarIdentifier, single, token)
 
 -- Parse an atomic type (no application postfixed).
-pTypeAtom :: Parser (Surface.Type Lexer.SourceRegion)
+pTypeAtom :: Parser (Surface.Type SourceRegion)
 pTypeAtom =
   Megaparsec.choice
     [ (\(b, ann) -> Surface.Type{ty = Surface.TyBuiltinF b ann, ann = ann}) <$> tyBuiltin
@@ -31,7 +31,7 @@ pTypeAtom =
 -- Top-level type parser: parse an atom, then optionally parse application(s)
 -- as postfix forms. This avoids left recursion by ensuring the head is
 -- consumed before parsing any applications.
-pType :: Parser (Surface.Type Lexer.SourceRegion)
+pType :: Parser (Surface.Type SourceRegion)
 pType = do
   head' <- pTypeAtom
   case head'.ty of
@@ -69,15 +69,15 @@ pType = do
                         { head = head'
                         , headAnn = head'.ann
                         , args = fromJust $ NonEmptyVector.fromList args
-                        , argsAnn = Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
-                        , ann = Lexer.SourceRegion{start = head'.ann.start, end = tokE.payload.end}
+                        , argsAnn = SourceRegion{start = tokS.region.start, end = tokE.region.end}
+                        , ann = SourceRegion{start = head'.ann.start, end = tokE.region.end}
                         }
-                , ann = Lexer.SourceRegion{start = head'.ann.start, end = tokE.payload.end}
+                , ann = SourceRegion{start = head'.ann.start, end = tokE.region.end}
                 }
         , pure head'
         ]
 
-tyBuiltin :: Parser (Surface.Builtin, Lexer.SourceRegion)
+tyBuiltin :: Parser (Surface.Builtin, SourceRegion)
 tyBuiltin = do
   tok <- token (Set.singleton $ Megaparsec.Label "builtin type") \case
     Lexer.Punctuation Lexer.LeftRightParen -> Just Surface.BuiltinUnit
@@ -99,24 +99,24 @@ tyBuiltin = do
     Lexer.Identifier "char" -> Just Surface.BuiltinChar
     Lexer.Identifier "string" -> Just Surface.BuiltinString
     _ -> Nothing
-  pure (tok.token, tok.payload)
+  pure (tok.value, tok.region)
 
-tyIdentifier :: Parser (Surface.AnyTypeIdentifier Lexer.SourceRegion)
+tyIdentifier :: Parser (Surface.AnyTypeIdentifier SourceRegion)
 tyIdentifier = anyTypeIdentifier
 
 tyTuple ::
-  Parser (Surface.Type Lexer.SourceRegion) ->
-  Parser (NonEmptyVector (Surface.Type Lexer.SourceRegion), Lexer.SourceRegion)
+  Parser (Surface.Type SourceRegion) ->
+  Parser (NonEmptyVector (Surface.Type SourceRegion), SourceRegion)
 tyTuple ty = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   args <- Megaparsec.sepEndBy1 ty (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
   pure
     ( fromJust $ NonEmptyVector.fromList args
-    , Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
+    , SourceRegion{start = tokS.region.start, end = tokE.region.end}
     )
 
-tyRef :: Parser (Surface.RefF Lexer.SourceRegion)
+tyRef :: Parser (Surface.RefF SourceRegion)
 tyRef = do
   tokS <- single (Lexer.Punctuation Lexer.Ampersand)
   scope <- Megaparsec.optional $ do
@@ -124,28 +124,28 @@ tyRef = do
       token (Set.singleton $ Megaparsec.Label "scope identifier") \case
         Lexer.RefScope i -> Just i
         _ -> Nothing
-    pure $ Surface.ScopeIdentifier{name = tok.token, ann = tok.payload}
+    pure $ Surface.ScopeIdentifier{name = tok.value, ann = tok.region}
   mut <- Megaparsec.optional $ do
     tok <- single (Lexer.Keyword Lexer.Mut)
-    pure Lexer.SourceRegion{start = tok.payload.start, end = tok.payload.end}
+    pure SourceRegion{start = tok.region.start, end = tok.region.end}
   pure $
     Surface.RefF
       { scope = scope
       , mutability = mut
       , ann =
-          Lexer.SourceRegion
-            { start = tokS.payload.start
+          SourceRegion
+            { start = tokS.region.start
             , end = case mut of
                 Just mut' -> mut'.end
                 Nothing -> case scope of
                   Just scope' -> scope'.ann.end
-                  Nothing -> tokS.payload.end
+                  Nothing -> tokS.region.end
             }
       }
 
 tyFn ::
-  Parser (Surface.Type Lexer.SourceRegion) ->
-  Parser (Surface.FnF Surface.Type Lexer.SourceRegion)
+  Parser (Surface.Type SourceRegion) ->
+  Parser (Surface.FnF Surface.Type SourceRegion)
 tyFn ty = do
   tokS <- single (Lexer.Keyword Lexer.Fn)
   _ <- single (Lexer.Punctuation Lexer.LeftParen)
@@ -171,16 +171,16 @@ tyFn ty = do
   pure $
     Surface.FnF
       { args = Vector.fromList args
-      , argsAnn = tokS.payload
+      , argsAnn = tokS.region
       , effects = effects <&> \row -> (row, row.ann)
       , result = result
-      , resultAnn = tokE.payload
-      , ann = tokE.payload
+      , resultAnn = tokE.region
+      , ann = tokE.region
       }
 
 tyEffectRow ::
-  Parser (Surface.Type Lexer.SourceRegion) ->
-  Parser (Surface.EffectRowF Surface.Type Lexer.SourceRegion, Lexer.SourceRegion)
+  Parser (Surface.Type SourceRegion) ->
+  Parser (Surface.EffectRowF Surface.Type SourceRegion, SourceRegion)
 tyEffectRow ty = do
   tokS <- single (Lexer.Punctuation Lexer.AtLeftBracket)
   effects <- Megaparsec.sepBy effectAtom (single (Lexer.Punctuation Lexer.Comma))
@@ -192,24 +192,24 @@ tyEffectRow ty = do
             _ <- single (Lexer.Punctuation Lexer.Colon)
             tokDD <- single (Lexer.Punctuation Lexer.DotDot)
             name <- anyTypeIdentifier
-            pure (name, Lexer.SourceRegion{start = tokDD.payload.start, end = name.ann.end})
+            pure (name, SourceRegion{start = tokDD.region.start, end = name.ann.end})
           , Nothing <$ Megaparsec.optional (single (Lexer.Punctuation Lexer.DotDot))
           ]
       else Megaparsec.optional do
         tokDD <- single (Lexer.Punctuation Lexer.DotDot)
         name <- anyTypeIdentifier
-        pure (name, Lexer.SourceRegion{start = tokDD.payload.start, end = name.ann.end})
+        pure (name, SourceRegion{start = tokDD.region.start, end = name.ann.end})
   tokE <- single (Lexer.Punctuation Lexer.RightBracket)
   pure
     ( Surface.EffectRowF
         { effects = Vector.fromList effects
         , tailVar = fst <$> tailVar
-        , ann = Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
+        , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
         }
-    , Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
+    , SourceRegion{start = tokS.region.start, end = tokE.region.end}
     )
  where
-  effectAtom :: Parser (Surface.EffectAtomF Surface.Type Lexer.SourceRegion)
+  effectAtom :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
   effectAtom = do
     Megaparsec.choice
       [ eAtomNameType
@@ -217,7 +217,7 @@ tyEffectRow ty = do
       , eAtomType
       ]
    where
-    eAtomNameType :: Parser (Surface.EffectAtomF Surface.Type Lexer.SourceRegion)
+    eAtomNameType :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
     eAtomNameType = do
       name <- simpleVarIdentifier
       _ <- single (Lexer.Punctuation Lexer.Colon)
@@ -226,23 +226,23 @@ tyEffectRow ty = do
         Surface.EAtomNameTypeF
           name
           ty'
-          Lexer.SourceRegion
+          SourceRegion
             { start = name.ann.start
             , end = ty'.ann.end
             }
 
-    eAtomScope :: Parser (Surface.EffectAtomF Surface.Type Lexer.SourceRegion)
+    eAtomScope :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
     eAtomScope = do
       scope <- scopeIdentifier
       pure $
         Surface.EAtomScopeF
           scope
-          Lexer.SourceRegion
+          SourceRegion
             { start = scope.ann.start
             , end = scope.ann.end
             }
 
-    eAtomType :: Parser (Surface.EffectAtomF Surface.Type Lexer.SourceRegion)
+    eAtomType :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
     eAtomType = do
       ty' <- ty
-      pure $ Surface.EAtomTypeF ty' Lexer.SourceRegion{start = ty'.ann.start, end = ty'.ann.end}
+      pure $ Surface.EAtomTypeF ty' SourceRegion{start = ty'.ann.start, end = ty'.ann.end}

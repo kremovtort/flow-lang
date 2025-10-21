@@ -1,19 +1,17 @@
 module Flow.Parser.Expr where
 
-import "containers" Data.Set qualified as Set
-import "megaparsec" Text.Megaparsec qualified as Megaparsec
-
 import Flow.AST.Surface (Expression (..), Type (..))
-import Flow.AST.Surface.Expr
-    ( ExpressionF(..) )
-import Flow.Parser.Literal (literal)
+import Flow.AST.Surface.Expr (
+  ExpressionF (..),
+ )
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common ( Parser, single )
+import Flow.Parser.Common (Parser, SourceRegion (..), WithPos (..), single)
+import Flow.Parser.Literal (literal)
 
 eWildcard :: Parser (Expression Lexer.SourceRegion)
 eWildcard = do
   tok <- single (Lexer.Punctuation Lexer.Underscore)
-  pure $ Expression{expr = EWildcard, ann = tok.payload}
+  pure $ Expression{expr = EWildcard, ann = tok.region}
 
 eLiteral :: Parser (Expression Lexer.SourceRegion)
 eLiteral = do
@@ -27,25 +25,23 @@ eParens expr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   expr' <- expr
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
-  let ann = Lexer.SourceRegion{start = tokS.payload.start, end = tokE.payload.end}
   pure $
     Expression
       { expr = EParens expr'
-      , ann
+      , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
       }
 
 eOfType ::
-  Parser (Expression Lexer.SourceRegion) ->
-  Parser (Type Lexer.SourceRegion) ->
-  Parser (Expression Lexer.SourceRegion)
+  Parser (Expression SourceRegion) ->
+  Parser (Type SourceRegion) ->
+  Parser (Expression SourceRegion)
 eOfType expr ty = do
   expr' <- expr
   ty' <- ty
-  let ann = Lexer.SourceRegion{start = expr'.ann.start, end = ty'.ann.end}
   pure $
     Expression
       { expr = EOfType expr' ty'
-      , ann
+      , ann = SourceRegion{start = expr'.ann.start, end = ty'.ann.end}
       }
 
 -- | Top-level expression parser (stub for TDD phase)

@@ -1,20 +1,26 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Flow.Lexer (
   Token (..),
   Keyword (..),
   Punctuation (..),
-  WithSourceRegion (..),
-  TokenWithSourceRegion,
   SourceRegion (..),
+  WithPos (..),
+  TokenStream (..),
+  TokenWithPos,
   Lexer,
   tokens,
   token,
-  tokensWithSourceRegion,
-  tokenWithSourceRegion,
+  tokensWithPos,
+  tokenWithPos,
 ) where
 
 import "base" Control.Applicative (many, (<|>))
 import "base" Data.Char (chr, isAlphaNum, isDigit, isHexDigit, isOctDigit)
+import "base" Data.Function ((&))
+import "base" Data.Functor ((<&>))
 import "base" Data.List qualified as List
+import "base" Data.List.NonEmpty qualified as NonEmpty
 import "base" Data.Ord qualified as Ord
 import "base" Data.Void (Void)
 import "base" Data.Word (Word8)
@@ -26,6 +32,7 @@ import "megaparsec" Text.Megaparsec (Parsec)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "megaparsec" Text.Megaparsec.Char qualified as Megaparsec.Char
 import "megaparsec" Text.Megaparsec.Char.Lexer qualified as Megaparsec.Char.Lexer
+import "megaparsec" Text.Megaparsec.Stream (VisualStream (..))
 import "scientific" Data.Scientific (Scientific)
 import "text" Data.Text (Text)
 import "text" Data.Text qualified as Text
@@ -34,16 +41,28 @@ import "vector" Data.Vector qualified as Vector
 
 type Lexer = Parsec Void Text
 
-data WithSourceRegion a = WithSourceRegion {token :: a, payload :: SourceRegion}
+data TokenStream = TokenStream
+  { tokens :: [WithPos Token]
+  , inputPos :: Megaparsec.SourcePos
+  -- ^ Current input position
+  , input :: Text
+  -- ^ Original input text
+  }
+  deriving (Eq, Ord, Show)
+
+data WithPos a = WithPos
+  { value :: a
+  , region :: SourceRegion
+  }
   deriving (Eq, Ord, Show, Functor)
+
+type TokenWithPos = WithPos Token
 
 data SourceRegion = SourceRegion
   { start :: Megaparsec.SourcePos
   , end :: Megaparsec.SourcePos
   }
   deriving (Eq, Ord, Show)
-
-type TokenWithSourceRegion = WithSourceRegion Token
 
 data Token
   = Keyword Keyword
@@ -156,10 +175,10 @@ data Punctuation
 tokens :: Lexer (Vector Token)
 tokens = fmap Vector.fromList $ spaceConsumer *> many token <* Megaparsec.eof
 
-tokensWithSourceRegion :: Lexer (Vector TokenWithSourceRegion)
-tokensWithSourceRegion = fmap Vector.fromList do
+tokensWithPos :: Lexer (Vector TokenWithPos)
+tokensWithPos = fmap Vector.fromList do
   spaceConsumer
-  tokens' <- many tokenWithSourceRegion
+  tokens' <- many tokenWithPos
   Megaparsec.eof
   pure tokens'
 
@@ -180,15 +199,15 @@ token =
     , identifier
     ]
 
-tokenWithSourceRegion :: Lexer TokenWithSourceRegion
-tokenWithSourceRegion = do
+tokenWithPos :: Lexer TokenWithPos
+tokenWithPos = do
   startPos <- Megaparsec.getSourcePos
   token' <- token
   endPos <- Megaparsec.getSourcePos
   pure $
-    WithSourceRegion
-      { token = token'
-      , payload = SourceRegion{start = startPos, end = endPos}
+    WithPos
+      { value = token'
+      , region = SourceRegion{start = startPos, end = endPos}
       }
 
 keyword :: Lexer Token
@@ -504,3 +523,105 @@ mkPunctuation p = lexeme do
 
 alphaNumUnderscoreChar :: Lexer Char
 alphaNumUnderscoreChar = Megaparsec.Char.alphaNumChar <|> Megaparsec.Char.char '_'
+
+instance Megaparsec.Stream TokenStream where
+  type Token TokenStream = WithPos Token
+  type Tokens TokenStream = [WithPos Token]
+
+  tokenToChunk _ = pure
+  tokensToChunk _ = id
+  chunkToTokens _ = id
+  chunkLength _ = length
+  chunkEmpty _ = null
+  take1_ stream = case List.uncons stream.tokens of
+    Nothing -> Nothing
+    Just (t, ts) ->
+      Just
+        ( t
+        , stream
+            { tokens = ts
+            , inputPos = t.region.end
+            }
+        )
+
+  takeN_ n stream
+    | n <= 0 = Just ([], stream)
+    | null stream.tokens = Nothing
+    | otherwise = case List.splitAt n stream.tokens of
+        ([], _) -> Nothing
+        (t, ts) ->
+          Just (t, stream{tokens = ts, inputPos = (List.last t).region.end})
+
+  takeWhile_ p stream =
+    let (x, s') = List.span p stream.tokens
+     in case NonEmpty.nonEmpty x of
+          Nothing -> (x, stream{tokens = s'})
+          Just nex -> (x, stream{tokens = s', inputPos = (NonEmpty.last nex).region.end})
+
+dropLines :: Int -> Text -> Text
+dropLines 0 text = text
+dropLines n !text =
+  dropLines (n - 1) $
+    Text.drop 1 $
+      Text.dropWhile (/= '\n') text
+
+instance Megaparsec.VisualStream TokenStream where
+  showTokens _ tokens' =
+    concat $
+      NonEmpty.toList $
+        tokens' <&> \t -> case t.value of
+          Keyword k -> Text.unpack $ keywordText k
+          Punctuation p -> Text.unpack $ punctuationText p
+          Identifier i -> Text.unpack i
+          Optic i -> "#" <> Text.unpack i
+          RefScope i -> "'" <> Text.unpack i
+          BoolLiteral b -> if b then "true" else "false"
+          IntegerLiteral i -> show i
+          FloatLiteral f -> show f
+          ByteLiteral b -> "b'" <> show b <> "'"
+          ByteStringLiteral bs -> "b\"" <> show bs <> "\""
+          CharLiteral c -> "\'" <> show c <> "\'"
+          StringLiteral s -> "\"" <> show s <> "\""
+
+  tokensLength _ tokens' =
+    tokens'
+      & NonEmpty.map
+        ( \tokWithRegion ->
+            Megaparsec.unPos tokWithRegion.region.end.sourceColumn
+              - Megaparsec.unPos tokWithRegion.region.start.sourceColumn
+        )
+      & sum
+
+instance Megaparsec.TraversableStream TokenStream where
+  reachOffset offsetToReach currentState =
+    ( Just $ Text.unpack currentLine
+    , Megaparsec.PosState
+        { pstateOffset = max offsetToReach currentState.pstateOffset
+        , pstateSourcePos = newSourcePos
+        , pstateInput =
+            currentState.pstateInput
+              { tokens = post
+              , inputPos = newSourcePos
+              }
+        , pstateTabWidth = currentState.pstateTabWidth
+        , pstateLinePrefix = Text.unpack prefix
+        }
+    )
+   where
+    newSourcePos = case post of
+      [] -> case currentState.pstateInput.tokens of
+        [] -> currentState.pstateSourcePos
+        ts -> (List.last ts).region.end
+      t : _ -> t.region.start
+    (_, post) =
+      List.splitAt
+        (offsetToReach - currentState.pstateOffset)
+        currentState.pstateInput.tokens
+    currentLine =
+      Text.takeWhile (/= '\n') $
+        dropLines
+          (Megaparsec.unPos currentState.pstateSourcePos.sourceLine - 1)
+          currentState.pstateInput.input
+    prefix = Text.take
+      (Megaparsec.unPos currentState.pstateSourcePos.sourceColumn - 1)
+      currentLine

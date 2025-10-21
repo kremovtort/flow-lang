@@ -14,48 +14,4 @@ import "megaparsec" Text.Megaparsec (parse)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "text" Data.Text (Text)
 
--- | Temporary public API stubs for TDD phase.
--- Tests will call these; implementations will be provided later.
-parseModText :: Text -> Either String (Surface.Mod Lexer.SourceRegion)
-parseModText txt =
-  case textToTokens txt of
-    Left err -> Left err
-    Right toks ->
-      case parse PMod.pModule "<mod>" toks of
-        Left e -> Left (show e)
-        Right r -> Right r
 
-parseTypeText :: Text -> Either String (Surface.Type Lexer.SourceRegion)
-parseTypeText txt =
-  case textToTokens txt of
-    Left err -> Left err
-    Right toks ->
-      case parse PType.pType "<type>" toks of
-        Left e -> Left (show e)
-        Right r -> Right r
-
-parseLhsExprText :: Text -> Either String (Surface.LHSExpression Lexer.SourceRegion)
-parseLhsExprText txt =
-  case textToTokens txt of
-    Left err -> Left err
-    Right toks ->
-      case parse PSyn.pLHSExpression "<lhs-expr>" toks of
-        Left e -> Left (show e)
-        Right r -> Right r
-
-parseExprText :: Text -> Either String (Surface.Expression Lexer.SourceRegion)
-parseExprText txt =
-  case textToTokens txt of
-    Left err -> Left err
-    Right toks ->
-      case parse PExpr.pExpression "<expr>" toks of
-        Left e -> Left (show e)
-        Right r -> Right r
-
--- Helpers
-
-textToTokens :: Text -> Either String [Lexer.TokenWithSourceRegion]
-textToTokens t =
-  case Megaparsec.runParser Lexer.tokensWithSourceRegion "<lex>" t of
-    Left e -> Left (show e)
-    Right v -> Right (toList v)

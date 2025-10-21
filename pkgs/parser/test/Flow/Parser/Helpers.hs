@@ -8,12 +8,18 @@ import "text" Data.Text (Text)
 
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser)
-import qualified Text.Megaparsec as Megaparsec
+import Text.Megaparsec qualified as Megaparsec
 
-lexTokens :: Text -> IO [Lexer.TokenWithSourceRegion]
-lexTokens s = case parse Lexer.tokensWithSourceRegion "<lex>" s of
-  Left e -> expectationFailure ("Lexer failed to tokenize: " <> show e) >> pure []
-  Right v -> pure (toList v)
+lexTokens :: Text -> IO Lexer.TokenStream
+lexTokens s = case parse Lexer.tokensWithPos "<lex>" s of
+  Left e -> do
+    fail
+      ("Lexer failed to tokenize:\n" <> Megaparsec.errorBundlePretty e)
+  Right v -> pure Lexer.TokenStream
+    { tokens = toList v
+    , inputPos = Megaparsec.initialPos "<lex>"
+    , input = s
+    }
 
 testParser ::
   (Functor f, Eq (f ()), Show (f ())) =>
@@ -27,11 +33,11 @@ testParser txt parser expected = do
     Left e ->
       case expected of
         Nothing -> pure ()
-        Just _ -> expectationFailure ("Parser failed to parse: " <> show e)
+        Just _ -> expectationFailure ("Parser failed to parse:\n" <> Megaparsec.errorBundlePretty e)
     Right v ->
       case expected of
         Just expected' ->
           if v == expected'
             then pure ()
-            else expectationFailure ("AST mismatch. Got: " <> show v <> ", expected: " <> show expected')
-        Nothing -> expectationFailure ("Parser should fail but parsed: " <> show v)
+            else expectationFailure ("AST mismatch. Got:\n" <> show v <> "\nExpected:\n" <> show expected')
+        Nothing -> expectationFailure ("Parser should fail but parsed:\n" <> show v)

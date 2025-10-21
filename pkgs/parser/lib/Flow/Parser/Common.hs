@@ -1,6 +1,23 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Flow.Parser.Common where
+module Flow.Parser.Common (
+  type HasAnn,
+  type Parser,
+  Lexer.SourceRegion(..),
+  Lexer.WithPos(..),
+  type Lexer.TokenWithPos,
+  Lexer.TokenStream(..),
+  single,
+  foldPos,
+  dummySourceRegion,
+  token,
+  moduleIdentifier,
+  simpleTypeIdentifier,
+  simpleVarIdentifier,
+  anyTypeIdentifier,
+  anyVarIdentifier,
+  scopeIdentifier,
+) where
 
 import "base" Data.List.NonEmpty qualified as List (NonEmpty)
 import "base" Data.List.NonEmpty qualified as List.NonEmpty
@@ -27,13 +44,13 @@ import Flow.Lexer qualified as Lexer
 
 type HasAnn f ann = HasField "ann" (f ann) ann
 
-type Parser = Parsec Void [Lexer.TokenWithSourceRegion]
+type Parser = Parsec Void Lexer.TokenStream
 
 instance IsString (List.NonEmpty Char) where
   fromString = List.NonEmpty.fromList
 
-single :: Lexer.Token -> Parser Lexer.TokenWithSourceRegion
-single t = Megaparsec.satisfy ((== t) . (.token))
+single :: Lexer.Token -> Parser (Lexer.WithPos Lexer.Token)
+single t = Megaparsec.satisfy ((== t) . (.value))
 
 foldPos :: (Foldable f) => f Lexer.SourceRegion -> Lexer.SourceRegion
 foldPos = foldr1 (\r acc -> Lexer.SourceRegion{start = r.start, end = acc.end})
@@ -48,15 +65,15 @@ dummySourceRegion =
 token ::
   Set (Megaparsec.ErrorItem Lexer.Token) ->
   (Lexer.Token -> Maybe a) ->
-  Parser (Lexer.WithSourceRegion a)
+  Parser (Lexer.WithPos a)
 token expected match =
   Megaparsec.token
-    ( \tw@Lexer.WithSourceRegion{token = t} -> do
+    ( \tw@Lexer.WithPos{value = t} -> do
         r <- match t
-        pure $ tw{Lexer.token = r}
+        pure $ tw{Lexer.value = r}
     )
     ( Set.map
-        (fmap (\t -> Lexer.WithSourceRegion{token = t, payload = dummySourceRegion}))
+        (fmap (\t -> Lexer.WithPos{value = t, region = dummySourceRegion}))
         expected
     )
 
@@ -68,7 +85,7 @@ moduleIdentifier = do
       \case
         Lexer.Identifier i -> Just i
         _ -> Nothing
-  pure $ ModuleIdentifier{name = tok.token, ann = tok.payload}
+  pure $ ModuleIdentifier{name = tok.value, ann = tok.region}
 
 simpleTypeIdentifier :: Parser (SimpleTypeIdentifier Lexer.SourceRegion)
 simpleTypeIdentifier = do
@@ -79,7 +96,7 @@ simpleTypeIdentifier = do
         Lexer.Identifier i
           | Char.isUpper (Text.head i) -> Just i
         _ -> Nothing
-  pure $ SimpleTypeIdentifier{name = tok.token, ann = tok.payload}
+  pure $ SimpleTypeIdentifier{name = tok.value, ann = tok.region}
 
 simpleVarIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceRegion)
 simpleVarIdentifier = do
@@ -90,7 +107,7 @@ simpleVarIdentifier = do
         Lexer.Identifier i
           | Char.isLower (Text.head i) -> Just i
         _ -> Nothing
-  pure $ SimpleVarIdentifier{name = tok.token, ann = tok.payload}
+  pure $ SimpleVarIdentifier{name = tok.value, ann = tok.region}
 
 anyTypeIdentifier :: Parser (AnyTypeIdentifier Lexer.SourceRegion)
 anyTypeIdentifier = do
@@ -146,4 +163,4 @@ scopeIdentifier = do
       \case
         Lexer.RefScope i -> Just i
         _ -> Nothing
-  pure $ ScopeIdentifier{name = tok.token, ann = tok.payload}
+  pure $ ScopeIdentifier{name = tok.value, ann = tok.region}
