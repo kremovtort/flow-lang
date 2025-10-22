@@ -2,12 +2,14 @@ module Flow.AST.Surface.Syntax where
 
 import "base" Prelude hiding (Enum)
 import "vector" Data.Vector (Vector)
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
 
 import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyVarIdentifier, AnyTypeIdentifier)
 import Data.Vector.NonEmpty (NonEmptyVector)
 
 data UnitF a = UnitF
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Statements and related nodes
 data StatementF lhsExpr simPat pat ty expr ann
@@ -22,7 +24,7 @@ data StatementF lhsExpr simPat pat ty expr ann
   | SWhileF (WhileExpression expr ann) ann
   | SForF (ForExpression pat expr ann) ann
   | SExpressionF (expr ann) ann
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LetDefinitionF simPat ty expr ann = LetDefinitionF
   { lhs :: simPat ann
@@ -32,7 +34,7 @@ data LetDefinitionF simPat ty expr ann = LetDefinitionF
   , rhsAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data AssignStatementF lhsExpr expr ann = AssignStatementF
   { lhs :: lhsExpr ann
@@ -41,7 +43,7 @@ data AssignStatementF lhsExpr expr ann = AssignStatementF
   , rhsAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LHSExpressionF lhsExpr expr ann
   = LHSEWildcard ann
@@ -49,18 +51,19 @@ data LHSExpressionF lhsExpr expr ann
   | LHSEIndex (lhsExpr ann) (expr ann) ann
   | LHSEDotAccess (lhsExpr ann) (AnyVarIdentifier ann) ann
   | LHSEUnOp (LHSUnOpExpression expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 newtype LHSUnOpExpression expr ann
   = LHSUnOpExpressionDeref (expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+  deriving anyclass (ToExpr)
 
 data CodeBlockF lhsExpr simPat pat ty expr ann = CodeBlock
   { statements :: Vector (StatementF lhsExpr simPat pat ty expr ann)
   , result :: Maybe (expr ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Match and control flow
 
@@ -71,7 +74,7 @@ data MatchExpression pat expr ann = MatchExpression
   , armsAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data MatchArm pat expr ann = MatchArm
   { pattern :: pat ann
@@ -81,7 +84,7 @@ data MatchArm pat expr ann = MatchArm
   , expressionAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data IfExpression expr ann = IfExpression
   { condition :: expr ann
@@ -92,7 +95,7 @@ data IfExpression expr ann = IfExpression
   , else_ :: Maybe (expr ann, ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LoopExpression expr ann = LoopExpression
   { label :: Maybe (SimpleVarIdentifier ann, ann)
@@ -100,7 +103,7 @@ data LoopExpression expr ann = LoopExpression
   , bodyAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data WhileExpression expr ann = WhileExpression
   { label :: Maybe (SimpleVarIdentifier ann, ann)
@@ -110,7 +113,7 @@ data WhileExpression expr ann = WhileExpression
   , bodyAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ForExpression pat expr ann = ForExpression
   { label :: Maybe (SimpleVarIdentifier ann, ann)
@@ -122,7 +125,7 @@ data ForExpression pat expr ann = ForExpression
   , bodyAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ConstructorAppF a ty ann = ConstructorAppF
   { name :: AnyTypeIdentifier ann
@@ -130,13 +133,13 @@ data ConstructorAppF a ty ann = ConstructorAppF
   , fields :: Maybe (Fields a ann, ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data Fields inner ann
   = FieldsTuple (Vector (inner ann, ann))
   -- TODO: add punning fields syntax e.g. Cons { head, tail }
   | FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann, ann))
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 {-
 - Fields syntax:
@@ -164,4 +167,4 @@ data FieldNamedF inner ann = FieldNamedF
   , value :: Maybe (inner ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

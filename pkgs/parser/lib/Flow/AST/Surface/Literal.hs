@@ -4,6 +4,10 @@ import "scientific" Data.Scientific (Scientific)
 import "text" Data.Text (Text)
 import "bytestring" Data.ByteString (ByteString)
 import "base" Data.Word (Word8)
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
+
+import Flow.AST.Surface.Common ()
 
 data Literal
   = LitUnit
@@ -14,4 +18,4 @@ data Literal
   | LitByteString ByteString
   | LitChar Char
   | LitString Text
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, ToExpr)

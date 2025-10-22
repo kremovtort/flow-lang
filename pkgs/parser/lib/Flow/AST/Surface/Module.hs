@@ -2,6 +2,8 @@ module Flow.AST.Surface.Module where
 
 import "base" Prelude hiding (Enum)
 import "vector" Data.Vector (Vector)
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
 
 import Flow.AST.Surface.Common (ModuleIdentifier)
 import Flow.AST.Surface.Constraint (TypeDefinitionF)
@@ -12,27 +14,27 @@ import Flow.AST.Surface.Syntax (LetDefinitionF)
 data ModF mod lhsExpr simPat pat ty expr ann
   = ModDeclaration (ModuleIdentifier ann)
   | ModDefinition (ModuleIdentifier ann) (ModDefinitionBodyF mod lhsExpr simPat pat ty expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ModDefinitionBodyF mod lhsExpr simPat pat ty expr ann = ModDefinitionBody
   { uses :: Vector (UseClause ann)
   , items :: Vector (ModuleItemF mod lhsExpr simPat pat ty expr ann)
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data UseClause ann = UseClause
   { root :: ModuleIdentifier ann
   , tree :: UseTree ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data UseTree ann
   = UseTreeBranch (ModuleIdentifier ann) (UseTree ann)
   | UseTreeNested (Vector (UseTree ann))
   | UseTreeLeaf (ModuleIdentifier ann)
   | UseTreeLeafAs (ModuleIdentifier ann) (ModuleIdentifier ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ModuleItemF mod lhsExpr simPat pat ty expr ann
   = ModuleItemModF (mod ann) ann
@@ -47,4 +49,4 @@ data ModuleItemF mod lhsExpr simPat pat ty expr ann
   | ModuleItemOp (OpDefinitionF lhsExpr simPat pat ty expr ann)
   | ModuleItemOpInfix (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
   | ModuleItemLet (LetDefinitionF simPat ty expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

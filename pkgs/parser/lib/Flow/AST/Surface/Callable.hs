@@ -2,16 +2,21 @@
 
 module Flow.AST.Surface.Callable where
 
-import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
+import "vector" Data.Vector (Vector)
+
 import Flow.AST.Surface.Common (SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereClauseF, WhereBlockF)
+import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
 import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
-import Data.Vector.NonEmpty (NonEmptyVector)
 
 data CallKind = KFn | KOp
+  deriving (Eq, Ord, Show, Generic, ToExpr)
+
 data Fixity = Plain | Infix
+  deriving (Eq, Ord, Show, Generic, ToExpr)
 
 -- | Receiver header for infix calls
 data ReceiverHeader ty ann = ReceiverHeader
@@ -20,7 +25,7 @@ data ReceiverHeader ty ann = ReceiverHeader
   , type_ :: ty ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- | Common header for all callable entities
 data CallableHeader ty reciever ann = CallableHeader
@@ -35,18 +40,7 @@ data CallableHeader ty reciever ann = CallableHeader
   , result :: Maybe (ty ann, ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-data RecieverF (fixity :: Fixity) ty ann where
-  RecieverFPlain :: RecieverF Plain ty ann
-  RecieverFInfix :: ReceiverHeader ty ann -> RecieverF Infix ty ann
-
-deriving instance (Show ann, Show (ty ann)) => Show (RecieverF f ty ann)
-deriving instance (Eq ann, Eq (ty ann)) => Eq (RecieverF f ty ann)
-deriving instance (Ord ann, Ord (ty ann)) => Ord (RecieverF f ty ann)
-deriving instance (Functor ty) => Functor (RecieverF fixity ty)
-deriving instance (Foldable ty) => Foldable (RecieverF fixity ty)
-deriving instance (Traversable ty) => Traversable (RecieverF fixity ty)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ArgF ty ann = ArgF
   { mut :: Maybe ann
@@ -54,25 +48,25 @@ data ArgF ty ann = ArgF
   , type_ :: ty ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data
   CallableF
     (kind :: CallKind)
-    (fixity :: Fixity)
+    reciever
     ty
     body
     ann
   = CallableF
-  { header :: CallableHeader ty (RecieverF fixity ty) ann
+  { header :: CallableHeader ty reciever ann
   , body :: body ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 type FnDeclarationF ty ann =
   CallableF
     'KFn
-    'Plain
+    UnitF
     ty
     UnitF
     ann
@@ -80,7 +74,7 @@ type FnDeclarationF ty ann =
 type FnInfixDeclarationF ty ann =
   CallableF
     'KFn
-    'Infix
+    (ReceiverHeader ty)
     ty
     UnitF
     ann
@@ -88,7 +82,7 @@ type FnInfixDeclarationF ty ann =
 type OpDeclarationF ty ann =
   CallableF
     'KOp
-    'Plain
+    UnitF
     ty
     UnitF
     ann
@@ -96,7 +90,7 @@ type OpDeclarationF ty ann =
 type OpInfixDeclarationF ty ann =
   CallableF
     'KOp
-    'Infix
+    (ReceiverHeader ty)
     ty
     UnitF
     ann
@@ -104,7 +98,7 @@ type OpInfixDeclarationF ty ann =
 type FnDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KFn
-    'Plain
+    UnitF
     ty
     (CodeBlockF lhsExpr simPat pat ty expr)
     ann
@@ -112,7 +106,7 @@ type FnDefinitionF lhsExpr simPat pat ty expr ann =
 type FnInfixDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KFn
-    'Infix
+    (ReceiverHeader ty)
     ty
     (CodeBlockF lhsExpr simPat pat ty expr)
     ann
@@ -120,7 +114,7 @@ type FnInfixDefinitionF lhsExpr simPat pat ty expr ann =
 type OpDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KOp
-    'Plain
+    UnitF
     ty
     (CodeBlockF lhsExpr simPat pat ty expr)
     ann
@@ -128,7 +122,7 @@ type OpDefinitionF lhsExpr simPat pat ty expr ann =
 type OpInfixDefinitionF lhsExpr simPat pat ty expr ann =
   CallableF
     'KOp
-    'Infix
+    (ReceiverHeader ty)
     ty
     (CodeBlockF lhsExpr simPat pat ty expr)
     ann

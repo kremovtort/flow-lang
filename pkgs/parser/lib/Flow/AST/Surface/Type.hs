@@ -4,6 +4,8 @@ import Data.Vector.NonEmpty (NonEmptyVector)
 import Flow.AST.Surface.Common (AnyTypeIdentifier, ScopeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
 import "vector" Data.Vector (Vector)
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
 
 data TypeF ty ann
   = TyBuiltinF Builtin ann
@@ -14,7 +16,7 @@ data TypeF ty ann
   | TyForallF (ForallF ty ann) -- <A :< Monoid> fn(List<A>) -> A
   | TyFnF (FnF ty ann) -- fn(List<A>) -> A
   | TyEffectRowF (EffectRowF ty ann) -- @[IO, State<S>] | @['s, IO] | @['s, IO, s: State<S>, ..R] | etc
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data Builtin
   = BuiltinUnit
@@ -37,7 +39,7 @@ data Builtin
   | BuiltinByteString
   | BuiltinChar
   | BuiltinString
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, ToExpr)
 
 data AppF ty ann = AppF -- Option<A>
   { head :: ty ann
@@ -46,14 +48,14 @@ data AppF ty ann = AppF -- Option<A>
   , argsAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
   { scope :: Maybe (ScopeIdentifier ann)
   , mutability :: Maybe ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
   { params :: BindersWConstraintsF ty ann
@@ -64,7 +66,7 @@ data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
   , whereAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data FnF ty ann = FnF -- fn(List<A>) -> A
   { args :: Vector (ty ann)
@@ -74,17 +76,17 @@ data FnF ty ann = FnF -- fn(List<A>) -> A
   , resultAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectRowF ty ann = EffectRowF
   { effects :: Vector (EffectAtomF ty ann)
   , tailVar :: Maybe (AnyTypeIdentifier ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectAtomF ty ann
   = EAtomTypeF (ty ann) ann -- E1
   | EAtomNameTypeF (SimpleVarIdentifier ann) (ty ann) ann -- e1: E1
   | EAtomScopeF (ScopeIdentifier ann) ann -- 's
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

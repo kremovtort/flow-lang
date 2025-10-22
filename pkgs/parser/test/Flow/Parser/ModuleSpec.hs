@@ -145,7 +145,7 @@ fnItem name args effects result =
     Callable.CallableF
       { header =
           Callable.CallableHeader
-            { receiver = Callable.RecieverFPlain
+            { receiver = Syn.UnitF
             , name = simpleVar name
             , typeParams = Nothing
             , argsRequired = Vector.fromList (map buildArg args)

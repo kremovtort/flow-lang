@@ -3,6 +3,8 @@ module Flow.AST.Surface.Decl where
 import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
 
 import Flow.AST.Surface.Common (SimpleTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Callable (
@@ -24,7 +26,7 @@ data StructF ty ann = StructF
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , fields :: Vector (Fields ty ann)
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EnumF ty ann = EnumF
   { name :: SimpleTypeIdentifier ann
@@ -33,19 +35,19 @@ data EnumF ty ann = EnumF
   , variantsAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EnumVariantsF ty ann
   = EVariantsSimpleF (NonEmptyVector (EnumVariantF ty ann))
   | EVariantsGeneralized (NonEmptyVector (EnumVariantGeneralizedF ty ann))
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EnumVariantF ty ann = EnumVariantF
   { name :: SimpleTypeIdentifier ann
   , enumFields :: Maybe (Fields ty ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EnumVariantGeneralizedF ty ann = EnumVariantGeneralizedF
   { name :: SimpleTypeIdentifier ann
@@ -56,7 +58,7 @@ data EnumVariantGeneralizedF ty ann = EnumVariantGeneralizedF
   , whereAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 
 data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
@@ -64,7 +66,7 @@ data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
   , type_ :: ty ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data Trait lhsExpr simPat pat ty expr ann = Trait
   { name :: SimpleTypeIdentifier ann
@@ -73,7 +75,7 @@ data Trait lhsExpr simPat pat ty expr ann = Trait
   , traitBody :: Vector (TraitItem lhsExpr simPat pat ty expr ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data TraitItem lhsExpr simPat pat ty expr ann
   = TItemTypeDeclaration (TypeDeclarationF ty ann)
@@ -86,7 +88,7 @@ data TraitItem lhsExpr simPat pat ty expr ann
   | TItemFnInfixDefinition (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
   | TItemOpDefinition (OpDefinitionF lhsExpr simPat pat ty expr ann)
   | TItemOpInfixDefinition (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data Impl lhsExpr simPat pat ty expr ann = Impl
   { typeParams :: Maybe (BindersWConstraintsF ty ann)
@@ -95,7 +97,7 @@ data Impl lhsExpr simPat pat ty expr ann = Impl
   , body :: Vector (ImplItemF lhsExpr simPat pat ty expr ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ImplItemF lhsExpr simPat pat ty expr ann
   = ImplItemType (TypeDefinitionF ty ann)
@@ -104,7 +106,7 @@ data ImplItemF lhsExpr simPat pat ty expr ann
   | ImplItemFnInfix (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
   | ImplItemOp (OpDefinitionF lhsExpr simPat pat ty expr ann)
   | ImplItemOpInfix (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectF lhsExpr simPat pat ty expr ann = EffectF
   { name :: SimpleTypeIdentifier ann
@@ -113,7 +115,7 @@ data EffectF lhsExpr simPat pat ty expr ann = EffectF
   , whereBlock :: Maybe (WhereBlockF ty ann)
   , effectContent :: Vector (EffectItemDeclarationF lhsExpr simPat pat ty expr ann)
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectItemDeclarationF lhsExpr simPat pat ty expr ann
   = EItemLetDeclaration (LetDeclarationF ty ann)
@@ -125,16 +127,16 @@ data EffectItemDeclarationF lhsExpr simPat pat ty expr ann
   | EItemFnInfixDef (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
   | EItemOpDef (OpDefinitionF lhsExpr simPat pat ty expr ann)
   | EItemOpInfixDef (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data TypeDeclarationF ty ann = TypeDeclarationF
   { name :: SimpleTypeIdentifier ann
   , type_ :: ty ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LetDeclarationF ty ann = LetDeclarationF
   { name :: SimpleVarIdentifier ann
   , type_ :: ty ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

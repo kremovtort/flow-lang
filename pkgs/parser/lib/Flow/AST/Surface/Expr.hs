@@ -5,6 +5,8 @@ module Flow.AST.Surface.Expr where
 import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
+import "base" GHC.Generics (Generic)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
 
 import Flow.AST.Surface.Callable
 import Flow.AST.Surface.Common (AnyTypeIdentifier, AnyVarIdentifier, ScopeIdentifier, SimpleVarIdentifier)
@@ -45,7 +47,7 @@ data ExpressionF lhsExpr simPat pat ty expr ann
   | EBlock (CodeBlockF lhsExpr simPat pat ty expr ann) -- { ... }
   | EHandle (HandleExpressionF lhsExpr simPat pat ty expr ann) -- handle Effect
   | ELambda (LambdaExpressionF ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Pieces used by both Expr and Stmt
 
@@ -54,7 +56,7 @@ data UnOpExpression expr ann = UnOpExpression
   , operand :: expr ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BinOpExpression expr ann = BinOpExpression
   { op :: BinOp ann
@@ -62,7 +64,7 @@ data BinOpExpression expr ann = BinOpExpression
   , right :: expr ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Small enums for ops (kept minimal to avoid bringing more deps here)
 data UnOp ann
@@ -71,7 +73,7 @@ data UnOp ann
   | UnOpDeref ann
   | UnOpTakeRef (Maybe (ScopeIdentifier ann)) ann
   | UnOpTakeMutRef (Maybe (ScopeIdentifier ann)) ann
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BinOp ann
   = BinOpAdd ann
@@ -92,7 +94,7 @@ data BinOp ann
   | BinOpBitwiseOr ann
   | BinOpBitwiseShiftLeft ann
   | BinOpBitwiseShiftRight ann
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Higher-level expression nodes
 
@@ -106,7 +108,7 @@ data LambdaExpressionF ty expr ann = LambdaExpressionF
   , bodyAnn :: ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Handle block normalized form
 
@@ -119,7 +121,7 @@ data HandleExpressionF lhsExpr simPat pat ty expr ann = HandleExpressionF
   , handlersAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data HandlerSpecF lhsExpr simPat pat ty expr ann = HandlerSpecF
   { effect :: ty ann
@@ -129,7 +131,7 @@ data HandlerSpecF lhsExpr simPat pat ty expr ann = HandlerSpecF
   , body :: NonEmptyVector (EffectItemDefinitionF lhsExpr simPat pat ty expr ann)
   , bodyAnn :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data HandleReturningF ty ann = HandleReturningF
   { binder :: ReturningBinderF ty ann
@@ -138,7 +140,7 @@ data HandleReturningF ty ann = HandleReturningF
   , resultAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ReturningBinderF ty ann = ReturningBinderF
   { name :: SimpleVarIdentifier ann
@@ -147,7 +149,7 @@ data ReturningBinderF ty ann = ReturningBinderF
   , resultAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Callable references inside expressions are referenced via dedicated types
 -- We'll keep these constructors here but their definitions live elsewhere
@@ -163,12 +165,12 @@ data FnCallF ty expr ann = FnCallF
   , withEffects :: Maybe (Vector (WithEffectsItem ty ann))
   , withEffectsAnn :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data FnArgsF expr ann
   = FnArgsUnnamedF (Vector (expr ann)) ann
   | FnArgsNamedF (Vector (SimpleVarIdentifier ann, expr ann)) ann
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data WithEffectsItem ty ann = WithEffectsItem
   { lhs :: Either (SimpleVarIdentifier ann) (ty ann)
@@ -177,7 +179,7 @@ data WithEffectsItem ty ann = WithEffectsItem
   , rhsAnn :: ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, ToExpr)
 
 instance (Functor ty) => Functor (WithEffectsItem ty) where
   fmap f (WithEffectsItem{..}) =
@@ -221,4 +223,4 @@ data EffectItemDefinitionF lhsExpr simPat pat ty expr ann
   | EDefinitionFnInfixF (FnInfixDefinitionF lhsExpr simPat pat ty expr ann) ann
   | EDefinitionOpF (OpDefinitionF lhsExpr simPat pat ty expr ann) ann
   | EDefinitionOpInfixF (OpInfixDefinitionF lhsExpr simPat pat ty expr ann) ann
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

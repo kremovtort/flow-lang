@@ -1,11 +1,11 @@
 module Flow.Parser.TypeSpec (spec) where
 
+import "base" Data.Maybe (fromJust)
 import "hspec" Test.Hspec (Spec, describe, it)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "text" Data.Text (Text)
 import "vector" Data.Vector qualified as Vector
 
-import Data.Maybe (fromJust)
 import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as C
 import Flow.AST.Surface.Type qualified as Ty
@@ -65,7 +65,7 @@ fnType args eff res =
           Ty.FnF
             { args = Vector.fromList args
             , argsAnn = ()
-            , effects = (, ()) <$> eff
+            , effects = (,()) <$> eff
             , result = res
             , resultAnn = ()
             , ann = ()
