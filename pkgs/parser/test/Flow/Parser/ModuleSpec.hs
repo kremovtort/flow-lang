@@ -22,7 +22,7 @@ import Flow.AST.Surface.Type qualified as Ty
 import Flow.Parser.Helpers (testParser)
 import Flow.Parser.Module qualified as PMod
 
-type ModuleItem = M.ModuleItemF Surface.Mod Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
+type ModuleItemPub = M.ModuleItemF Surface.Mod Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
 
 modIdent :: Text -> C.ModuleIdentifier ()
 modIdent name = C.ModuleIdentifier{name, ann = ()}
@@ -52,13 +52,13 @@ modDecl name =
     , ann = ()
     }
 
-modDef :: Text -> [M.UseClause ()] -> [ModuleItem ()] -> Surface.Mod ()
+modDef :: Text -> [M.UseClause ()] -> [ModuleItemPub ()] -> Surface.Mod ()
 modDef name uses items =
   Surface.Mod
     { mod =
         M.ModDefinition
           (modIdent name)
-          M.ModDefinitionBody{uses = Vector.fromList uses, items = Vector.fromList items}
+          M.ModDefinitionBodyF{uses = Vector.fromList uses, items = Vector.fromList items}
     , ann = ()
     }
 
@@ -95,69 +95,91 @@ useClauseAs path alias =
           , ann = ()
           }
 
-structItem :: Text -> ModuleItem ()
-structItem name =
-  M.ModuleItemStruct
-    Decl.StructF
-      { name = C.SimpleTypeIdentifier{name, ann = ()}
-      , typeParams = Nothing
-      , fields = mempty
-      }
-
-enumItem :: Text -> [Text] -> ModuleItem ()
-enumItem name variants =
-  M.ModuleItemEnum
-    Decl.EnumF
-      { name = C.SimpleTypeIdentifier{name, ann = ()}
-      , typeParams = Nothing
-      , variants =
-          Decl.EVariantsSimpleF
-            ( case NE.fromList
-                ( fmap
-                    (\vname -> Decl.EnumVariantF{name = C.SimpleTypeIdentifier{name = vname, ann = ()}, enumFields = Nothing, ann = ()})
-                    variants
-                ) of
-                Nothing -> error "enumItem: expected non-empty variants"
-                Just ne -> ne
-            )
-      , ann = ()
-      , variantsAnn = ()
-      }
-
-typeAliasItem :: Text -> Surface.Type () -> ModuleItem ()
-typeAliasItem name ty =
-  M.ModuleItemTypeAlias
-    Constraint.TypeDefinitionF
-      { name = C.SimpleTypeIdentifier{name, ann = ()}
-      , scopeParams = mempty
-      , typeParams =
-          Vector.fromList
-            [ Constraint.BinderWoConstraintF{name = C.SimpleTypeIdentifier{name = "X", ann = ()}, typeType = Nothing, ann = ()}
-            , Constraint.BinderWoConstraintF{name = C.SimpleTypeIdentifier{name = "Y", ann = ()}, typeType = Nothing, ann = ()}
-            ]
-      , type_ = ty
-      , ann = ()
-      }
-
-fnItem :: Text -> [(Bool, Text, Surface.Type ())] -> Maybe (Surface.Type ()) -> Maybe (Surface.Type ()) -> ModuleItem ()
-fnItem name args effects result =
-  M.ModuleItemFn
-    Callable.CallableF
-      { header =
-          Callable.CallableHeader
-            { receiver = Syn.UnitF
-            , name = simpleVar name
+structItem :: Maybe (Decl.PubF ()) -> Text -> ModuleItemPub ()
+structItem pub' name =
+  M.ModuleItemPubF
+    { pub = pub'
+    , item =
+        M.ModItemStructF
+          Decl.StructF
+            { name = C.SimpleTypeIdentifier{name, ann = ()}
             , typeParams = Nothing
-            , argsRequired = Vector.fromList (map buildArg args)
-            , argsRequiredAnn = ()
-            , argsOptional = mempty
-            , argsOptionalAnn = ()
-            , effects = (,()) <$> effects
-            , result = (,()) <$> result
-            , whereBlock = Nothing
+            , fields = mempty
+            , fieldsAnn = ()
+            , ann = ()
             }
-      , body = Syn.CodeBlock{statements = mempty, result = Nothing, ann = ()}
-      }
+    , ann = ()
+    }
+
+enumItem :: Maybe (Decl.PubF ()) -> Text -> [Text] -> ModuleItemPub ()
+enumItem pub' name variants =
+  M.ModuleItemPubF
+    { pub = pub'
+    , item =
+        M.ModItemEnumF
+          Decl.EnumF
+            { name = C.SimpleTypeIdentifier{name, ann = ()}
+            , typeParams = Nothing
+            , variants =
+                Decl.EVariantsSimpleF
+                  ( case NE.fromList
+                      ( fmap
+                          (\vname -> Decl.EnumVariantF{name = C.SimpleTypeIdentifier{name = vname, ann = ()}, fields = Nothing, ann = ()})
+                          variants
+                      ) of
+                      Nothing -> error "enumItem: expected non-empty variants"
+                      Just ne -> ne
+                  )
+            , ann = ()
+            , variantsAnn = ()
+            }
+    , ann = ()
+    }
+
+typeAliasItem :: Maybe (Decl.PubF ()) -> Text -> Surface.Type () -> ModuleItemPub ()
+typeAliasItem pub' name ty =
+  M.ModuleItemPubF
+    { pub = pub'
+    , item =
+        M.ModItemTypeAliasF
+          Constraint.TypeDefinitionF
+            { name = C.SimpleTypeIdentifier{name, ann = ()}
+            , scopeParams = mempty
+            , typeParams =
+                Vector.fromList
+                  [ Constraint.BinderWoConstraintF{name = C.SimpleTypeIdentifier{name = "X", ann = ()}, typeType = Nothing, ann = ()}
+                  , Constraint.BinderWoConstraintF{name = C.SimpleTypeIdentifier{name = "Y", ann = ()}, typeType = Nothing, ann = ()}
+                  ]
+            , type_ = ty
+            , ann = ()
+            }
+    , ann = ()
+    }
+
+fnItem :: Maybe (Decl.PubF ()) -> Text -> [(Bool, Text, Surface.Type ())] -> Maybe (Surface.Type ()) -> Maybe (Surface.Type ()) -> ModuleItemPub ()
+fnItem pub' name args effects result =
+  M.ModuleItemPubF
+    { pub = pub'
+    , item =
+        M.ModItemFnF
+          Callable.CallableF
+            { header =
+                Callable.CallableHeader
+                  { receiver = Syn.UnitF
+                  , name = simpleVar name
+                  , typeParams = Nothing
+                  , argsRequired = Vector.fromList (map buildArg args)
+                  , argsRequiredAnn = ()
+                  , argsOptional = mempty
+                  , argsOptionalAnn = ()
+                  , effects = (,()) <$> effects
+                  , result = (,()) <$> result
+                  , whereBlock = Nothing
+                  }
+            , body = Syn.CodeBlock{statements = mempty, result = Nothing, ann = ()}
+            }
+    , ann = ()
+    }
  where
   buildArg (mut, name', ty) =
     Callable.ArgF
@@ -167,28 +189,33 @@ fnItem name args effects result =
       , ann = ()
       }
 
-letItem :: Text -> Surface.Type () -> Surface.Expression () -> ModuleItem ()
-letItem name ty expr =
-  M.ModuleItemLet
-    Syn.LetDefinitionF
-      { lhs =
-          Surface.PatternSimple
-            { patternSimple =
-                Pat.PatSimVarF
-                  ( Pat.PatternVariableF
-                      { mut = Nothing
-                      , name = simpleVar name
-                      , ann = ()
-                      }
-                  )
+letItem :: Maybe (Decl.PubF ()) -> Text -> Surface.Type () -> Surface.Expression () -> ModuleItemPub ()
+letItem pub' name ty expr =
+  M.ModuleItemPubF
+    { pub = pub'
+    , item =
+        M.ModItemLetF
+          Syn.LetDefinitionF
+            { lhs =
+                Surface.PatternSimple
+                  { patternSimple =
+                      Pat.PatSimVarF
+                        ( Pat.PatternVariableF
+                            { mut = Nothing
+                            , name = simpleVar name
+                            , ann = ()
+                            }
+                        )
+                  , ann = ()
+                  }
+            , lhsAnn = ()
+            , lhsType = Just (ty, ())
+            , rhs = expr
+            , rhsAnn = ()
             , ann = ()
             }
-      , lhsAnn = ()
-      , lhsType = Just (ty, ())
-      , rhs = expr
-      , rhsAnn = ()
-      , ann = ()
-      }
+    , ann = ()
+    }
 
 tupleType :: [Surface.Type ()] -> Surface.Type ()
 tupleType tys = Surface.Type{ty = Ty.TyTupleF (fromJust $ NE.fromList tys) (), ann = ()}
@@ -196,10 +223,16 @@ tupleType tys = Surface.Type{ty = Ty.TyTupleF (fromJust $ NE.fromList tys) (), a
 literalInt :: Integer -> Surface.Expression ()
 literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n), ann = ()}
 
+nonPub :: Maybe (Decl.PubF ())
+nonPub = Nothing
+
+pub :: Maybe (Decl.PubF ())
+pub = Just (Decl.PubPubF ())
+
 rootModuleName :: Text
 rootModuleName = "_"
 
-rootModule :: [M.UseClause ()] -> [ModuleItem ()] -> Surface.Mod ()
+rootModule :: [M.UseClause ()] -> [ModuleItemPub ()] -> Surface.Mod ()
 rootModule = modDef rootModuleName
 
 spec :: Spec
@@ -247,16 +280,17 @@ spec = describe "Module parser (minimal subset)" do
             , "let x: i32 = 42;"
             ]
         items =
-          [ structItem "S"
-          , enumItem "E" ["A", "B"]
-          , typeAliasItem "Pair" (tupleType [simpleType "X", simpleType "Y"])
+          [ structItem nonPub "S"
+          , enumItem nonPub "E" ["A", "B"]
+          , typeAliasItem nonPub "Pair" (tupleType [simpleType "X", simpleType "Y"])
           , fnItem
+              nonPub
               "add"
               [ (False, "a", Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
               , (False, "b", Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
               ]
               Nothing
               (Just Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
-          , letItem "x" (Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()}) (literalInt 42)
+          , letItem nonPub "x" (Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()}) (literalInt 42)
           ]
     testParser src PMod.pModule (Just (rootModule [] items))

@@ -2,14 +2,24 @@
 
 module Flow.AST.Surface.Expr where
 
+import "base" GHC.Generics (Generic)
 import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
+import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
-import "base" GHC.Generics (Generic)
-import "tree-diff" Data.TreeDiff.Class (ToExpr)
 
-import Flow.AST.Surface.Callable
-import Flow.AST.Surface.Common (AnyTypeIdentifier, AnyVarIdentifier, ScopeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Callable (
+  FnDefinitionF,
+  FnInfixDefinitionF,
+  OpDefinitionF,
+  OpInfixDefinitionF,
+ )
+import Flow.AST.Surface.Common (
+  AnyTypeIdentifier,
+  AnyVarIdentifier,
+  ScopeIdentifier,
+  SimpleVarIdentifier,
+ )
 import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
@@ -196,7 +206,7 @@ instance (Functor ty) => Functor (WithEffectsItem ty) where
       }
 
 instance (Foldable ty) => Foldable (WithEffectsItem ty) where
-  foldMap f (WithEffectsItem{..}) = lhsFolded <> f lhsAnn <> rhsFolded <> f rhsAnn <> f ann
+  foldMap f (WithEffectsItem{lhs, lhsAnn, rhs, rhsAnn, ann}) = lhsFolded <> f lhsAnn <> rhsFolded <> f rhsAnn <> f ann
    where
     lhsFolded = case lhs of
       Left a -> foldMap f a
