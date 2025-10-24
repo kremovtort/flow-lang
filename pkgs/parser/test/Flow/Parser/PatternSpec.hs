@@ -116,19 +116,29 @@ fieldsTuple ps =
     )
 
 fieldsNamed ::
-  [(Text, Surface.PatternSimple ())] ->
+  [Pat.PatternFieldNamedF Surface.PatternSimple Surface.Type ()] ->
   Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()
-fieldsNamed ps =
-  let mapped =
-        ps <&> \(a, b) ->
-          Pat.PatFldNmdValueF $
-            Pat.PatternFieldNamedValueF
-              { name = mkVar a
-              , optional = Nothing
-              , value = b
-              , ann = ()
-              }
-   in Pat.PatFldsNamedF (fromJust $ NE.fromList mapped)
+fieldsNamed ps = Pat.PatFldsNamedF (fromJust $ NE.fromList ps)
+
+mkFieldNamed :: Text -> Surface.PatternSimple () -> Pat.PatternFieldNamedF Surface.PatternSimple Surface.Type ()
+mkFieldNamed name value =
+  Pat.PatFldNmdValueF $
+    Pat.PatternFieldNamedValueF
+      { name = mkVar name
+      , optional = Nothing
+      , value = value
+      , ann = ()
+      }
+
+mkFieldNamedPun :: Text -> Pat.PatternFieldNamedF Surface.PatternSimple Surface.Type ()
+mkFieldNamedPun name =
+  Pat.PatFldNmdPunningF $
+    Pat.PatternFieldNamedPunningF
+      { mut = Nothing
+      , name = mkVar name
+      , optional = Nothing
+      , ann = ()
+      }
 
 requireList :: String -> [a] -> ListNE.NonEmpty a
 requireList label [] = error (label <> ": expected non-empty list")
@@ -166,8 +176,8 @@ spec = describe "Pattern parser (minimal subset)" do
             Nothing
             ( Just
                 ( fieldsNamed
-                    [ ("head", literalIntPattern 1)
-                    , ("tail", varPattern "xs")
+                    [ mkFieldNamed "head" (literalIntPattern 1)
+                    , mkFieldNamed "tail" (varPattern "xs")
                     ]
                 )
             )
@@ -178,5 +188,5 @@ spec = describe "Pattern parser (minimal subset)" do
           constructorPattern
             "Cons"
             Nothing
-            (Just (fieldsNamed [("head", literalIntPattern 1), ("tail", varPattern "xs")]))
+            (Just (fieldsNamed [mkFieldNamedPun "head", mkFieldNamedPun "tail"]))
     testParser "Cons { head, tail }" pPatternSimple (Just expected)

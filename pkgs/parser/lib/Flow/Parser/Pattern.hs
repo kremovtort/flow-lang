@@ -149,7 +149,7 @@ pCons pPat pTy = do
   pFieldNamed :: Parser (Surface.PatternFieldNamedF pat ty SourceRegion)
   pFieldNamed =
     Megaparsec.choice
-      [ Surface.PatFldNmdValueF <$> pFieldNamedValue
+      [ Surface.PatFldNmdValueF <$> Megaparsec.try pFieldNamedValue
       , Surface.PatFldNmdPunningF <$> pFieldNamedPunning
       ]
 
