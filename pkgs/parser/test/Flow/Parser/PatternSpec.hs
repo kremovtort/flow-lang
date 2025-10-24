@@ -2,6 +2,7 @@ module Flow.Parser.PatternSpec (spec) where
 
 import "base" Data.Functor ((<&>))
 import "base" Data.List.NonEmpty qualified as ListNE
+import "base" GHC.Stack (HasCallStack)
 import "hspec" Test.Hspec (Spec, describe, it)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
 import "text" Data.Text (Text)
@@ -140,11 +141,11 @@ mkFieldNamedPun name =
       , ann = ()
       }
 
-requireList :: String -> [a] -> ListNE.NonEmpty a
+requireList :: (HasCallStack) => String -> [a] -> ListNE.NonEmpty a
 requireList label [] = error (label <> ": expected non-empty list")
 requireList _label (x : xs) = x ListNE.:| xs
 
-requireVector :: String -> [a] -> NE.NonEmptyVector a
+requireVector :: (HasCallStack) => String -> [a] -> NE.NonEmptyVector a
 requireVector label = NE.fromNonEmpty . requireList label
 
 spec :: Spec

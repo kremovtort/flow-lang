@@ -1,12 +1,12 @@
 module Flow.AST.Surface.Syntax where
 
-import "base" Prelude hiding (Enum)
-import "vector" Data.Vector (Vector)
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
+import "vector" Data.Vector (Vector)
+import "base" Prelude hiding (Enum)
 
-import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyVarIdentifier, AnyTypeIdentifier)
 import Data.Vector.NonEmpty (NonEmptyVector)
+import Flow.AST.Surface.Common (AnyTypeIdentifier, SimpleVarIdentifier)
 
 data UnitF a = UnitF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -46,10 +46,10 @@ data AssignStatementF lhsExpr expr ann = AssignStatementF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LHSExpressionF lhsExpr expr ann
-  = LHSEWildcard ann
+  = LHSEWildcard
   | LHSEVar (SimpleVarIdentifier ann)
-  | LHSEIndex (lhsExpr ann) (expr ann) ann
-  | LHSEDotAccess (lhsExpr ann) (AnyVarIdentifier ann) ann
+  | LHSEIndex (lhsExpr ann) (expr ann)
+  | LHSEDotAccess (lhsExpr ann) (SimpleVarIdentifier ann)
   | LHSEUnOp (LHSUnOpExpression expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -137,8 +137,8 @@ data ConstructorAppF a ty ann = ConstructorAppF
 
 data Fields inner ann
   = FieldsTuple (Vector (inner ann, ann))
-  -- TODO: add punning fields syntax e.g. Cons { head, tail }
-  | FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann, ann))
+  | -- TODO: add punning fields syntax e.g. Cons { head, tail }
+    FieldsNamed (Vector (SimpleVarIdentifier ann, inner ann, ann))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 {-

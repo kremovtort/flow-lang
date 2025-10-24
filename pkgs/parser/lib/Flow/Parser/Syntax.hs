@@ -141,8 +141,63 @@ statement lhsExpr simPat pat ty expr = do
     pure $ SForF expr' expr'.ann
 
 -- | LHSExpression parser (stub)
-pLHSExpression :: Parser (LHSExpression SourceRegion)
-pLHSExpression = fail "Flow.Parser.Syntax.pLHSExpression: not implemented"
+pLHSExpression :: Parser (Expression SourceRegion) -> Parser (LHSExpression SourceRegion)
+pLHSExpression expr = do
+  base <- pLHSEAtom expr
+  suffixes base
+ where
+  suffixes acc = do
+    mSuffix <- Megaparsec.optional (Megaparsec.choice [pLHSEIndexSuffix expr, pLHSEDotAccessSuffix])
+    case mSuffix of
+      Just applySuffix -> suffixes (applySuffix acc)
+      Nothing -> pure acc
+
+-- | Parses an index suffix: "[expr]" and returns a function to extend LHS
+pLHSEIndexSuffix :: Parser (Expression SourceRegion) -> Parser (LHSExpression SourceRegion -> LHSExpression SourceRegion)
+pLHSEIndexSuffix expr = do
+  _ <- single (Lexer.Punctuation Lexer.LeftBracket)
+  idxExpr <- expr
+  tokE <- single (Lexer.Punctuation Lexer.RightBracket)
+  pure $ \acc ->
+    LHSExpression
+      { lhsExpression = LHSEIndex acc idxExpr
+      , ann = SourceRegion{start = acc.ann.start, end = tokE.region.end}
+      }
+
+-- | Parses a dot-access suffix: ".field" and returns a function to extend LHS
+pLHSEDotAccessSuffix :: Parser (LHSExpression SourceRegion -> LHSExpression SourceRegion)
+pLHSEDotAccessSuffix = do
+  _ <- single (Lexer.Punctuation Lexer.Dot)
+  field' <- simpleVarIdentifier
+  pure $ \acc ->
+    LHSExpression
+      { lhsExpression = LHSEDotAccess acc field'
+      , ann = SourceRegion{start = acc.ann.start, end = field'.ann.end}
+      }
+
+pLHSEAtom :: Parser (Expression SourceRegion) -> Parser (LHSExpression SourceRegion)
+pLHSEAtom expr = do
+  Megaparsec.choice
+    [ pLHSEWildcard
+    , pLHSEVar
+    , pLHSEUnOp expr
+    ]
+
+pLHSEWildcard :: Parser (LHSExpression SourceRegion)
+pLHSEWildcard = do
+  tok <- single (Lexer.Punctuation Lexer.Underscore)
+  pure $ LHSExpression{lhsExpression = LHSEWildcard, ann = tok.region}
+
+pLHSEVar :: Parser (LHSExpression SourceRegion)
+pLHSEVar = do
+  var' <- simpleVarIdentifier
+  pure $ LHSExpression{lhsExpression = LHSEVar var', ann = var'.ann}
+
+pLHSEUnOp :: Parser (Expression SourceRegion) -> Parser (LHSExpression SourceRegion)
+pLHSEUnOp expr = do
+  tokS <- single (Lexer.Punctuation Lexer.Star)
+  expr' <- expr
+  pure $ LHSExpression{lhsExpression = LHSEUnOp (LHSUnOpExpressionDeref expr'), ann = SourceRegion{start = tokS.region.start, end = expr'.ann.end}}
 
 matchExpression ::
   Parser (Pattern SourceRegion) ->
