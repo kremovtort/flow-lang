@@ -80,7 +80,8 @@ data Token
   deriving (Eq, Ord, Show)
 
 data Keyword
-  = Effect
+  = Alloc
+  | Effect
   | Else
   | Enum
   | Fn
@@ -408,6 +409,7 @@ hexLiteral = lexeme do
 
 keywordText :: Keyword -> Text
 keywordText = \case
+  Alloc -> "alloc"
   Effect -> "effect"
   Else -> "else"
   Enum -> "enum"
