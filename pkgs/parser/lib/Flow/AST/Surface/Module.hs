@@ -12,8 +12,8 @@ import Flow.AST.Surface.Decl qualified as Decl
 import Flow.AST.Surface.Syntax (LetDefinitionF)
 
 data ModF mod lhsExpr simPat pat ty expr ann
-  = ModDeclaration (ModuleIdentifier ann)
-  | ModDefinition (ModuleIdentifier ann) (ModDefinitionBodyF mod lhsExpr simPat pat ty expr ann)
+  = ModDeclarationF (ModuleIdentifier ann)
+  | ModDefinitionF (ModuleIdentifier ann) (ModDefinitionBodyF mod lhsExpr simPat pat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ModDefinitionBodyF mod lhsExpr simPat pat ty expr ann = ModDefinitionBodyF
@@ -23,8 +23,9 @@ data ModDefinitionBodyF mod lhsExpr simPat pat ty expr ann = ModDefinitionBodyF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data UseClause ann = UseClause
-  { root :: ModuleIdentifier ann
-  , tree :: UseTree ann
+  { pub :: Maybe (Decl.Pub ann)
+  , root :: ModuleIdentifier ann
+  , tree :: Maybe (UseTree ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -32,13 +33,14 @@ data UseClause ann = UseClause
 data UseTree ann
   = UseTreeBranch (ModuleIdentifier ann) (UseTree ann)
   | UseTreeNested (Vector (UseTree ann))
-  | UseTreeLeaf (ModuleIdentifier ann)
+  | UseTreeLeafNamed (ModuleIdentifier ann)
+  | UseTreeLeafWildcard ann
   | UseTreeLeafAs (ModuleIdentifier ann) (ModuleIdentifier ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ModuleItemF mod lhsExpr simPat pat ty expr ann
-  = ModuleItemPubF
-    { pub :: Maybe (Decl.PubF ann)
+  = ModuleItemF
+    { pub :: Maybe (Decl.Pub ann)
     , item :: ModuleItemVariantF mod lhsExpr simPat pat ty expr ann
     , ann :: ann
     }

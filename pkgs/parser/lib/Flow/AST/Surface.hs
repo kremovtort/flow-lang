@@ -9,12 +9,7 @@ import Flow.AST.Surface.Pattern (PatternF, PatternSimpleF)
 import Flow.AST.Surface.Syntax (LHSExpressionF)
 import Flow.AST.Surface.Type (TypeF)
 
-data ModDefinitionBody ann = ModDefinitionBody
-  { modDefinitionBody :: ModDefinitionBodyF Mod LHSExpression PatternSimple Pattern Type Expression ann
-  , ann :: ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
-  deriving anyclass (ToExpr)
+type ModDefinitionBody ann = ModDefinitionBodyF Mod LHSExpression PatternSimple Pattern Type Expression ann
 
 data Mod ann = Mod
   { mod :: ModF Mod LHSExpression PatternSimple Pattern Type Expression ann

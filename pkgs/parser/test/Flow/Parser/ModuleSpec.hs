@@ -22,7 +22,7 @@ import Flow.AST.Surface.Type qualified as Ty
 import Flow.Parser.Helpers (testParser)
 import Flow.Parser.Module qualified as PMod
 
-type ModuleItemPub = M.ModuleItemF Surface.Mod Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
+type ModuleItem = M.ModuleItemF Surface.Mod Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
 
 modIdent :: Text -> C.ModuleIdentifier ()
 modIdent name = C.ModuleIdentifier{name, ann = ()}
@@ -45,20 +45,36 @@ simpleType name =
     , ann = ()
     }
 
-modDecl :: Text -> Surface.Mod ()
+moduleBody :: [M.UseClause ()] -> [ModuleItem ()] -> Surface.ModDefinitionBody ()
+moduleBody uses items =
+  M.ModDefinitionBodyF
+    { uses = Vector.fromList uses
+    , items = Vector.fromList items
+    }
+
+modDecl :: Text -> ModuleItem ()
 modDecl name =
-  Surface.Mod
-    { mod = M.ModDeclaration (modIdent name)
+  M.ModuleItemF
+    { pub = Nothing
+    , item = M.ModItemModF (Surface.Mod (M.ModDeclarationF (modIdent name)) ()) ()
     , ann = ()
     }
 
-modDef :: Text -> [M.UseClause ()] -> [ModuleItemPub ()] -> Surface.Mod ()
+modDef :: Text -> [M.UseClause ()] -> [ModuleItem ()] -> ModuleItem ()
 modDef name uses items =
-  Surface.Mod
-    { mod =
-        M.ModDefinition
-          (modIdent name)
-          M.ModDefinitionBodyF{uses = Vector.fromList uses, items = Vector.fromList items}
+  M.ModuleItemF
+    { pub = Nothing
+    , item =
+        M.ModItemModF
+          ( Surface.Mod
+              { mod =
+                  M.ModDefinitionF
+                    (modIdent name)
+                    M.ModDefinitionBodyF{uses = Vector.fromList uses, items = Vector.fromList items}
+              , ann = ()
+              }
+          )
+          ()
     , ann = ()
     }
 
@@ -68,13 +84,14 @@ useClauseLeaf path =
     [] -> error "empty path"
     root : rest ->
       let
-        buildTree [] = M.UseTreeLeaf (modIdent root)
-        buildTree [segment] = M.UseTreeLeaf (modIdent segment)
+        buildTree [] = Nothing
+        buildTree [segment] = Just $ M.UseTreeLeafNamed (modIdent segment)
         buildTree (segment : segments) =
-          M.UseTreeBranch (modIdent segment) (buildTree segments)
+          M.UseTreeBranch (modIdent segment) <$> buildTree segments
        in
         M.UseClause
-          { root = modIdent root
+          { pub = Nothing
+          , root = modIdent root
           , tree = buildTree rest
           , ann = ()
           }
@@ -85,19 +102,20 @@ useClauseAs path alias =
     [] -> error "empty path"
     root : rest ->
       let
-        build [] = M.UseTreeLeafAs (modIdent root) (modIdent alias)
-        build [segment] = M.UseTreeLeafAs (modIdent segment) (modIdent alias)
-        build (segment : segments) = M.UseTreeBranch (modIdent segment) (build segments)
+        build [] = Just $ M.UseTreeLeafAs (modIdent root) (modIdent alias)
+        build [segment] = Just $ M.UseTreeLeafAs (modIdent segment) (modIdent alias)
+        build (segment : segments) = M.UseTreeBranch (modIdent segment) <$> build segments
        in
         M.UseClause
-          { root = modIdent root
+          { pub = Nothing
+          , root = modIdent root
           , tree = build rest
           , ann = ()
           }
 
-structItem :: Maybe (Decl.PubF ()) -> Text -> ModuleItemPub ()
+structItem :: Maybe (Decl.Pub ()) -> Text -> ModuleItem ()
 structItem pub' name =
-  M.ModuleItemPubF
+  M.ModuleItemF
     { pub = pub'
     , item =
         M.ModItemStructF
@@ -111,9 +129,9 @@ structItem pub' name =
     , ann = ()
     }
 
-enumItem :: Maybe (Decl.PubF ()) -> Text -> [Text] -> ModuleItemPub ()
+enumItem :: Maybe (Decl.Pub ()) -> Text -> [Text] -> ModuleItem ()
 enumItem pub' name variants =
-  M.ModuleItemPubF
+  M.ModuleItemF
     { pub = pub'
     , item =
         M.ModItemEnumF
@@ -136,9 +154,9 @@ enumItem pub' name variants =
     , ann = ()
     }
 
-typeAliasItem :: Maybe (Decl.PubF ()) -> Text -> Surface.Type () -> ModuleItemPub ()
+typeAliasItem :: Maybe (Decl.Pub ()) -> Text -> Surface.Type () -> ModuleItem ()
 typeAliasItem pub' name ty =
-  M.ModuleItemPubF
+  M.ModuleItemF
     { pub = pub'
     , item =
         M.ModItemTypeAliasF
@@ -156,9 +174,15 @@ typeAliasItem pub' name ty =
     , ann = ()
     }
 
-fnItem :: Maybe (Decl.PubF ()) -> Text -> [(Bool, Text, Surface.Type ())] -> Maybe (Surface.Type ()) -> Maybe (Surface.Type ()) -> ModuleItemPub ()
+fnItem ::
+  Maybe (Decl.Pub ()) ->
+  Text ->
+  [(Bool, Text, Surface.Type ())] ->
+  Maybe (Surface.Type ()) ->
+  Maybe (Surface.Type ()) ->
+  ModuleItem ()
 fnItem pub' name args effects result =
-  M.ModuleItemPubF
+  M.ModuleItemF
     { pub = pub'
     , item =
         M.ModItemFnF
@@ -189,9 +213,9 @@ fnItem pub' name args effects result =
       , ann = ()
       }
 
-letItem :: Maybe (Decl.PubF ()) -> Text -> Surface.Type () -> Surface.Expression () -> ModuleItemPub ()
+letItem :: Maybe (Decl.Pub ()) -> Text -> Surface.Type () -> Surface.Expression () -> ModuleItem ()
 letItem pub' name ty expr =
-  M.ModuleItemPubF
+  M.ModuleItemF
     { pub = pub'
     , item =
         M.ModItemLetF
@@ -223,52 +247,55 @@ tupleType tys = Surface.Type{ty = Ty.TyTupleF (fromJust $ NE.fromList tys) (), a
 literalInt :: Integer -> Surface.Expression ()
 literalInt n = Surface.Expression{expr = Expr.ELiteral (Lit.LitInteger n), ann = ()}
 
-nonPub :: Maybe (Decl.PubF ())
+nonPub :: Maybe (Decl.Pub ())
 nonPub = Nothing
 
-pub :: Maybe (Decl.PubF ())
-pub = Just (Decl.PubPubF ())
+pub :: Maybe (Decl.Pub ())
+pub = Just Decl.PubPub
 
 rootModuleName :: Text
 rootModuleName = "_"
 
-rootModule :: [M.UseClause ()] -> [ModuleItemPub ()] -> Surface.Mod ()
-rootModule = modDef rootModuleName
-
 spec :: Spec
 spec = describe "Module parser (minimal subset)" do
   it "parses mod declaration 'mod m;'" do
-    testParser "mod m;" PMod.pModule (Just (modDecl "m"))
+    testParser "mod m;" PMod.pModDefinitionBody (Just (moduleBody [] [modDecl "m"]))
 
   it "parses empty mod definition 'mod m { }'" do
-    testParser "mod m { }" PMod.pModule (Just (modDef "m" [] []))
+    testParser "mod m { }" PMod.pModDefinitionBody (Just (moduleBody [] [modDef "m" [] []]))
 
   it "parses use leaf 'use std::io;'" do
-    let expected = rootModule [useClauseLeaf ["std", "io"]] []
-    testParser "use std::io;" PMod.pModule (Just expected)
+    let expected = moduleBody [useClauseLeaf ["std", "io"]] []
+    testParser "use std::io;" PMod.pModDefinitionBody (Just expected)
 
   it "parses use leaf-as 'use std::io as IO;'" do
-    let expected = rootModule [useClauseAs ["std", "io"] "IO"] []
-    testParser "use std::io as IO;" PMod.pModule (Just expected)
+    let expected = moduleBody [useClauseAs ["std", "io"] "IO"] []
+    testParser "use std::io as IO;" PMod.pModDefinitionBody (Just expected)
 
   it "parses nested use 'use std::{io, fs::{read, write}};'" do
     let nestedTree =
           M.UseTreeNested
             ( Vector.fromList
-                [ M.UseTreeLeaf (modIdent "io")
+                [ M.UseTreeLeafNamed (modIdent "io")
                 , M.UseTreeBranch
                     (modIdent "fs")
                     ( M.UseTreeNested
                         ( Vector.fromList
-                            [ M.UseTreeLeaf (modIdent "read")
-                            , M.UseTreeLeaf (modIdent "write")
+                            [ M.UseTreeLeafNamed (modIdent "read")
+                            , M.UseTreeLeafNamed (modIdent "write")
                             ]
                         )
                     )
                 ]
             )
-        useClause = M.UseClause{root = modIdent "std", tree = nestedTree, ann = ()}
-    testParser "use std::{io, fs::{read, write}};" PMod.pModule (Just (rootModule [useClause] []))
+        useClause =
+          M.UseClause
+            { pub = Nothing
+            , root = modIdent "std"
+            , tree = Just nestedTree
+            , ann = ()
+            }
+    testParser "use std::{io, fs::{read, write}};" PMod.pModDefinitionBody (Just (moduleBody [useClause] []))
 
   it "parses minimal items: struct, enum, type alias, fn, let" do
     let src =
@@ -293,4 +320,4 @@ spec = describe "Module parser (minimal subset)" do
               (Just Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()})
           , letItem nonPub "x" (Surface.Type{ty = Ty.TyBuiltinF Ty.BuiltinI32 (), ann = ()}) (literalInt 42)
           ]
-    testParser src PMod.pModule (Just (rootModule [] items))
+    testParser src PMod.pModDefinitionBody (Just (moduleBody [] items))

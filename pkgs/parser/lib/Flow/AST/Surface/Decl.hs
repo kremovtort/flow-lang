@@ -41,7 +41,7 @@ data FieldsDeclF ty ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data FieldDeclF ty ann = FieldDeclF
-  { pub :: Maybe (PubF ann)
+  { pub :: Maybe (Pub ann)
   , name :: SimpleVarIdentifier ann
   , type_ :: ty ann
   , ann :: ann
@@ -98,7 +98,7 @@ data Trait lhsExpr simPat pat ty expr ann = Trait
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data TraitItemF lhsExpr simPat pat ty expr ann = TraitItemF
-  { pub :: Maybe (PubF ann)
+  { pub :: Maybe (Pub ann)
   , item :: TraitItemVariantF lhsExpr simPat pat ty expr ann
   , ann :: ann
   }
@@ -145,7 +145,7 @@ data EffectF lhsExpr simPat pat ty expr ann = EffectF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectItemDeclarationF lhsExpr simPat pat ty expr ann = EffectItemDeclarationF
-  { pub :: Maybe (PubF ann)
+  { pub :: Maybe (Pub ann)
   , variant :: EffectItemDeclarationVariantF lhsExpr simPat pat ty expr ann
   , ann :: ann
   }
@@ -175,7 +175,7 @@ data LetDeclarationF ty ann = LetDeclarationF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data PubF ann
-  = PubPubF ann
-  | PubPackageF ann
+data Pub ann
+  = PubPub
+  | PubPackage ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
