@@ -253,9 +253,6 @@ nonPub = Nothing
 pub :: Maybe (Decl.Pub ())
 pub = Just Decl.PubPub
 
-rootModuleName :: Text
-rootModuleName = "_"
-
 spec :: Spec
 spec = describe "Module parser (minimal subset)" do
   it "parses mod declaration 'mod m;'" do

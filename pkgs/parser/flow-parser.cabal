@@ -17,6 +17,8 @@ common warnings
 common extensions
   default-extensions:
     BlockArguments
+    DeriveAnyClass
+    DerivingStrategies
     DuplicateRecordFields
     NoFieldSelectors
     OverloadedRecordDot
@@ -24,8 +26,6 @@ common extensions
     PackageImports
     QuantifiedConstraints
     StrictData
-    DerivingStrategies
-    DeriveAnyClass
 
 library
   import: warnings, extensions
@@ -51,6 +51,7 @@ library
     Flow.Parser.Expr
     Flow.Parser.Literal
     Flow.Parser.Module
+    Flow.Parser.Operators
     Flow.Parser.Pattern
     Flow.Parser.Syntax
     Flow.Parser.Type
@@ -61,6 +62,7 @@ library
     containers,
     megaparsec,
     nonempty-vector,
+    parser-combinators,
     recursion-schemes,
     scientific,
     template-haskell,

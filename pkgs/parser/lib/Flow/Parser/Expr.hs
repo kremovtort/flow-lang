@@ -7,6 +7,7 @@ import Flow.AST.Surface.Expr (
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser, SourceRegion (..), WithPos (..), single)
 import Flow.Parser.Literal (literal)
+import Text.Megaparsec qualified as Megaparsec
 
 eWildcard :: Parser (Expression Lexer.SourceRegion)
 eWildcard = do

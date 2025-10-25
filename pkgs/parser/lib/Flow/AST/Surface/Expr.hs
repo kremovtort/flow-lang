@@ -46,7 +46,7 @@ data ExpressionF lhsExpr simPat pat ty expr ann
   | EFnCall (FnCallF ty expr ann) -- f(a, b) | f(arg1 = a, arg2 = b) | f<T>(a, b) | f() with { State<S> = e }
   | EUnOp (UnOpExpression expr ann) -- -a | !a | *a | &a | &mut a | &'s mut a
   | EBinOp (BinOpExpression expr ann) -- a * b | a + b | a ++ b | etc
-  | EConstructorAsFn (AnyTypeIdentifier ann) -- EnumVariant | Some | Cons
+  | EConstructor (AnyTypeIdentifier ann) -- EnumVariant | Some | Cons
   | EConstructorApp (ConstructorAppF expr ty ann) -- EnumVariant | Some(1) | Cons { a = 1, b = 2 }
   | ETuple (NonEmptyVector (expr ann)) -- (a, b, c)
   | EMatch (MatchExpression pat expr ann) -- match expr { Pattern => expr, ... }
@@ -64,7 +64,6 @@ data ExpressionF lhsExpr simPat pat ty expr ann
 data UnOpExpression expr ann = UnOpExpression
   { op :: UnOp ann
   , operand :: expr ann
-  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -184,9 +183,7 @@ data FnArgsF expr ann
 
 data WithEffectsItem ty ann = WithEffectsItem
   { lhs :: Either (SimpleVarIdentifier ann) (ty ann)
-  , lhsAnn :: ann
   , rhs :: Either (SimpleVarIdentifier ann) (ty ann)
-  , rhsAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Generic, ToExpr)
@@ -197,16 +194,14 @@ instance (Functor ty) => Functor (WithEffectsItem ty) where
       { lhs = case lhs of
           Left a -> Left (fmap f a)
           Right a -> Right (fmap f a)
-      , lhsAnn = f lhsAnn
       , rhs = case rhs of
           Left a -> Left (fmap f a)
           Right a -> Right (fmap f a)
-      , rhsAnn = f rhsAnn
       , ann = f ann
       }
 
 instance (Foldable ty) => Foldable (WithEffectsItem ty) where
-  foldMap f (WithEffectsItem{lhs, lhsAnn, rhs, rhsAnn, ann}) = lhsFolded <> f lhsAnn <> rhsFolded <> f rhsAnn <> f ann
+  foldMap f (WithEffectsItem{lhs, rhs, ann}) = lhsFolded <> rhsFolded <> f ann
    where
     lhsFolded = case lhs of
       Left a -> foldMap f a
@@ -217,7 +212,7 @@ instance (Foldable ty) => Foldable (WithEffectsItem ty) where
 
 instance (Traversable ty) => Traversable (WithEffectsItem ty) where
   traverse f (WithEffectsItem{..}) =
-    WithEffectsItem <$> lhsTraversed <*> f lhsAnn <*> rhsTraversed <*> f rhsAnn <*> f ann
+    WithEffectsItem <$> lhsTraversed <*> rhsTraversed <*> f ann
    where
     lhsTraversed = case lhs of
       Left a -> Left <$> traverse f a

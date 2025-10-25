@@ -13,7 +13,7 @@ import "text" Data.Text (Text)
 import "vector" Data.Vector (Vector)
 import "vector" Data.Vector qualified as Vector
 
-import "flow-parser" Flow.Lexer
+import Flow.Lexer
 
 spec :: Spec
 spec = do

@@ -43,7 +43,11 @@ parens :: Surface.Expression () -> Surface.Expression ()
 parens inner = Surface.Expression{expr = Expr.EParens inner, ann = ()}
 
 unOp :: Expr.UnOp () -> Surface.Expression () -> Surface.Expression ()
-unOp op expr = Surface.Expression{expr = Expr.EUnOp Expr.UnOpExpression{op, operand = expr, ann = ()}, ann = ()}
+unOp op expr =
+  Surface.Expression
+    { expr = Expr.EUnOp Expr.UnOpExpression{op, operand = expr}
+    , ann = ()
+    }
 
 binOp :: Expr.BinOp () -> Surface.Expression () -> Surface.Expression () -> Surface.Expression ()
 binOp op l r =
