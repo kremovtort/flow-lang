@@ -2,7 +2,7 @@ module Flow.AST.Surface.Type where
 
 import Data.Vector.NonEmpty (NonEmptyVector)
 import Flow.AST.Surface.Common (ScopeIdentifier, SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (AnyTypeIdentifier, BindersWConstraintsF, WhereBlockF)
+import Flow.AST.Surface.Constraint (AnyTypeIdentifier, BindersAppF, BindersWConstraintsF, WhereBlockF)
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import "vector" Data.Vector (Vector)
@@ -43,9 +43,7 @@ data Builtin
 
 data AppF ty ann = AppF -- Option<A>
   { head :: ty ann
-  , headAnn :: ann
-  , args :: NonEmptyVector (ty ann)
-  , argsAnn :: ann
+  , args :: BindersAppF ty ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

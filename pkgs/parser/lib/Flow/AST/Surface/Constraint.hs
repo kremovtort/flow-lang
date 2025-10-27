@@ -12,15 +12,21 @@ import Flow.AST.Surface.Common (ModuleIdentifier, ScopeIdentifier, SimpleTypeIde
 
 data AnyTypeIdentifier ty ann = AnyTypeIdentifier
   { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
-  , qualifierTypeParams :: Maybe (BindersAppF ty ann)
+  , typeQualifier :: Maybe (TypeQualifierF ty ann)
   , identifier :: SimpleTypeIdentifier ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
+data TypeQualifierF ty ann = TypeQualifierF
+  { typeName :: SimpleTypeIdentifier ann
+  , typeParams :: BindersAppF ty ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
 data AnyVarIdentifier ty ann = AnyVarIdentifier
   { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
-  , qualifierTypeParams :: Maybe (BindersAppF ty ann)
+  , typeQualifier :: Maybe (TypeQualifierF ty ann)
   , identifier :: SimpleVarIdentifier ann
   , ann :: ann
   }

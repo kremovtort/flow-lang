@@ -7,8 +7,8 @@ import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
 import Data.Maybe (fromMaybe)
-import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
+import Flow.AST.Surface.Constraint (ScopeBinderWoConstraintsF (..))
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (
@@ -21,6 +21,30 @@ import Flow.Parser.Common (
   single,
  )
 
+pBindersApp ::
+  (HasAnn ty Lexer.SourceRegion) =>
+  Parser (ty Lexer.SourceRegion) ->
+  Parser (Surface.BindersAppF ty Lexer.SourceRegion)
+pBindersApp pTy = do
+  tokS <- single (Lexer.Punctuation Lexer.LessThan)
+  scopes <-
+    Vector.fromList . fmap ScopeBinderWoConstraintsF
+      <$> Megaparsec.sepBy scopeIdentifier (single (Lexer.Punctuation Lexer.Comma))
+  types <-
+    Vector.fromList . fmap Surface.BinderAppF
+      <$> if null scopes
+        then Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
+        else do
+          _ <- single (Lexer.Punctuation Lexer.Comma)
+          Megaparsec.sepEndBy pTy (single (Lexer.Punctuation Lexer.Comma))
+  tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
+  pure
+    Surface.BindersF
+      { scopes
+      , types
+      , ann = Lexer.SourceRegion tokS.region.start tokE.region.end
+      }
+
 anyTypeIdentifier ::
   forall ty.
   (HasAnn ty Lexer.SourceRegion) =>
@@ -28,11 +52,19 @@ anyTypeIdentifier ::
   Parser (Surface.AnyTypeIdentifier ty Lexer.SourceRegion)
 anyTypeIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
+  typeQualifier <- Megaparsec.optional do
+    typeName <- simpleTypeIdentifier
+    typeParams <- pBindersApp pTy
+    pure
+      Surface.TypeQualifierF
+        { typeName
+        , typeParams
+        }
   identifier <- simpleTypeIdentifier
   pure $
     Surface.AnyTypeIdentifier
       { qualifier = NonEmptyVector.fromList qualifier
-      , qualifierTypeParams = Nothing -- TODO
+      , typeQualifier
       , identifier
       , ann =
           Lexer.SourceRegion
@@ -46,17 +78,24 @@ anyTypeIdentifier pTy = do
   moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
 
 anyVarIdentifier ::
-  forall ty.
   (HasAnn ty Lexer.SourceRegion) =>
   Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.AnyVarIdentifier Surface.Type Lexer.SourceRegion)
+  Parser (Surface.AnyVarIdentifier ty Lexer.SourceRegion)
 anyVarIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
+  typeQualifier <- Megaparsec.optional do
+    typeName <- simpleTypeIdentifier
+    typeParams <- pBindersApp pTy
+    pure
+      Surface.TypeQualifierF
+        { typeName
+        , typeParams
+        }
   identifier <- simpleVarIdentifier
   pure $
     Surface.AnyVarIdentifier
       { qualifier = NonEmptyVector.fromList qualifier
-      , qualifierTypeParams = Nothing -- TODO: Implement qualifier type parameters parsing
+      , typeQualifier = typeQualifier
       , identifier = identifier
       , ann =
           Lexer.SourceRegion

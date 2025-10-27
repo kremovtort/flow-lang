@@ -167,7 +167,7 @@ data ReturningBinderF ty ann = ReturningBinderF
 
 data AppF ty expr ann = AppF
   { callee :: expr ann
-  , typeParams :: BindersAppF ty ann
+  , typeParams :: Maybe (BindersAppF ty ann)
   , args :: AppArgsF expr ann
   , argsAnn :: ann
   , withEffects :: Maybe (Vector (WithEffectsItem ty ann), ann)
@@ -179,7 +179,7 @@ data AppArgsF expr ann
   | AppArgsNamedF (Vector (ArgNamedF expr ann))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ArgNamedF expr ann = FieldNamedF
+data ArgNamedF expr ann = ArgNamedF
   { name :: SimpleVarIdentifier ann
   , optional :: Maybe ann
   , value :: Maybe (expr ann)

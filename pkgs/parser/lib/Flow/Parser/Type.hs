@@ -10,17 +10,19 @@ import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
+import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Type (TypeF (TyEffectRowF))
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, SourceRegion (..), anyTypeIdentifier, scopeIdentifier, simpleVarIdentifier, single, token)
+import Flow.Parser.Common (HasAnn, Parser, SourceRegion (..), scopeIdentifier, simpleVarIdentifier, single, token)
+import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp)
 
 -- Parse an atomic type (no application postfixed).
 pTypeAtom :: Parser (Surface.Type SourceRegion)
 pTypeAtom =
   Megaparsec.choice
     [ (\(b, ann) -> Surface.Type{ty = Surface.TyBuiltinF b ann, ann = ann}) <$> tyBuiltin
-    , (\i -> Surface.Type{ty = Surface.TyIdentifierF i, ann = i.ann}) <$> tyIdentifier
+    , (\i -> Surface.Type{ty = Surface.TyIdentifierF i, ann = i.ann}) <$> tyIdentifier pType
     , (\(args, ann) -> Surface.Type{ty = Surface.TyTupleF args ann, ann = ann}) <$> tyTuple pType
     , (\r -> Surface.Type{ty = Surface.TyRefF r, ann = r.ann}) <$> tyRef
     , (\fn -> Surface.Type{ty = Surface.TyFnF fn, ann = fn.ann}) <$> tyFn pType
@@ -46,9 +48,12 @@ pType = do
                     Surface.TyAppF
                       Surface.AppF
                         { head = head'
-                        , headAnn = head'.ann
-                        , args = NonEmptyVector.singleton inner
-                        , argsAnn = inner.ann
+                        , args =
+                            Surface.BindersF
+                              { scopes = mempty
+                              , types = Vector.singleton $ Surface.BinderAppF inner
+                              , ann = inner.ann
+                              }
                         , ann = inner.ann
                         }
                 , ann = inner.ann
@@ -58,21 +63,17 @@ pType = do
     _ -> do
       Megaparsec.choice
         [ do
-            tokS <- single (Lexer.Punctuation Lexer.LessThan)
-            args <- Megaparsec.sepEndBy1 pType (single (Lexer.Punctuation Lexer.Comma))
-            tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
+            args <- pBindersApp pType
             pure $
               Surface.Type
                 { ty =
                     Surface.TyAppF
                       Surface.AppF
                         { head = head'
-                        , headAnn = head'.ann
-                        , args = fromJust $ NonEmptyVector.fromList args
-                        , argsAnn = SourceRegion{start = tokS.region.start, end = tokE.region.end}
-                        , ann = SourceRegion{start = head'.ann.start, end = tokE.region.end}
+                        , args = args
+                        , ann = SourceRegion{start = head'.ann.start, end = args.ann.end}
                         }
-                , ann = SourceRegion{start = head'.ann.start, end = tokE.region.end}
+                , ann = SourceRegion{start = head'.ann.start, end = args.ann.end}
                 }
         , pure head'
         ]
@@ -101,7 +102,10 @@ tyBuiltin = do
     _ -> Nothing
   pure (tok.value, tok.region)
 
-tyIdentifier :: Parser (Surface.AnyTypeIdentifier SourceRegion)
+tyIdentifier ::
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (Surface.AnyTypeIdentifier ty SourceRegion)
 tyIdentifier = anyTypeIdentifier
 
 tyTuple ::
@@ -181,7 +185,7 @@ tyFn ty = do
 tyEffectRow ::
   Parser (Surface.Type SourceRegion) ->
   Parser (Surface.EffectRowF Surface.Type SourceRegion, SourceRegion)
-tyEffectRow ty = do
+tyEffectRow pTy = do
   tokS <- single (Lexer.Punctuation Lexer.AtLeftBracket)
   effects <- Megaparsec.sepBy effectAtom (single (Lexer.Punctuation Lexer.Comma))
   tailVar <- do
@@ -189,15 +193,15 @@ tyEffectRow ty = do
       then do
         Megaparsec.choice
           [ Megaparsec.optional do
-            _ <- single (Lexer.Punctuation Lexer.Colon)
-            tokDD <- single (Lexer.Punctuation Lexer.DotDot)
-            name <- anyTypeIdentifier
-            pure (name, SourceRegion{start = tokDD.region.start, end = name.ann.end})
+              _ <- single (Lexer.Punctuation Lexer.Colon)
+              tokDD <- single (Lexer.Punctuation Lexer.DotDot)
+              name <- anyTypeIdentifier pTy
+              pure (name, SourceRegion{start = tokDD.region.start, end = name.ann.end})
           , Nothing <$ Megaparsec.optional (single (Lexer.Punctuation Lexer.DotDot))
           ]
       else Megaparsec.optional do
         tokDD <- single (Lexer.Punctuation Lexer.DotDot)
-        name <- anyTypeIdentifier
+        name <- anyTypeIdentifier pTy
         pure (name, SourceRegion{start = tokDD.region.start, end = name.ann.end})
   tokE <- single (Lexer.Punctuation Lexer.RightBracket)
   pure
@@ -221,7 +225,7 @@ tyEffectRow ty = do
     eAtomNameType = do
       name <- simpleVarIdentifier
       _ <- single (Lexer.Punctuation Lexer.Colon)
-      ty' <- ty
+      ty' <- pTy
       pure $
         Surface.EAtomNameTypeF
           name
@@ -244,5 +248,5 @@ tyEffectRow ty = do
 
     eAtomType :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
     eAtomType = do
-      ty' <- ty
+      ty' <- pTy
       pure $ Surface.EAtomTypeF ty' SourceRegion{start = ty'.ann.start, end = ty'.ann.end}

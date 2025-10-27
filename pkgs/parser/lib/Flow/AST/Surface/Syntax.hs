@@ -66,7 +66,6 @@ data CodeBlockF stmt expr ann = CodeBlockF
 data MatchExpressionF pat expr ann = MatchExpressionF
   { value :: expr ann
   , arms :: NonEmptyVector (MatchArmF pat expr ann)
-  , armsAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -98,9 +97,10 @@ data ConditionF pat expr ann
   | CondLetF (LetConditionF pat expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data LetConditionF pat expr ann = ConditionF
+data LetConditionF pat expr ann = LetConditionF
   { pattern :: pat ann
   , patternExpr :: expr ann
+  , bool :: Maybe (expr ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

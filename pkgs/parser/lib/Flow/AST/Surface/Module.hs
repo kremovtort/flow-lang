@@ -6,7 +6,7 @@ import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
 import Flow.AST.Surface.Callable (FnDefinitionF, FnInfixDefinitionF, OpDefinitionF, OpInfixDefinitionF)
-import Flow.AST.Surface.Common (ModuleIdentifier)
+import Flow.AST.Surface.Common (ModuleIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (TypeDefinitionF)
 import Flow.AST.Surface.Decl qualified as Decl
 import Flow.AST.Surface.Syntax (LetDefinitionF)
@@ -31,11 +31,27 @@ data UseClause ann = UseClause
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data UseTree ann
-  = UseTreeBranch (ModuleIdentifier ann) (UseTree ann)
-  | UseTreeNested (Vector (UseTree ann))
-  | UseTreeLeafNamed (ModuleIdentifier ann)
-  | UseTreeLeafWildcard ann
-  | UseTreeLeafAs (ModuleIdentifier ann) (ModuleIdentifier ann)
+  = UseTrBranch (ModuleIdentifier ann) (UseTree ann)
+  | UseTrNested (Vector (UseTree ann))
+  | UseTrLeafWildcard ann
+  | UseTrLeafVar (UseTreeLeaf SimpleVarIdentifier ann)
+  | UseTrLeafType (UseTreeLeaf SimpleTypeIdentifier ann)
+  | UseTrLeafMethod (UseTreeLeaf SimpleVarIdentifier ann)
+  | UseTrLeafMethodAsFn (UseTreeLeafMethodAsFn ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data UseTreeLeaf f ann = UseTreeLeaf
+  { use :: f ann
+  , as :: Maybe (f ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data UseTreeLeafMethodAsFn ann = UseTreeLeafMethodAsFn
+  { use :: SimpleVarIdentifier ann
+  , as :: SimpleVarIdentifier ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ModuleItemF mod stmt simPat pat ty expr ann

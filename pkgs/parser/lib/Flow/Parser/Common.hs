@@ -15,6 +15,7 @@ module Flow.Parser.Common (
   simpleTypeIdentifier,
   simpleVarIdentifier,
   scopeIdentifier,
+  methodIdentifier,
 ) where
 
 import "base" Data.List.NonEmpty qualified as List (NonEmpty)
@@ -113,3 +114,19 @@ scopeIdentifier = do
         Lexer.RefScope i -> Just i
         _ -> Nothing
   pure $ ScopeIdentifier{name = tok.value, ann = tok.region}
+
+methodIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceRegion)
+methodIdentifier = do
+  dotTok <- single (Lexer.Punctuation Lexer.Dot)
+  tok <-
+    token
+      (Set.singleton $ Megaparsec.Label "method identifier (should start with lowercase letter)")
+      \case
+        Lexer.Identifier i
+          | Char.isLower (Text.head i) -> Just i
+        _ -> Nothing
+  pure
+    SimpleVarIdentifier
+      { name = tok.value
+      , ann = Lexer.SourceRegion dotTok.region.start tok.region.end
+      }
