@@ -1,15 +1,15 @@
 module Flow.AST.Surface.Type where
 
 import Data.Vector.NonEmpty (NonEmptyVector)
-import Flow.AST.Surface.Common (AnyTypeIdentifier, ScopeIdentifier, SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
-import "vector" Data.Vector (Vector)
+import Flow.AST.Surface.Common (ScopeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Constraint (AnyTypeIdentifier, BindersWConstraintsF, WhereBlockF)
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
+import "vector" Data.Vector (Vector)
 
 data TypeF ty ann
   = TyBuiltinF Builtin ann
-  | TyIdentifierF (AnyTypeIdentifier ann) -- MyType
+  | TyIdentifierF (AnyTypeIdentifier ty ann) -- MyType
   | TyAppF (AppF ty ann) -- Option<A>
   | TyTupleF (NonEmptyVector (ty ann)) ann -- (A, B, C)
   | TyRefF (RefF ann) -- &'s T | &'s mut T | &T | &mut T
@@ -80,7 +80,7 @@ data FnF ty ann = FnF -- fn(List<A>) -> A
 
 data EffectRowF ty ann = EffectRowF
   { effects :: Vector (EffectAtomF ty ann)
-  , tailVar :: Maybe (AnyTypeIdentifier ann)
+  , tailVar :: Maybe (AnyTypeIdentifier ty ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

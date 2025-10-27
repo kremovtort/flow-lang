@@ -3,10 +3,10 @@
 module Flow.Parser.Common (
   type HasAnn,
   type Parser,
-  Lexer.SourceRegion(..),
-  Lexer.WithPos(..),
+  Lexer.SourceRegion (..),
+  Lexer.WithPos (..),
   type Lexer.TokenWithPos,
-  Lexer.TokenStream(..),
+  Lexer.TokenStream (..),
   single,
   foldPos,
   dummySourceRegion,
@@ -14,8 +14,6 @@ module Flow.Parser.Common (
   moduleIdentifier,
   simpleTypeIdentifier,
   simpleVarIdentifier,
-  anyTypeIdentifier,
-  anyVarIdentifier,
   scopeIdentifier,
 ) where
 
@@ -23,18 +21,15 @@ import "base" Data.List.NonEmpty qualified as List (NonEmpty)
 import "base" Data.List.NonEmpty qualified as List.NonEmpty
 import "base" Data.String (IsString (..))
 import "base" Data.Void (Void)
+import "base" GHC.Records (HasField)
 import "containers" Data.Set (Set)
 import "containers" Data.Set qualified as Set
 import "megaparsec" Text.Megaparsec (Parsec)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
-import "base" GHC.Records (HasField)
 
 import Data.Char qualified as Char
 import Data.Text qualified as Text
-import Data.Vector qualified as Vector
 import Flow.AST.Surface.Common (
-  AnyTypeIdentifier (..),
-  AnyVarIdentifier (..),
   ModuleIdentifier (..),
   ScopeIdentifier (..),
   SimpleTypeIdentifier (..),
@@ -108,52 +103,6 @@ simpleVarIdentifier = do
           | Char.isLower (Text.head i) -> Just i
         _ -> Nothing
   pure $ SimpleVarIdentifier{name = tok.value, ann = tok.region}
-
-anyTypeIdentifier :: Parser (AnyTypeIdentifier Lexer.SourceRegion)
-anyTypeIdentifier = do
-  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
-  identifier <- simpleTypeIdentifier
-  pure $
-    AnyTypeIdentifier
-      { qualifier = Vector.fromList qualifier
-      , qualifierAnn = case qualifier of
-          [] -> Nothing
-          q : _ -> Just $ Lexer.SourceRegion q.ann.start (last qualifier).ann.end
-      , identifier = identifier
-      , identifierAnn = identifier.ann
-      , ann =
-          Lexer.SourceRegion
-            { start = case qualifier of
-                [] -> identifier.ann.start
-                q : _ -> q.ann.start
-            , end = identifier.ann.end
-            }
-      }
- where
-  moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
-
-anyVarIdentifier :: Parser (AnyVarIdentifier Lexer.SourceRegion)
-anyVarIdentifier = do
-  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
-  identifier <- simpleVarIdentifier
-  pure $
-    AnyVarIdentifier
-      { qualifier = Vector.fromList qualifier
-      , qualifierAnn = case qualifier of
-          [] -> Nothing
-          q : _ -> Just $ Lexer.SourceRegion q.ann.start (last qualifier).ann.end
-      , identifier = identifier
-      , identifierAnn = identifier.ann
-      , ann =
-          Lexer.SourceRegion
-            { start = case qualifier of
-                [] -> identifier.ann.start
-                q : _ -> q.ann.start
-            , end = identifier.ann.end
-            }
-      }
- where
-  moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
 
 scopeIdentifier :: Parser (ScopeIdentifier Lexer.SourceRegion)
 scopeIdentifier = do

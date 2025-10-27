@@ -1,18 +1,13 @@
 module Flow.AST.Surface.Pattern where
 
-import "base" Prelude hiding (Enum)
-import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "base" GHC.Generics (Generic)
+import "nonempty-vector" Data.Vector.NonEmpty (NonEmptyVector)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
-import "scientific" Data.Scientific ()
-import "text" Data.Text ()
-import "bytestring" Data.ByteString ()
-import "base" Data.Word ()
-import "base" Data.Char ()
+import "base" Prelude hiding (Enum)
 
-import Flow.AST.Surface.Common (SimpleVarIdentifier, AnyTypeIdentifier)
+import Flow.AST.Surface.Common (SimpleVarIdentifier)
+import Flow.AST.Surface.Constraint (AnyTypeIdentifier, BindersWoConstraintsF)
 import Flow.AST.Surface.Literal (Literal)
-import Flow.AST.Surface.Constraint (BindersWoConstraintsF)
 
 data PatternF pat ty ann
   = PatSimpleF (PatternSimpleF pat ty ann)
@@ -37,7 +32,7 @@ data PatternVariableF pat ty ann = PatternVariableF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data PatternConsturctorAppF pat ty ann = PatternConsturctorAppF
-  { name :: AnyTypeIdentifier ann
+  { name :: AnyTypeIdentifier ty ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , fields :: Maybe (PatternFieldsF pat ty ann, ann)
   , ann :: ann

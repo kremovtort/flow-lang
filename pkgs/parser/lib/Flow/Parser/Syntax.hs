@@ -5,7 +5,14 @@ import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
 import Data.Set qualified as Set
-import Flow.AST.Surface (Expression (..), LHSExpression (..), Pattern (..), PatternSimple (..), Type (..))
+import Flow.AST.Surface (
+  Expression (..),
+  LHSExpression (..),
+  Pattern (..),
+  PatternSimple (..),
+  Statement (..),
+  Type (..),
+ )
 import Flow.AST.Surface.Common (SimpleVarIdentifier (..))
 import Flow.AST.Surface.Syntax
 import Flow.Lexer qualified as Lexer
@@ -18,29 +25,27 @@ import Flow.Parser.Common (
   token,
  )
 
-codeBlock ::
-  Parser (LHSExpression SourceRegion) ->
-  Parser (PatternSimple SourceRegion) ->
-  Parser (Pattern SourceRegion) ->
-  Parser (Type SourceRegion) ->
+pCodeBlock ::
+  Parser (Statement SourceRegion) ->
   Parser (Expression SourceRegion) ->
-  Parser (CodeBlockF LHSExpression PatternSimple Pattern Type Expression SourceRegion)
-codeBlock lhsExpr simPat pat ty expr = do
+  Parser (CodeBlockF Statement Expression SourceRegion)
+pCodeBlock pStmt pExpr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
-  statements <- Megaparsec.many (statement lhsExpr simPat pat ty expr)
+  statements <- Megaparsec.many pStmt
   result <- Megaparsec.optional expr
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
   let ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
-  pure $ CodeBlock{statements = Vector.fromList statements, result = result, ann = ann}
+  pure $ CodeBlockF{statements = Vector.fromList statements, result = result, ann = ann}
 
 statement ::
+  Parser (Statement SourceRegion) ->
   Parser (LHSExpression SourceRegion) ->
   Parser (PatternSimple SourceRegion) ->
   Parser (Pattern SourceRegion) ->
   Parser (Type SourceRegion) ->
   Parser (Expression SourceRegion) ->
-  Parser (StatementF LHSExpression PatternSimple Pattern Type Expression SourceRegion)
-statement lhsExpr simPat pat ty expr = do
+  Parser (StatementF Statement LHSExpression PatternSimple Pattern Type Expression SourceRegion)
+statement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
   Megaparsec.choice
     [ letStatement
     , assignStatement
@@ -57,48 +62,44 @@ statement lhsExpr simPat pat ty expr = do
  where
   letStatement = do
     letTok <- single (Lexer.Keyword Lexer.Let)
-    lhs <- simPat
+    lhs <- pSimPat
     lhsType <- Megaparsec.optional do
       colonTok <- single (Lexer.Punctuation Lexer.Colon)
-      ty' <- ty
-      pure (ty', colonTok.region)
+      ty <- pTy
+      pure (ty, colonTok.region)
     _ <- single (Lexer.Punctuation Lexer.Assign)
-    rhs <- expr
+    rhs <- pExpr
     semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
     let ann = SourceRegion{start = letTok.region.start, end = semicolonTok.region.end}
     pure $
       SLetF $
         LetDefinitionF
           { lhs = lhs
-          , lhsAnn = lhs.ann
           , lhsType = lhsType
           , rhs = rhs
-          , rhsAnn = rhs.ann
           , ann = ann
           }
 
   assignStatement = do
-    lhs <- lhsExpr
+    lhs <- pLhsExpr
     _ <- single (Lexer.Punctuation Lexer.Assign)
-    rhs <- expr
+    rhs <- pExpr
     semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
     let ann = SourceRegion{start = lhs.ann.start, end = semicolonTok.region.end}
     pure $
       SAssignF $
         AssignStatementF
           { lhs = lhs
-          , lhsAnn = lhs.ann
           , rhs = rhs
-          , rhsAnn = rhs.ann
           , ann = ann
           }
 
   returnStatement = do
     returnTok <- single (Lexer.Keyword Lexer.Return)
-    expr' <- expr
+    expr <- pExpr
     semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
     let ann = SourceRegion{start = returnTok.region.start, end = semicolonTok.region.end}
-    pure $ SReturnF expr' ann
+    pure $ SReturnF expr ann
 
   continueStatement = do
     continueTok <- single (Lexer.Keyword Lexer.Continue)
@@ -115,14 +116,14 @@ statement lhsExpr simPat pat ty expr = do
     pure $ SBreakF label ann
 
   expressionStatement = do
-    expr' <- expr
+    expr <- pExpr
     semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
-    let ann = SourceRegion{start = expr'.ann.start, end = semicolonTok.region.end}
-    pure $ SExpressionF expr' ann
+    let ann = SourceRegion{start = expr.ann.start, end = semicolonTok.region.end}
+    pure $ SExpressionF expr ann
 
   matchStatement = do
-    expr' <- matchExpression pat expr
-    pure $ SMatchF expr' expr'.ann
+    expr <- matchExpression pPat pExpr
+    pure $ SMatchF expr expr.ann
 
   ifStatement = do
     expr' <- ifExpression expr
@@ -190,20 +191,20 @@ pLHSEWildcard = do
 
 pLHSEVar :: Parser (LHSExpression SourceRegion)
 pLHSEVar = do
-  var' <- simpleVarIdentifier
-  pure $ LHSExpression{lhsExpression = LHSEVar var', ann = var'.ann}
+  var <- simpleVarIdentifier
+  pure $ LHSExpression{lhsExpression = LHSEVar var, ann = var.ann}
 
 pLHSEUnOp :: Parser (Expression SourceRegion) -> Parser (LHSExpression SourceRegion)
-pLHSEUnOp expr = do
+pLHSEUnOp pExpr = do
   tokS <- single (Lexer.Punctuation Lexer.Star)
-  expr' <- expr
-  pure $ LHSExpression{lhsExpression = LHSEUnOp (LHSUnOpExpressionDeref expr'), ann = SourceRegion{start = tokS.region.start, end = expr'.ann.end}}
+  expr <- pExpr
+  pure $ LHSExpression{lhsExpression = LHSEUnOp (LHSUnOpExpressionDeref expr), ann = SourceRegion{start = tokS.region.start, end = expr.ann.end}}
 
 matchExpression ::
   Parser (Pattern SourceRegion) ->
   Parser (Expression SourceRegion) ->
-  Parser (MatchExpression Pattern Expression SourceRegion)
-matchExpression pat expr = do
+  Parser (MatchExpressionF Pattern Expression SourceRegion)
+matchExpression pPat pExpr = do
   matchTok <- single (Lexer.Keyword Lexer.Match)
   value <- expr
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
@@ -224,16 +225,14 @@ matchExpression pat expr = do
   rightBraceTok <- single (Lexer.Punctuation Lexer.RightBrace)
   let ann = SourceRegion{start = matchTok.region.start, end = rightBraceTok.region.end}
   pure $
-    MatchExpression
+    MatchExpressionF
       { value = value
-      , valueAnn = value.ann
       , arms = NonEmptyVector.snocV (Vector.fromList arms) lastArm
-      , armsAnn = armsAnn
       , ann = ann
       }
  where
   matchArm = do
-    pattern' <- pat
+    pattern' <- pPat
     guard <- Megaparsec.optional do
       guardTok <- single (Lexer.Keyword Lexer.If)
       guardExpr <- expr
@@ -241,23 +240,23 @@ matchExpression pat expr = do
     _ <- single (Lexer.Punctuation Lexer.FatArrow)
     expr' <- expr
     pure $
-      MatchArm
+      MatchArmF
         { pattern = pattern'
-        , patternAnn = pattern'.ann
         , guard = guard
         , expression = expr'
-        , expressionAnn = expr'.ann
         , ann = pattern'.ann
         }
 
 ifExpression ::
+  Parser (Statement SourceRegion) ->
+  Parser (Pattern SourceRegion) ->
   Parser (Expression SourceRegion) ->
-  Parser (IfExpression Expression SourceRegion)
-ifExpression expr = do
+  Parser (IfExpressionF Expression SourceRegion)
+ifExpression pStmt pPat pExpr = do
   ifTok <- single (Lexer.Keyword Lexer.If)
-  condition <- expr
+  condition <- pExpr
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-  then_ <- expr
+  then_ <- pExpr
   rightBraceTok <- single (Lexer.Punctuation Lexer.RightBrace)
   elseIfs <- Megaparsec.many elseIf
   else_ <- Megaparsec.optional do
@@ -274,7 +273,7 @@ ifExpression expr = do
               Nothing -> rightBraceTok.region.end
           }
   pure $
-    IfExpression
+    IfExpressionF
       { condition = condition
       , conditionAnn = condition.ann
       , then_ = then_
@@ -302,7 +301,7 @@ ifExpression expr = do
 
 loopExpression ::
   Parser (Expression SourceRegion) ->
-  Parser (LoopExpression Expression SourceRegion)
+  Parser (LoopExpressionF Expression SourceRegion)
 loopExpression expr = do
   label <- Megaparsec.optional do
     labelTok <- token
@@ -332,11 +331,16 @@ loopExpression expr = do
               Nothing -> loopTok.region.start
           , end = rightBraceTok.region.end
           }
-  pure $ LoopExpression{label = label, body = body, bodyAnn = body.ann, ann = ann}
+  pure $
+    LoopExpressionF
+      { label = label
+      , body = body
+      , ann = ann
+      }
 
 whileExpression ::
   Parser (Expression SourceRegion) ->
-  Parser (WhileExpression Expression SourceRegion)
+  Parser (WhileExpressionF Expression SourceRegion)
 whileExpression expr = do
   label <- Megaparsec.optional do
     labelTok <- token
@@ -364,12 +368,18 @@ whileExpression expr = do
               Nothing -> whileTok.region.start
           , end = rightBraceTok.region.end
           }
-  pure $ WhileExpression{label = label, condition = condition, conditionAnn = condition.ann, body = body, bodyAnn = body.ann, ann = ann}
+  pure $
+    WhileExpressionF
+      { label = label
+      , condition = condition
+      , body = body
+      , ann = ann
+      }
 
 forExpression ::
   Parser (Pattern SourceRegion) ->
   Parser (Expression SourceRegion) ->
-  Parser (ForExpression Pattern Expression SourceRegion)
+  Parser (ForExpressionF Pattern Expression SourceRegion)
 forExpression pat expr = do
   label <- Megaparsec.optional do
     labelTok <- token
@@ -400,13 +410,10 @@ forExpression pat expr = do
           , end = rightBraceTok.region.end
           }
   pure $
-    ForExpression
+    ForExpressionF
       { label = label
       , pattern = pattern
-      , patternAnn = pattern.ann
       , iterable = iterable
-      , iterableAnn = iterable.ann
       , body = body
-      , bodyAnn = body.ann
       , ann = ann
       }

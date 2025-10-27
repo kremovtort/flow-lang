@@ -1,13 +1,13 @@
 module Flow.AST.Surface.Module where
 
-import "base" Prelude hiding (Enum)
-import "vector" Data.Vector (Vector)
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
+import "vector" Data.Vector (Vector)
+import "base" Prelude hiding (Enum)
 
+import Flow.AST.Surface.Callable (FnDefinitionF, FnInfixDefinitionF, OpDefinitionF, OpInfixDefinitionF)
 import Flow.AST.Surface.Common (ModuleIdentifier)
 import Flow.AST.Surface.Constraint (TypeDefinitionF)
-import Flow.AST.Surface.Callable (FnDefinitionF, FnInfixDefinitionF, OpDefinitionF, OpInfixDefinitionF)
 import Flow.AST.Surface.Decl qualified as Decl
 import Flow.AST.Surface.Syntax (LetDefinitionF)
 
@@ -38,25 +38,25 @@ data UseTree ann
   | UseTreeLeafAs (ModuleIdentifier ann) (ModuleIdentifier ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ModuleItemF mod lhsExpr simPat pat ty expr ann
+data ModuleItemF mod stmt simPat pat ty expr ann
   = ModuleItemF
-    { pub :: Maybe (Decl.Pub ann)
-    , item :: ModuleItemVariantF mod lhsExpr simPat pat ty expr ann
-    , ann :: ann
-    }
+  { pub :: Maybe (Decl.Pub ann)
+  , item :: ModuleItemVariantF mod stmt simPat ty expr ann
+  , ann :: ann
+  }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ModuleItemVariantF mod lhsExpr simPat pat ty expr ann
+data ModuleItemVariantF mod stmt simPat ty expr ann
   = ModItemModF (mod ann) ann
   | ModItemStructF (Decl.StructF ty ann)
   | ModItemEnumF (Decl.EnumF ty ann)
-  | ModItemTraitF (Decl.Trait lhsExpr simPat pat ty expr ann)
-  | ModItemImplF (Decl.Impl lhsExpr simPat pat ty expr ann)
-  | ModItemEffectF (Decl.EffectF lhsExpr simPat pat ty expr ann)
+  | ModItemTraitF (Decl.Trait stmt ty expr ann)
+  | ModItemImplF (Decl.Impl stmt simPat ty expr ann)
+  | ModItemEffectF (Decl.EffectF stmt ty expr ann)
   | ModItemTypeAliasF (TypeDefinitionF ty ann)
-  | ModItemFnF (FnDefinitionF lhsExpr simPat pat ty expr ann)
-  | ModItemFnInfixF (FnInfixDefinitionF lhsExpr simPat pat ty expr ann)
-  | ModItemOpF (OpDefinitionF lhsExpr simPat pat ty expr ann)
-  | ModItemOpInfixF (OpInfixDefinitionF lhsExpr simPat pat ty expr ann)
+  | ModItemFnF (FnDefinitionF stmt ty expr ann)
+  | ModItemFnInfixF (FnInfixDefinitionF stmt ty expr ann)
+  | ModItemOpF (OpDefinitionF stmt ty expr ann)
+  | ModItemOpInfixF (OpInfixDefinitionF stmt ty expr ann)
   | ModItemLetF (LetDefinitionF simPat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

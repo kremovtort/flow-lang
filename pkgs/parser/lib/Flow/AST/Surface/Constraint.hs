@@ -2,13 +2,29 @@
 
 module Flow.AST.Surface.Constraint where
 
-import "vector" Data.Vector (Vector)
-import "base" Prelude hiding (Enum)
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
+import "vector" Data.Vector (Vector)
+import "base" Prelude hiding (Enum)
 
 import Data.Vector.NonEmpty (NonEmptyVector)
-import Flow.AST.Surface.Common (AnyTypeIdentifier, ScopeIdentifier, SimpleTypeIdentifier)
+import Flow.AST.Surface.Common (ModuleIdentifier, ScopeIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
+
+data AnyTypeIdentifier ty ann = AnyTypeIdentifier
+  { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
+  , qualifierTypeParams :: Maybe (BindersAppF ty ann)
+  , identifier :: SimpleTypeIdentifier ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data AnyVarIdentifier ty ann = AnyVarIdentifier
+  { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
+  , qualifierTypeParams :: Maybe (BindersAppF ty ann)
+  , identifier :: SimpleVarIdentifier ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BindersF scopeBinder typeBinder ty ann = BindersF
   { scopes :: Vector (scopeBinder ty ann)
@@ -17,8 +33,13 @@ data BindersF scopeBinder typeBinder ty ann = BindersF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
+type BindersAppF = BindersF ScopeBinderWoConstraintsF BinderAppF
 type BindersWConstraintsF = BindersF ScopeBinderWConstraintsF BinderWConstraintsF
 type BindersWoConstraintsF = BindersF ScopeBinderWoConstraintsF BinderWoConstraintsF
+
+newtype BinderAppF ty ann = BinderAppF {ty :: ty ann}
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+  deriving anyclass (ToExpr)
 
 data ScopeBinderWConstraintsF ty ann = ScopeBinderWConstraintsF
   { name :: ScopeIdentifier ann
@@ -40,7 +61,7 @@ data BinderWConstraintsF ty ann = BinderWConstraintsF -- A | A :< Monoid
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BinderConstraintsF ty ann = BinderConstraintsF
-  { constraints :: NonEmptyVector (AnyTypeIdentifier ann)
+  { constraints :: NonEmptyVector (AnyTypeIdentifier ty ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

@@ -3,17 +3,75 @@ module Flow.Parser.Constraint where
 import "base" Control.Monad (unless, when)
 import "base" Data.Functor (void)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
+import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
 import Data.Maybe (fromMaybe)
+import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, scopeIdentifier, simpleTypeIdentifier, single, HasAnn)
+import Flow.Parser.Common (
+  HasAnn,
+  Parser,
+  moduleIdentifier,
+  scopeIdentifier,
+  simpleTypeIdentifier,
+  simpleVarIdentifier,
+  single,
+ )
+
+anyTypeIdentifier ::
+  forall ty.
+  (HasAnn ty Lexer.SourceRegion) =>
+  Parser (ty Lexer.SourceRegion) ->
+  Parser (Surface.AnyTypeIdentifier ty Lexer.SourceRegion)
+anyTypeIdentifier pTy = do
+  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
+  identifier <- simpleTypeIdentifier
+  pure $
+    Surface.AnyTypeIdentifier
+      { qualifier = NonEmptyVector.fromList qualifier
+      , qualifierTypeParams = Nothing -- TODO
+      , identifier
+      , ann =
+          Lexer.SourceRegion
+            { start = case qualifier of
+                [] -> identifier.ann.start
+                q : _ -> q.ann.start
+            , end = identifier.ann.end
+            }
+      }
+ where
+  moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
+
+anyVarIdentifier ::
+  forall ty.
+  (HasAnn ty Lexer.SourceRegion) =>
+  Parser (ty Lexer.SourceRegion) ->
+  Parser (Surface.AnyVarIdentifier Surface.Type Lexer.SourceRegion)
+anyVarIdentifier pTy = do
+  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
+  identifier <- simpleVarIdentifier
+  pure $
+    Surface.AnyVarIdentifier
+      { qualifier = NonEmptyVector.fromList qualifier
+      , qualifierTypeParams = Nothing -- TODO: Implement qualifier type parameters parsing
+      , identifier = identifier
+      , ann =
+          Lexer.SourceRegion
+            { start = case qualifier of
+                [] -> identifier.ann.start
+                q : _ -> q.ann.start
+            , end = identifier.ann.end
+            }
+      }
+ where
+  moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
 
 pBindersWoConstraints ::
   forall ty.
-  HasAnn ty Lexer.SourceRegion =>
+  (HasAnn ty Lexer.SourceRegion) =>
   Parser (ty Lexer.SourceRegion) ->
   Parser (Surface.BindersWoConstraintsF ty Lexer.SourceRegion)
 pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do

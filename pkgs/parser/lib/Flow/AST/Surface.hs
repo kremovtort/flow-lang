@@ -6,7 +6,7 @@ import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import Flow.AST.Surface.Expr (ExpressionF)
 import Flow.AST.Surface.Module (ModDefinitionBodyF, ModF)
 import Flow.AST.Surface.Pattern (PatternF, PatternSimpleF)
-import Flow.AST.Surface.Syntax (LHSExpressionF)
+import Flow.AST.Surface.Syntax (LHSExpressionF, StatementF)
 import Flow.AST.Surface.Type (TypeF)
 
 type ModDefinitionBody ann = ModDefinitionBodyF Mod LHSExpression PatternSimple Pattern Type Expression ann
@@ -46,8 +46,15 @@ data Type ann = Type
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
 
+data Statement ann = Statement
+  { stmt :: StatementF Statement LHSExpression PatternSimple Pattern Type Expression ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+  deriving anyclass (ToExpr)
+
 data Expression ann = Expression
-  { expr :: ExpressionF LHSExpression PatternSimple Pattern Type Expression ann
+  { expr :: ExpressionF Statement PatternSimple Pattern Type Expression ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
