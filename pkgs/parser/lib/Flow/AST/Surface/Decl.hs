@@ -30,7 +30,6 @@ data StructF ty ann = StructF
   { name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , fields :: Vector (FieldsDeclF ty ann)
-  , fieldsAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -52,7 +51,6 @@ data EnumF ty ann = EnumF
   { name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , variants :: EnumVariantsF ty ann
-  , variantsAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

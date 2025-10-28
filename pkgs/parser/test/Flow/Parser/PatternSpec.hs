@@ -10,10 +10,10 @@ import "vector" Data.Vector qualified as Vector
 
 import Data.Maybe (fromJust)
 import Flow.AST.Surface qualified as Surface
-import Flow.AST.Surface.Common qualified as C
+import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
-import Flow.AST.Surface.Literal qualified as Lit
-import Flow.AST.Surface.Pattern qualified as Pat
+import Flow.AST.Surface.Literal qualified as Surface
+import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser)
 import Flow.Parser.Helpers (testParser)
@@ -23,21 +23,20 @@ pPatternSimple :: Parser (Surface.PatternSimple Lexer.SourceRegion)
 pPatternSimple =
   PPat.pPatternSimple pPatternSimple (fail "anyType") <&> uncurry Surface.PatternSimple
 
-anyType :: C.SimpleTypeIdentifier () -> C.AnyTypeIdentifier ()
+anyType :: Surface.SimpleTypeIdentifier () -> Surface.AnyTypeIdentifier ty ()
 anyType ident =
-  C.AnyTypeIdentifier
-    { qualifier = Vector.empty
-    , qualifierAnn = Nothing
+  Surface.AnyTypeIdentifier
+    { qualifier = Nothing
+    , typeQualifier = Nothing
     , identifier = ident
-    , identifierAnn = ()
     , ann = ()
     }
 
-mkVar :: Text -> C.SimpleVarIdentifier ()
-mkVar name = C.SimpleVarIdentifier{name, ann = ()}
+mkVar :: Text -> Surface.SimpleVarIdentifier ()
+mkVar name = Surface.SimpleVarIdentifier{name, ann = ()}
 
 wrapSimple ::
-  Pat.PatternSimpleF Surface.PatternSimple Surface.Type () ->
+  Surface.PatternSimpleF Surface.PatternSimple Surface.Type () ->
   Surface.PatternSimple ()
 wrapSimple simple =
   Surface.PatternSimple
@@ -46,21 +45,21 @@ wrapSimple simple =
     }
 
 wildcardPattern :: Surface.PatternSimple ()
-wildcardPattern = wrapSimple Pat.PatSimWildcardF
+wildcardPattern = wrapSimple Surface.PatSimWildcardF
 
 literalBoolPattern :: Bool -> Surface.PatternSimple ()
 literalBoolPattern value =
-  wrapSimple (Pat.PatSimLiteralF (Lit.LitBool value))
+  wrapSimple (Surface.PatSimLiteralF (Surface.LitBool value))
 
 literalIntPattern :: Integer -> Surface.PatternSimple ()
 literalIntPattern value =
-  wrapSimple (Pat.PatSimLiteralF (Lit.LitInteger value))
+  wrapSimple (Surface.PatSimLiteralF (Surface.LitInteger value))
 
 varPattern :: Text -> Surface.PatternSimple ()
 varPattern name =
   wrapSimple
-    ( Pat.PatSimVarF
-        ( Pat.PatternVariableF
+    ( Surface.PatSimVarF
+        ( Surface.PatternVariableF
             { mut = Nothing
             , name = mkVar name
             , ann = ()
@@ -69,18 +68,18 @@ varPattern name =
     )
 
 tuplePattern :: [Surface.PatternSimple ()] -> Surface.PatternSimple ()
-tuplePattern ps = wrapSimple (Pat.PatSimTupleF (requireVector "tuplePattern" ps))
+tuplePattern ps = wrapSimple (Surface.PatSimTupleF (requireVector "tuplePattern" ps))
 
 constructorPattern ::
   Text ->
-  Maybe [C.SimpleTypeIdentifier ()] ->
-  Maybe (Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()) ->
+  Maybe [Surface.SimpleTypeIdentifier ()] ->
+  Maybe (Surface.PatternFieldsF Surface.PatternSimple Surface.Type ()) ->
   Surface.PatternSimple ()
 constructorPattern name params fields =
   wrapSimple
-    ( Pat.PatSimConstructorAppF
-        Pat.PatternConsturctorAppF
-          { name = anyType C.SimpleTypeIdentifier{name, ann = ()}
+    ( Surface.PatSimConstructorAppF
+        Surface.PatternConsturctorAppF
+          { name = anyType Surface.SimpleTypeIdentifier{name, ann = ()}
           , typeParams =
               params <&> \params' ->
                 Surface.BindersF
@@ -102,13 +101,13 @@ constructorPattern name params fields =
 
 fieldsTuple ::
   [Surface.PatternSimple ()] ->
-  Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()
+  Surface.PatternFieldsF Surface.PatternSimple Surface.Type ()
 fieldsTuple ps =
-  Pat.PatFldsUnnamedF
+  Surface.PatFldsUnnamedF
     ( requireVector
         "fieldsTuple"
         ( ps <&> \p ->
-            Pat.PatternFieldUnnamedF
+            Surface.PatternFieldUnnamedF
               { value = p
               , optional = Nothing
               , ann = ()
@@ -117,24 +116,24 @@ fieldsTuple ps =
     )
 
 fieldsNamed ::
-  [Pat.PatternFieldNamedF Surface.PatternSimple Surface.Type ()] ->
-  Pat.PatternFieldsF Surface.PatternSimple Surface.Type ()
-fieldsNamed ps = Pat.PatFldsNamedF (fromJust $ NE.fromList ps)
+  [Surface.PatternFieldNamedF Surface.PatternSimple Surface.Type ()] ->
+  Surface.PatternFieldsF Surface.PatternSimple Surface.Type ()
+fieldsNamed ps = Surface.PatFldsNamedF (fromJust $ NE.fromList ps)
 
-mkFieldNamed :: Text -> Surface.PatternSimple () -> Pat.PatternFieldNamedF Surface.PatternSimple Surface.Type ()
+mkFieldNamed :: Text -> Surface.PatternSimple () -> Surface.PatternFieldNamedF Surface.PatternSimple Surface.Type ()
 mkFieldNamed name value =
-  Pat.PatFldNmdValueF $
-    Pat.PatternFieldNamedValueF
+  Surface.PatFldNmdValueF $
+    Surface.PatternFieldNamedValueF
       { name = mkVar name
       , optional = Nothing
       , value = value
       , ann = ()
       }
 
-mkFieldNamedPun :: Text -> Pat.PatternFieldNamedF Surface.PatternSimple Surface.Type ()
+mkFieldNamedPun :: Text -> Surface.PatternFieldNamedF Surface.PatternSimple Surface.Type ()
 mkFieldNamedPun name =
-  Pat.PatFldNmdPunningF $
-    Pat.PatternFieldNamedPunningF
+  Surface.PatFldNmdPunningF $
+    Surface.PatternFieldNamedPunningF
       { mut = Nothing
       , name = mkVar name
       , optional = Nothing

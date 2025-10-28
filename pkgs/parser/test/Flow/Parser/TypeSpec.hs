@@ -7,51 +7,54 @@ import "text" Data.Text (Text)
 import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface qualified as Surface
-import Flow.AST.Surface.Common qualified as C
-import Flow.AST.Surface.Type qualified as Ty
+import Flow.AST.Surface.Common qualified as Surface
+import Flow.AST.Surface.Constraint qualified as Surface
+import Flow.AST.Surface.Type qualified as Surface
 import Flow.Parser.Helpers (testParser)
 import Flow.Parser.Type qualified as PType
 
-anyType :: C.SimpleTypeIdentifier () -> C.AnyTypeIdentifier ()
+anyType :: Surface.SimpleTypeIdentifier () -> Surface.AnyTypeIdentifier ty ()
 anyType ident =
-  C.AnyTypeIdentifier
-    { qualifier = Vector.empty
-    , qualifierAnn = Nothing
+  Surface.AnyTypeIdentifier
+    { qualifier = Nothing
+    , typeQualifier = Nothing
     , identifier = ident
-    , identifierAnn = ()
     , ann = ()
     }
 
 simpleType :: Text -> Surface.Type ()
 simpleType name =
   Surface.Type
-    { ty = Ty.TyIdentifierF (anyType C.SimpleTypeIdentifier{name = name, ann = ()})
+    { ty = Surface.TyIdentifierF (anyType Surface.SimpleTypeIdentifier{name = name, ann = ()})
     , ann = ()
     }
 
-builtin :: Ty.Builtin -> Surface.Type ()
-builtin b = Surface.Type{ty = Ty.TyBuiltinF b (), ann = ()}
+builtin :: Surface.Builtin -> Surface.Type ()
+builtin b = Surface.Type{ty = Surface.TyBuiltinF b (), ann = ()}
 
-ref :: Maybe (C.ScopeIdentifier ()) -> Bool -> Surface.Type () -> Surface.Type ()
+ref :: Maybe (Surface.ScopeIdentifier ()) -> Bool -> Surface.Type () -> Surface.Type ()
 ref mscope mut inner =
   Surface.Type
     { ty =
-        Ty.TyAppF
-          Ty.AppF
+        Surface.TyAppF
+          Surface.AppF
             { head =
                 Surface.Type
                   { ty =
-                      Ty.TyRefF
-                        Ty.RefF
+                      Surface.TyRefF
+                        Surface.RefF
                           { scope = mscope
                           , mutability = if mut then Just () else Nothing
                           , ann = ()
                           }
                   , ann = ()
                   }
-            , headAnn = ()
-            , args = NonEmptyVector.singleton inner
-            , argsAnn = ()
+            , args =
+                Surface.BindersF
+                  { scopes = Vector.empty
+                  , types = Vector.singleton $ Surface.BinderAppF inner
+                  , ann = ()
+                  }
             , ann = ()
             }
     , ann = ()
@@ -61,8 +64,8 @@ fnType :: [Surface.Type ()] -> Maybe (Surface.Type ()) -> Surface.Type () -> Sur
 fnType args eff res =
   Surface.Type
     { ty =
-        Ty.TyFnF
-          Ty.FnF
+        Surface.TyFnF
+          Surface.FnF
             { args = Vector.fromList args
             , argsAnn = ()
             , effects = (,()) <$> eff
@@ -73,12 +76,12 @@ fnType args eff res =
     , ann = ()
     }
 
-effectRow :: [Ty.EffectAtomF Surface.Type ()] -> Maybe (C.AnyTypeIdentifier ()) -> Surface.Type ()
+effectRow :: [Surface.EffectAtomF Surface.Type ()] -> Maybe (Surface.AnyTypeIdentifier Surface.Type ()) -> Surface.Type ()
 effectRow atoms tailVar =
   Surface.Type
     { ty =
-        Ty.TyEffectRowF
-          Ty.EffectRowF
+        Surface.TyEffectRowF
+          Surface.EffectRowF
             { effects = Vector.fromList atoms
             , tailVar = tailVar
             , ann = ()
@@ -86,23 +89,34 @@ effectRow atoms tailVar =
     , ann = ()
     }
 
-mkSimpleVar :: Text -> C.SimpleVarIdentifier ()
-mkSimpleVar n = C.SimpleVarIdentifier{name = n, ann = ()}
+mkSimpleVar :: Text -> Surface.SimpleVarIdentifier ()
+mkSimpleVar n = Surface.SimpleVarIdentifier{name = n, ann = ()}
 
 spec :: Spec
 spec = describe "Type parser (minimal subset)" do
   it "parses builtin bool" do
-    testParser "bool" PType.pType (Just (builtin Ty.BuiltinBool))
+    testParser "bool" PType.pType (Just (builtin Surface.BuiltinBool))
 
   it "parses simple identifier Option" do
     testParser "Option" PType.pType (Just (simpleType "Option"))
 
   it "parses application Option<i32>" do
     let headT = simpleType "Option"
-        i32T = builtin Ty.BuiltinI32
+        i32T = builtin Surface.BuiltinI32
         app =
           Surface.Type
-            { ty = Ty.TyAppF Ty.AppF{head = headT, headAnn = (), args = NonEmptyVector.singleton i32T, argsAnn = (), ann = ()}
+            { ty =
+                Surface.TyAppF
+                  Surface.AppF
+                    { head = headT
+                    , args =
+                        Surface.BindersF
+                          { scopes = Vector.empty
+                          , types = Vector.singleton $ Surface.BinderAppF i32T
+                          , ann = ()
+                          }
+                    , ann = ()
+                    }
             , ann = ()
             }
     testParser "Option<i32>" PType.pType (Just app)
@@ -111,9 +125,9 @@ spec = describe "Type parser (minimal subset)" do
     let tup =
           Surface.Type
             { ty =
-                Ty.TyTupleF
+                Surface.TyTupleF
                   ( fromJust $
-                      NonEmptyVector.fromList [builtin Ty.BuiltinI32, builtin Ty.BuiltinString]
+                      NonEmptyVector.fromList [builtin Surface.BuiltinI32, builtin Surface.BuiltinString]
                   )
                   ()
             , ann = ()
@@ -122,7 +136,7 @@ spec = describe "Type parser (minimal subset)" do
 
   describe "parses applied refs" do
     let tT = simpleType "T"
-        s = C.ScopeIdentifier{name = "s", ann = ()}
+        s = Surface.ScopeIdentifier{name = "s", ann = ()}
 
     it "&T" do
       testParser "&T" PType.pType (Just (ref Nothing False tT))
@@ -137,21 +151,21 @@ spec = describe "Type parser (minimal subset)" do
       testParser "&'s mut T" PType.pType (Just (ref (Just s) True tT))
 
   it "parses fn type fn(i32) -> i32" do
-    let t = fnType [builtin Ty.BuiltinI32] Nothing (builtin Ty.BuiltinI32)
+    let t = fnType [builtin Surface.BuiltinI32] Nothing (builtin Surface.BuiltinI32)
     testParser "fn(i32) -> i32" PType.pType (Just t)
 
   it "parses fn with effect row fn(i32) -> @[IO] i32" do
     let ioType = simpleType "IO"
-        row = effectRow [Ty.EAtomTypeF ioType ()] Nothing
-        t = fnType [builtin Ty.BuiltinI32] (Just row) (builtin Ty.BuiltinI32)
+        row = effectRow [Surface.EAtomTypeF ioType ()] Nothing
+        t = fnType [builtin Surface.BuiltinI32] (Just row) (builtin Surface.BuiltinI32)
     testParser "fn(i32) -> @[IO] i32" PType.pType (Just t)
 
   it "parses short effect row fn(i32) -> @R i32" do
     let row = simpleType "R"
-        t = fnType [builtin Ty.BuiltinI32] (Just row) (builtin Ty.BuiltinI32)
+        t = fnType [builtin Surface.BuiltinI32] (Just row) (builtin Surface.BuiltinI32)
     testParser "fn(i32) -> @R i32" PType.pType (Just t)
 
   it "parses effect row @[IO]" do
     let ioType = simpleType "IO"
-        row = effectRow [Ty.EAtomTypeF ioType ()] Nothing
+        row = effectRow [Surface.EAtomTypeF ioType ()] Nothing
     testParser "@[IO]" PType.pType (Just row)

@@ -33,9 +33,7 @@ data CallableHeader ty reciever ann = CallableHeader
   , name :: SimpleVarIdentifier ann
   , typeParams :: Maybe (BindersWConstraintsF ty ann)
   , argsRequired :: Vector (ArgF ty ann)
-  , argsRequiredAnn :: ann
   , argsOptional :: Vector (ArgF ty ann)
-  , argsOptionalAnn :: ann
   , effects :: Maybe (ty ann, ann)
   , result :: Maybe (ty ann, ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)

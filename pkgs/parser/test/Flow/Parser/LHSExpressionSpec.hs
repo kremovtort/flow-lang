@@ -4,13 +4,14 @@ import "hspec" Test.Hspec (Spec, describe, it)
 import "text" Data.Text (Text)
 
 import Flow.AST.Surface qualified as Surface
-import Flow.AST.Surface.Common qualified as C
+import Flow.AST.Surface.Common qualified as Surface
+import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Expr qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Syn
+import Flow.Parser.Common (Parser, SourceRegion (..))
+import Flow.Parser.Expr qualified as PExpr
 import Flow.Parser.Helpers (testParser)
 import Flow.Parser.Syntax qualified as PSyn
-import Flow.Parser.Common (Parser, SourceRegion(..))
-import Flow.Parser.Expr qualified as PExpr
 
 pLHSExpression :: Parser (Surface.LHSExpression SourceRegion)
 pLHSExpression = PSyn.pLHSExpression PExpr.pExpression
@@ -18,7 +19,7 @@ pLHSExpression = PSyn.pLHSExpression PExpr.pExpression
 lhsVar :: Text -> Surface.LHSExpression ()
 lhsVar name =
   Surface.LHSExpression
-    { lhsExpression = Syn.LHSEVar C.SimpleVarIdentifier{name, ann = ()}
+    { lhsExpression = Syn.LHSEVar Surface.SimpleVarIdentifier{name, ann = ()}
     , ann = ()
     }
 
@@ -35,7 +36,7 @@ lhsDot lhs field =
     { lhsExpression =
         Syn.LHSEDotAccess
           lhs
-          C.SimpleVarIdentifier
+          Surface.SimpleVarIdentifier
             { name = field
             , ann = ()
             }
@@ -54,11 +55,10 @@ exprVar name =
   Surface.Expression
     { expr =
         Surface.EVar
-          ( C.AnyVarIdentifier
-              { qualifier = mempty
-              , qualifierAnn = Nothing
-              , identifier = C.SimpleVarIdentifier{name, ann = ()}
-              , identifierAnn = ()
+          ( Surface.AnyVarIdentifier
+              { qualifier = Nothing
+              , typeQualifier = Nothing
+              , identifier = Surface.SimpleVarIdentifier{name, ann = ()}
               , ann = ()
               }
           )

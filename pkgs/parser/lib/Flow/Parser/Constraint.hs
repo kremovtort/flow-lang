@@ -52,9 +52,10 @@ anyTypeIdentifier ::
   Parser (Surface.AnyTypeIdentifier ty Lexer.SourceRegion)
 anyTypeIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
-  typeQualifier <- Megaparsec.optional do
+  typeQualifier <- Megaparsec.optional $ Megaparsec.try do
     typeName <- simpleTypeIdentifier
     typeParams <- pBindersApp pTy
+    _ <- single (Lexer.Punctuation Lexer.ColonColon)
     pure
       Surface.TypeQualifierF
         { typeName
