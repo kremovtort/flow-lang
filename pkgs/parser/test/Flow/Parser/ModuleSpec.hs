@@ -180,12 +180,17 @@ typeAliasItem pub' name ty =
         Surface.ModItemTypeAliasF
           Surface.TypeDefinitionF
             { name = Surface.SimpleTypeIdentifier{name, ann = ()}
-            , scopeParams = mempty
             , typeParams =
-                Vector.fromList
-                  [ Surface.BinderWoConstraintF{name = Surface.SimpleTypeIdentifier{name = "X", ann = ()}, typeType = Nothing, ann = ()}
-                  , Surface.BinderWoConstraintF{name = Surface.SimpleTypeIdentifier{name = "Y", ann = ()}, typeType = Nothing, ann = ()}
-                  ]
+                Just $
+                  Surface.BindersF
+                    { scopes = mempty
+                    , types =
+                        Vector.fromList
+                          [ Surface.BinderWoConstraintF{name = Surface.SimpleTypeIdentifier{name = "X", ann = ()}, typeType = Nothing, ann = ()}
+                          , Surface.BinderWoConstraintF{name = Surface.SimpleTypeIdentifier{name = "Y", ann = ()}, typeType = Nothing, ann = ()}
+                          ]
+                    , ann = ()
+                    }
             , type_ = ty
             , ann = ()
             }

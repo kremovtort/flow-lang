@@ -82,11 +82,16 @@ operators =
   greaterThan = binaryN Lexer.GreaterThan BinOpGreaterThan
   greaterThanOrEqual = binaryN Lexer.GreaterThanOrEqual BinOpGreaterThanOrEqual
 
-  boolAnd = binaryL Lexer.And BinOpAnd
-  boolOr = binaryL Lexer.Or BinOpOr
+  boolAnd = binaryR Lexer.And BinOpAnd
+  boolOr = binaryR Lexer.Or BinOpOr
 
   binaryL token ctor =
     Expr.InfixL $
+      single (Lexer.Punctuation token) <&> \tok lhs rhs ->
+        mkBinOp ctor tok.region lhs rhs
+
+  binaryR token ctor =
+    Expr.InfixR $
       single (Lexer.Punctuation token) <&> \tok lhs rhs ->
         mkBinOp ctor tok.region lhs rhs
 

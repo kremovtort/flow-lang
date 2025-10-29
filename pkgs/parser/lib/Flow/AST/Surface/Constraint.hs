@@ -81,20 +81,19 @@ data BinderWoConstraintsF ty ann = BinderWoConstraintF
 
 data TypeDefinitionF ty ann = TypeDefinitionF
   { name :: SimpleTypeIdentifier ann
-  , scopeParams :: Vector (ScopeIdentifier ann)
-  , typeParams :: Vector (BinderWoConstraintsF ty ann)
+  , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , type_ :: ty ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data WhereClauseF ty ann -- type X = Y | Functor<A> | etc
-  = WhereConstraintF (ty ann) ann
-  | WhereAliasF (TypeDefinitionF ty ann) ann
+  = WhereConstraintF (ty ann)
+  | WhereAliasF (TypeDefinitionF ty ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data WhereBlockF ty ann = WhereBlockF
-  { constraints :: NonEmptyVector (WhereClauseF ty ann)
+  { clauses :: NonEmptyVector (WhereClauseF ty ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

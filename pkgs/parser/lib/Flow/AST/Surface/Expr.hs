@@ -111,13 +111,20 @@ data BinOp ann
 
 data LambdaExpressionF ty expr ann = LambdaExpressionF
   { typeParams :: Maybe (BindersWConstraintsF ty ann)
+  , args :: Vector (LambdaArgF ty ann)
   , effects :: Maybe (ty ann)
-  , effectsAnn :: ann
   , result :: ty ann
-  , resultAnn :: ann
-  , body :: expr ann
-  , bodyAnn :: ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
+  , body :: expr ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data LambdaArgF ty ann = LambdaArgF
+  { mut :: Maybe ann
+  , name :: SimpleVarIdentifier ann
+  , type_ :: Maybe (ty ann)
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -125,39 +132,29 @@ data LambdaExpressionF ty expr ann = LambdaExpressionF
 
 data HandleExpressionF stmt simPat ty expr ann = HandleExpressionF
   { in_ :: Maybe (ty ann)
-  , inAnn :: ann
   , returning :: Maybe (HandleReturningF ty ann)
-  , returningAnn :: ann
   , handlers :: NonEmptyVector (HandlerSpecF stmt simPat ty expr ann)
-  , handlersAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data HandlerSpecF stmt simPat ty expr ann = HandlerSpecF
   { effect :: ty ann
-  , effectAnn :: ann
   , returning :: Maybe (HandleReturningF ty ann)
-  , returningAnn :: ann
   , body :: NonEmptyVector (EffectItemDefinitionF stmt simPat ty expr ann)
-  , bodyAnn :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data HandleReturningF ty ann = HandleReturningF
   { binder :: ReturningBinderF ty ann
-  , binderAnn :: ann
   , result :: ty ann
-  , resultAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ReturningBinderF ty ann = ReturningBinderF
   { name :: SimpleVarIdentifier ann
-  , nameAnn :: ann
   , result :: ty ann
-  , resultAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -169,8 +166,7 @@ data AppF ty expr ann = AppF
   { callee :: expr ann
   , typeParams :: Maybe (BindersAppF ty ann)
   , args :: AppArgsF expr ann
-  , argsAnn :: ann
-  , withEffects :: Maybe (Vector (WithEffectsItem ty ann), ann)
+  , withEffects :: Maybe (NonEmptyVector (WithStatementF ty expr ann))
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -187,45 +183,23 @@ data ArgNamedF expr ann = ArgNamedF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data WithEffectsItem ty ann = WithEffectsItem
-  { lhs :: Either (SimpleVarIdentifier ann) (ty ann)
-  , rhs :: Either (SimpleVarIdentifier ann) (ty ann)
+data WithStatementF ty expr ann = WithLetDefinitionF
+  { let_ :: Maybe ann
+  , lhs :: WithLhsF ty expr ann
+  , rhs :: WithRhsF ty expr ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Generic, ToExpr)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-instance (Functor ty) => Functor (WithEffectsItem ty) where
-  fmap f (WithEffectsItem{..}) =
-    WithEffectsItem
-      { lhs = case lhs of
-          Left a -> Left (fmap f a)
-          Right a -> Right (fmap f a)
-      , rhs = case rhs of
-          Left a -> Left (fmap f a)
-          Right a -> Right (fmap f a)
-      , ann = f ann
-      }
+data WithLhsF ty expr ann
+  = WLhsLabelled (SimpleVarIdentifier ann) (Maybe (ty ann))
+  | WLhsUnlabelled (ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-instance (Foldable ty) => Foldable (WithEffectsItem ty) where
-  foldMap f (WithEffectsItem{lhs, rhs, ann}) = lhsFolded <> rhsFolded <> f ann
-   where
-    lhsFolded = case lhs of
-      Left a -> foldMap f a
-      Right a -> foldMap f a
-    rhsFolded = case rhs of
-      Left a -> foldMap f a
-      Right a -> foldMap f a
-
-instance (Traversable ty) => Traversable (WithEffectsItem ty) where
-  traverse f (WithEffectsItem{..}) =
-    WithEffectsItem <$> lhsTraversed <*> rhsTraversed <*> f ann
-   where
-    lhsTraversed = case lhs of
-      Left a -> Left <$> traverse f a
-      Right a -> Right <$> traverse f a
-    rhsTraversed = case rhs of
-      Left a -> Left <$> traverse f a
-      Right a -> Right <$> traverse f a
+data WithRhsF ty expr ann
+  = WRhsExprF (expr ann)
+  | WRhsTypeF (ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Effect handler item definitions, parameterized by callable body type
 data EffectItemDefinitionF stmt simPat ty expr ann

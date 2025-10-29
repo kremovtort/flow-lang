@@ -70,7 +70,6 @@ callUnnamed fname args =
             { callee = var fname
             , typeParams = Nothing
             , args = Surface.AppArgsUnnamedF (Vector.fromList args)
-            , argsAnn = ()
             , withEffects = Nothing
             }
     , ann = ()
@@ -96,7 +95,6 @@ callNamed fname args =
                             }
                       )
                   )
-            , argsAnn = ()
             , withEffects = Nothing
             }
     , ann = ()
@@ -120,7 +118,6 @@ callWithParams fname scopes types args =
                         }
                   else Nothing
             , args = Surface.AppArgsUnnamedF (Vector.fromList args)
-            , argsAnn = ()
             , withEffects = Nothing
             }
     , ann = ()
