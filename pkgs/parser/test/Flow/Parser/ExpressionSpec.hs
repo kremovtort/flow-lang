@@ -1,11 +1,11 @@
 module Flow.Parser.ExpressionSpec (spec) where
 
+import "base" Data.Functor ((<&>))
 import "hspec" Test.Hspec (Spec, describe, it)
-import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
+import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "text" Data.Text (Text)
 import "vector" Data.Vector qualified as Vector
 
-import Data.Functor ((<&>))
 import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
@@ -14,7 +14,7 @@ import Flow.AST.Surface.Literal qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface.Type
-import Flow.Parser.Expr qualified as PExpr
+import Flow.Parser (pExpression)
 import Flow.Parser.Helpers (testParser)
 
 wildcard :: Surface.Expression ()
@@ -43,23 +43,28 @@ parens inner = Surface.Expression{expr = Surface.EParens inner, ann = ()}
 unOp :: Surface.UnOp () -> Surface.Expression () -> Surface.Expression ()
 unOp op expr =
   Surface.Expression
-    { expr = Surface.EUnOp Surface.UnOpExpression{op, operand = expr}
+    { expr = Surface.EUnOpF Surface.UnOpExpression{op, operand = expr}
     , ann = ()
     }
 
 binOp :: Surface.BinOp () -> Surface.Expression () -> Surface.Expression () -> Surface.Expression ()
 binOp op l r =
   Surface.Expression
-    { expr = Surface.EBinOp Surface.BinOpExpression{op, left = l, right = r, ann = ()}
+    { expr = Surface.EBinOpF Surface.BinOpExpression{op, left = l, right = r, ann = ()}
     , ann = ()
     }
 
 tupleExpr :: [Surface.Expression ()] -> Surface.Expression ()
-tupleExpr exprs =
-  let neVec = case NE.fromList exprs of
-        Nothing -> error "Expected non-empty tuple"
-        Just v -> v
-   in Surface.Expression{expr = Surface.ETuple neVec, ann = ()}
+tupleExpr = \case
+  expr1 : expr2 : rest ->
+    Surface.Expression
+      { expr =
+          Surface.ETupleF
+            expr1
+            (NonEmptyVector.consV expr2 (Vector.fromList rest))
+      , ann = ()
+      }
+  _ -> error "tuple should have at least two elements"
 
 callUnnamed :: Text -> [Surface.Expression ()] -> Surface.Expression ()
 callUnnamed fname args =
@@ -70,7 +75,8 @@ callUnnamed fname args =
             { callee = var fname
             , typeParams = Nothing
             , args = Surface.AppArgsUnnamedF (Vector.fromList args)
-            , withEffects = Nothing
+            , with = Nothing
+            , ann = ()
             }
     , ann = ()
     }
@@ -95,7 +101,8 @@ callNamed fname args =
                             }
                       )
                   )
-            , withEffects = Nothing
+            , with = Nothing
+            , ann = ()
             }
     , ann = ()
     }
@@ -118,7 +125,8 @@ callWithParams fname scopes types args =
                         }
                   else Nothing
             , args = Surface.AppArgsUnnamedF (Vector.fromList args)
-            , withEffects = Nothing
+            , with = Nothing
+            , ann = ()
             }
     , ann = ()
     }
@@ -190,7 +198,7 @@ blockExpr :: [Surface.Statement ()] -> Maybe (Surface.Expression ()) -> Surface.
 blockExpr stmts resultExpr =
   Surface.Expression
     { expr =
-        Surface.EBlock $
+        Surface.EBlockF $
           Surface.CodeBlockF
             { statements = Vector.fromList stmts
             , result = resultExpr
@@ -202,16 +210,16 @@ blockExpr stmts resultExpr =
 spec :: Spec
 spec = describe @() "Expression parser (minimal subset)" do
   it "parses wildcard _" do
-    testParser "_" PExpr.pExpression (Just wildcard)
+    testParser "_" pExpression (Just wildcard)
 
   it "parses literal 1" do
-    testParser "1" PExpr.pExpression (Just (literalInt 1))
+    testParser "1" pExpression (Just (literalInt 1))
 
   it "parses variable x" do
-    testParser "x" PExpr.pExpression (Just (var "x"))
+    testParser "x" pExpression (Just (var "x"))
 
   it "parses parens (x)" do
-    testParser "(x)" PExpr.pExpression (Just (parens (var "x")))
+    testParser "(x)" pExpression (Just (parens (var "x")))
 
   it "parses unary &x, &mut x, &'s x, -x, !x" do
     let cases =
@@ -222,7 +230,7 @@ spec = describe @() "Expression parser (minimal subset)" do
           , ("!x", Surface.UnOpNot ())
           ]
     mapM_
-      (\(txt, op) -> testParser txt PExpr.pExpression (Just (unOp op (var "x"))))
+      (\(txt, op) -> testParser txt pExpression (Just (unOp op (var "x"))))
       cases
 
   it "parses binary 1 + 2 * 3" do
@@ -231,24 +239,24 @@ spec = describe @() "Expression parser (minimal subset)" do
             (Surface.BinOpAdd ())
             (literalInt 1)
             (binOp (Surface.BinOpMul ()) (literalInt 2) (literalInt 3))
-    testParser "1 + 2 * 3" PExpr.pExpression (Just expected)
+    testParser "1 + 2 * 3" pExpression (Just expected)
 
   it "parses calls f(a, b) and with named args f { x = 1, y = 2 }" do
-    testParser "f(a, b)" PExpr.pExpression (Just (callUnnamed "f" [var "a", var "b"]))
-    testParser "f { x = 1, y = 2 }" PExpr.pExpression (Just (callNamed "f" [("x", literalInt 1), ("y", literalInt 2)]))
+    testParser "f(a, b)" pExpression (Just (callUnnamed "f" [var "a", var "b"]))
+    testParser "f { x = 1, y = 2 }" pExpression (Just (callNamed "f" [("x", literalInt 1), ("y", literalInt 2)]))
 
   it "parses call with type/scope params f<'s, T>(a)" do
     let expected = callWithParams "f" [scopeIdent "s"] [typeVar "T"] [var "a"]
-    testParser "f<'s, T>(a)" PExpr.pExpression (Just expected)
+    testParser "f<'s, T>(a)" pExpression (Just expected)
 
   it "parses chained access a.b[0]" do
     let expected = indexExpr (dotExpr (var "a") "b") (literalInt 0)
-    testParser "a.b[0]" PExpr.pExpression (Just expected)
+    testParser "a.b[0]" pExpression (Just expected)
 
   it "parses tuple (a, b)" do
-    testParser "(a, b)" PExpr.pExpression (Just (tupleExpr [var "a", var "b"]))
+    testParser "(a, b)" pExpression (Just (tupleExpr [var "a", var "b"]))
 
   it "parses simple block { let x = 1; x }" do
     let stmt = letStatement "x" (literalInt 1)
         expected = blockExpr [stmt] (Just (var "x"))
-    testParser "{ let x = 1; x }" PExpr.pExpression (Just expected)
+    testParser "{ let x = 1; x }" pExpression (Just expected)

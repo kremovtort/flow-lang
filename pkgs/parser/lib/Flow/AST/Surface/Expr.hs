@@ -34,6 +34,8 @@ import Flow.AST.Surface.Syntax (
   LoopExpressionF,
   MatchExpressionF,
   WhileExpressionF,
+  WithF,
+  WithStatementF,
  )
 
 -- Expressions
@@ -47,18 +49,19 @@ data ExpressionF stmt simPat pat ty expr ann
   | EConstructor (AnyTypeIdentifier ty ann) -- EnumVariant | Some | Cons
   | EIndex (expr ann) (expr ann) -- expr[index]
   | EDotAccess (expr ann) (AnyVarIdentifier ty ann) -- expr.ident
-  | EUnOp (UnOpExpression expr ann) -- -a | !a | *a | &a | &mut a | &'s mut a
-  | EBinOp (BinOpExpression expr ann) -- a * b | a + b | a ++ b | etc
+  | EUnOpF (UnOpExpression expr ann) -- -a | !a | *a | &a | &mut a | &'s mut a
+  | EBinOpF (BinOpExpression expr ann) -- a * b | a + b | a ++ b | etc
   | EAppF (AppF ty expr ann) -- f(a, b, c) | f(a, b, c) with {}
-  | ETuple (NonEmptyVector (expr ann)) -- (a, b, c)
-  | EMatch (MatchExpressionF pat expr ann) -- match expr { Pattern => expr, ... }
-  | EIf (IfExpressionF stmt pat expr ann) -- if expr { then_ } else { else_ }
-  | ELoop (LoopExpressionF stmt expr ann) -- loop { ... } | 'label: loop { ... }
-  | EWhile (WhileExpressionF stmt pat expr ann) -- while expr { ... } | 'label: while expr { ... }
-  | EFor (ForExpressionF pat expr ann) -- for pattern in iterable { ... }
-  | EBlock (CodeBlockF stmt expr ann) -- { ... }
-  | EHandle (HandleExpressionF stmt simPat ty expr ann) -- handle Effect
-  | ELambda (LambdaExpressionF ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
+  | EWithF (WithF stmt ty expr ann) -- with { let a = b; c = d } in { ... }
+  | ETupleF (expr ann) (NonEmptyVector (expr ann)) -- (a, b, c)
+  | EMatchF (MatchExpressionF pat expr ann) -- match expr { Pattern => expr, ... }
+  | EIfF (IfExpressionF stmt pat expr ann) -- if expr { then_ } else { else_ }
+  | ELoopF (LoopExpressionF stmt expr ann) -- loop { ... } | 'label: loop { ... }
+  | EWhileF (WhileExpressionF stmt pat expr ann) -- while expr { ... } | 'label: while expr { ... }
+  | EForF (ForExpressionF simPat expr ann) -- for pattern in iterable { ... }
+  | EBlockF (CodeBlockF stmt expr ann) -- { ... }
+  | EHandleF (HandleExpressionF stmt simPat ty expr ann) -- handle Effect
+  | ELambdaF (LambdaF stmt ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Pieces used by both Expr and Stmt
@@ -109,13 +112,24 @@ data BinOp ann
 
 -- Higher-level expression nodes
 
-data LambdaExpressionF ty expr ann = LambdaExpressionF
+data LambdaF stmt ty expr ann
+  = LamShortF (LambdaShortF ty expr ann)
+  | LamFullF (LambdaFullF stmt ty expr ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data LambdaShortF ty expr ann = LambdaShortF
+  { args :: Vector (LambdaArgF ty ann)
+  , body :: expr ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data LambdaFullF stmt ty expr ann = LambdaFullF
   { typeParams :: Maybe (BindersWConstraintsF ty ann)
   , args :: Vector (LambdaArgF ty ann)
-  , effects :: Maybe (ty ann)
-  , result :: ty ann
+  , effectsResult :: Maybe (Maybe (ty ann), ty ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)
-  , body :: expr ann
+  , body :: CodeBlockF stmt expr ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -166,7 +180,8 @@ data AppF ty expr ann = AppF
   { callee :: expr ann
   , typeParams :: Maybe (BindersAppF ty ann)
   , args :: AppArgsF expr ann
-  , withEffects :: Maybe (NonEmptyVector (WithStatementF ty expr ann))
+  , with :: Maybe (NonEmptyVector (WithStatementF ty expr ann))
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -181,24 +196,6 @@ data ArgNamedF expr ann = ArgNamedF
   , value :: Maybe (expr ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data WithStatementF ty expr ann = WithLetDefinitionF
-  { let_ :: Maybe ann
-  , lhs :: WithLhsF ty expr ann
-  , rhs :: WithRhsF ty expr ann
-  , ann :: ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data WithLhsF ty expr ann
-  = WLhsLabelled (SimpleVarIdentifier ann) (Maybe (ty ann))
-  | WLhsUnlabelled (ty ann)
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data WithRhsF ty expr ann
-  = WRhsExprF (expr ann)
-  | WRhsTypeF (ty ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- Effect handler item definitions, parameterized by callable body type

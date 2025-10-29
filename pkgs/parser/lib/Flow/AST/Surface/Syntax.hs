@@ -120,9 +120,9 @@ data WhileExpressionF stmt pat expr ann = WhileExpressionF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ForExpressionF pat expr ann = ForExpressionF
+data ForExpressionF simPat expr ann = ForExpressionF
   { label :: Maybe (SimpleVarIdentifier ann, ann)
-  , pattern :: pat ann
+  , pattern :: simPat ann
   , iterable :: expr ann
   , body :: expr ann
   , ann :: ann
@@ -148,3 +148,29 @@ data ForExpressionF pat expr ann = ForExpressionF
       { let b = "hello"; f { a = 1, b? }; }
       { let b = Some("hello"); f { a = 1, b }; }
 -}
+
+
+data WithF stmt ty expr ann = WithF
+  { statements :: NonEmptyVector (WithStatementF ty expr ann)
+  , block :: CodeBlockF stmt expr ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data WithStatementF ty expr ann = WithStatementF
+  { let_ :: Maybe ann
+  , lhs :: WithLhsF ty ann
+  , rhs :: WithRhsF ty expr ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data WithLhsF ty ann
+  = WLhsLabelled (SimpleVarIdentifier ann) (Maybe (ty ann))
+  | WLhsUnlabelled (ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data WithRhsF ty expr ann
+  = WRhsExprF (expr ann)
+  | WRhsTypeF (ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

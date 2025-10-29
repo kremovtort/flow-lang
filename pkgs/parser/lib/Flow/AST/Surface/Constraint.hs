@@ -60,7 +60,8 @@ newtype ScopeBinderWoConstraintsF ty ann = ScopeBinderWoConstraintsF (ScopeIdent
 
 data BinderWConstraintsF ty ann = BinderWConstraintsF -- A | A :< Monoid
   { name :: SimpleTypeIdentifier ann
-  , typeType :: Maybe (ty ann, ann)
+  , kindShort :: Maybe (KindTreeRootF ty ann)
+  , typeType :: Maybe (ty ann)
   , constraint :: Maybe (BinderConstraintsF ty ann)
   , ann :: ann
   }
@@ -74,6 +75,7 @@ data BinderConstraintsF ty ann = BinderConstraintsF
 
 data BinderWoConstraintsF ty ann = BinderWoConstraintF
   { name :: SimpleTypeIdentifier ann
+  , kindShort :: Maybe (KindTreeRootF ty ann)
   , typeType :: Maybe (ty ann)
   , ann :: ann
   }
@@ -94,6 +96,28 @@ data WhereClauseF ty ann -- type X = Y | Functor<A> | etc
 
 data WhereBlockF ty ann = WhereBlockF
   { clauses :: NonEmptyVector (WhereClauseF ty ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+type KindTreeRootF ty ann = NonEmptyVector (KindTreeF ty ann) -- <_, _<_>>
+
+data KindTreeF ty ann
+  = KTHoleF (KindHoleF ty ann) -- _ | _: Type
+  | KTParamsF (KindParamsF ty ann) -- _<_, _>
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data KindHoleF ty ann = KindHoleF
+  { holeAnn :: ann
+  , typeType :: Maybe (ty ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data KindParamsF ty ann = KindParamsF
+  { holeAnn :: ann
+  , params :: NonEmptyVector (KindTreeF ty ann)
+  , typeType :: Maybe (ty ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

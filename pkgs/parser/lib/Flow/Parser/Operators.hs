@@ -18,7 +18,7 @@ pOperators pExpr = Expr.makeExprParser pExpr operators
 operators ::
   [[Expr.Operator Parser (Expression SourceRegion)]]
 operators =
-  [ [deref, not', neg, takeRef, takeMutRef]
+  [ [deref, not', neg, takeMutRef, takeRef]
   , [mul, divOp, modOp]
   , [add, sub]
   , [concatOp]
@@ -108,7 +108,7 @@ operators =
             }
      in Expression
           { expr =
-              EBinOp
+              EBinOpF
                 BinOpExpression
                   { op = ctor opRegion
                   , left = left
@@ -120,6 +120,6 @@ operators =
 
   mkUnOp mkOp opAnn operand =
     Expression
-      { expr = EUnOp UnOpExpression{op = mkOp opAnn, operand}
+      { expr = EUnOpF UnOpExpression{op = mkOp opAnn, operand}
       , ann = SourceRegion opAnn.start operand.ann.end
       }

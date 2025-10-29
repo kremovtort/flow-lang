@@ -16,6 +16,7 @@ data TypeF ty ann
   | TyForallF (ForallF ty ann) -- <A :< Monoid> fn(List<A>) -> A
   | TyFnF (FnF ty ann) -- fn(List<A>) -> A
   | TyEffectRowF (EffectRowF ty ann) -- @[IO, State<S>] | @['s, IO] | @['s, IO, s: State<S>, ..R] | etc
+  | TyEquals (ty ann) (ty ann) -- A == B
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data Builtin
@@ -57,11 +58,8 @@ data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
 
 data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
   { params :: BindersWConstraintsF ty ann
-  , paramsAnn :: ann
   , result :: ty ann
-  , resultAnn :: ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
-  , whereAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

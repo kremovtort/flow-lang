@@ -21,6 +21,7 @@ import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Parser.Helpers (testParser)
 import Flow.Parser.Module qualified as PMod
+import Flow.AST.Surface.Constraint (BinderWConstraintsF(kindShort))
 
 type ModuleItem = Surface.ModuleItemF Surface.Mod Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
 
@@ -186,8 +187,26 @@ typeAliasItem pub' name ty =
                     { scopes = mempty
                     , types =
                         Vector.fromList
-                          [ Surface.BinderWoConstraintF{name = Surface.SimpleTypeIdentifier{name = "X", ann = ()}, typeType = Nothing, ann = ()}
-                          , Surface.BinderWoConstraintF{name = Surface.SimpleTypeIdentifier{name = "Y", ann = ()}, typeType = Nothing, ann = ()}
+                          [ Surface.BinderWoConstraintF
+                              { name =
+                                  Surface.SimpleTypeIdentifier
+                                    { name = "X"
+                                    , ann = ()
+                                    }
+                              , kindShort = Nothing
+                              , typeType = Nothing
+                              , ann = ()
+                              }
+                          , Surface.BinderWoConstraintF
+                              { name =
+                                  Surface.SimpleTypeIdentifier
+                                    { name = "Y"
+                                    , ann = ()
+                                    }
+                              , kindShort = Nothing
+                              , typeType = Nothing
+                              , ann = ()
+                              }
                           ]
                     , ann = ()
                     }

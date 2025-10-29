@@ -2,13 +2,13 @@ module Flow.Parser.PatternSpec (spec) where
 
 import "base" Data.Functor ((<&>))
 import "base" Data.List.NonEmpty qualified as ListNE
+import "base" Data.Maybe (fromJust)
 import "base" GHC.Stack (HasCallStack)
 import "hspec" Test.Hspec (Spec, describe, it)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NE
 import "text" Data.Text (Text)
 import "vector" Data.Vector qualified as Vector
 
-import Data.Maybe (fromJust)
 import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
@@ -89,6 +89,7 @@ constructorPattern name params fields =
                         params' <&> \param'' ->
                           Surface.BinderWoConstraintF
                             { name = param''
+                            , kindShort = Nothing
                             , typeType = Nothing
                             , ann = ()
                             }

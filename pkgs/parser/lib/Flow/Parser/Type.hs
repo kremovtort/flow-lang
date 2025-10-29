@@ -11,7 +11,6 @@ import "vector" Data.Vector qualified as Vector
 import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
-import Flow.AST.Surface.Type (TypeF (TyEffectRowF))
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (HasAnn, Parser, SourceRegion (..), scopeIdentifier, simpleVarIdentifier, single, token)
@@ -148,12 +147,13 @@ tyRef = do
       }
 
 tyFn ::
-  Parser (Surface.Type SourceRegion) ->
-  Parser (Surface.FnF Surface.Type SourceRegion)
-tyFn ty = do
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (Surface.FnF ty SourceRegion)
+tyFn pTy = do
   tokS <- single (Lexer.Keyword Lexer.Fn)
   _ <- single (Lexer.Punctuation Lexer.LeftParen)
-  args <- Megaparsec.sepEndBy ty (single (Lexer.Punctuation Lexer.Comma))
+  args <- Megaparsec.sepEndBy pTy (single (Lexer.Punctuation Lexer.Comma))
   _ <- single (Lexer.Punctuation Lexer.RightParen)
   tokE <- single (Lexer.Punctuation Lexer.Arrow)
   effects <- Megaparsec.optional do
@@ -161,17 +161,12 @@ tyFn ty = do
       [ do
           _ <- Megaparsec.lookAhead $ single (Lexer.Punctuation Lexer.AtLeftBracket)
           -- parse effect row
-          (row, ann) <- tyEffectRow ty
-          pure
-            Surface.Type
-              { ty = TyEffectRowF row
-              , ann = ann
-              }
+          pTy
       , do
           _ <- single (Lexer.Punctuation Lexer.At)
-          ty
+          pTy
       ]
-  result <- ty
+  result <- pTy
   pure $
     Surface.FnF
       { args = Vector.fromList args
@@ -183,8 +178,10 @@ tyFn ty = do
       }
 
 tyEffectRow ::
-  Parser (Surface.Type SourceRegion) ->
-  Parser (Surface.EffectRowF Surface.Type SourceRegion, SourceRegion)
+  forall ty.
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (Surface.EffectRowF ty SourceRegion, SourceRegion)
 tyEffectRow pTy = do
   tokS <- single (Lexer.Punctuation Lexer.AtLeftBracket)
   effects <- Megaparsec.sepBy effectAtom (single (Lexer.Punctuation Lexer.Comma))
@@ -213,7 +210,7 @@ tyEffectRow pTy = do
     , SourceRegion{start = tokS.region.start, end = tokE.region.end}
     )
  where
-  effectAtom :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
+  effectAtom :: Parser (Surface.EffectAtomF ty SourceRegion)
   effectAtom = do
     Megaparsec.choice
       [ eAtomNameType
@@ -221,7 +218,7 @@ tyEffectRow pTy = do
       , eAtomType
       ]
    where
-    eAtomNameType :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
+    eAtomNameType :: Parser (Surface.EffectAtomF ty SourceRegion)
     eAtomNameType = do
       name <- simpleVarIdentifier
       _ <- single (Lexer.Punctuation Lexer.Colon)
@@ -235,7 +232,7 @@ tyEffectRow pTy = do
             , end = ty'.ann.end
             }
 
-    eAtomScope :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
+    eAtomScope :: Parser (Surface.EffectAtomF ty SourceRegion)
     eAtomScope = do
       scope <- scopeIdentifier
       pure $
@@ -246,7 +243,7 @@ tyEffectRow pTy = do
             , end = scope.ann.end
             }
 
-    eAtomType :: Parser (Surface.EffectAtomF Surface.Type SourceRegion)
+    eAtomType :: Parser (Surface.EffectAtomF ty SourceRegion)
     eAtomType = do
       ty' <- pTy
       pure $ Surface.EAtomTypeF ty' SourceRegion{start = ty'.ann.start, end = ty'.ann.end}
