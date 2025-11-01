@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Development environment is set up in the `flake.nix` file, so when you need to run commands in the development environment, you should use `nix develop`. When you need to install some additional tools, you should add them directly to the `flake.nix` file.
