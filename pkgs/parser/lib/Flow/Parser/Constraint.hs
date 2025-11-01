@@ -5,11 +5,11 @@ module Flow.Parser.Constraint where
 
 import "base" Control.Monad (unless, when)
 import "base" Data.Functor (void)
+import "base" Data.Maybe (fromJust)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
-import Data.Maybe (fromJust)
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint (ScopeBinderWoConstraintsF (..))
 import Flow.AST.Surface.Constraint qualified as Surface
@@ -28,25 +28,34 @@ pBindersApp ::
   (HasAnn ty Lexer.SourceRegion) =>
   Parser (ty Lexer.SourceRegion) ->
   Parser (Surface.BindersAppF ty Lexer.SourceRegion)
-pBindersApp pTy = do
+pBindersApp pTy = Megaparsec.label "binders app" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
-  scopes <-
-    Vector.fromList . fmap ScopeBinderWoConstraintsF
-      <$> Megaparsec.sepBy scopeIdentifier (single (Lexer.Punctuation Lexer.Comma))
-  types <-
-    Vector.fromList . fmap Surface.BinderAppF
-      <$> if null scopes
-        then Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
-        else do
-          _ <- single (Lexer.Punctuation Lexer.Comma)
-          Megaparsec.sepEndBy pTy (single (Lexer.Punctuation Lexer.Comma))
+  elems <- Megaparsec.sepEndBy1 binderElem (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
+  (scopeElems, typeElems) <- collect elems [] []
+  let scopesVector = Vector.fromList (ScopeBinderWoConstraintsF <$> scopeElems)
+      typesVector = Vector.fromList (Surface.BinderAppF <$> typeElems)
   pure
     Surface.BindersF
-      { scopes
-      , types
+      { scopes = scopesVector
+      , types = typesVector
       , ann = Lexer.SourceRegion tokS.region.start tokE.region.end
       }
+ where
+  binderElem =
+    Megaparsec.choice
+      [ Left <$> Megaparsec.try scopeIdentifier
+      , Right <$> pTy
+      ]
+  collect [] scopesAcc typesAcc =
+    pure (reverse scopesAcc, reverse typesAcc)
+  collect (Left scope : rest) scopesAcc typesAcc
+    | not (null typesAcc) =
+        fail "scope argument cannot follow type argument in application binders"
+    | otherwise =
+        collect rest (scope : scopesAcc) typesAcc
+  collect (Right ty : rest) scopesAcc typesAcc =
+    collect rest scopesAcc (ty : typesAcc)
 
 anyTypeIdentifier ::
   forall ty.

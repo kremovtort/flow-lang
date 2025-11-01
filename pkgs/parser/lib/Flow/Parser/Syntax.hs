@@ -55,16 +55,16 @@ pStatement ::
 pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
   Megaparsec.choice
     [ letStatement
-    , assignStatement
+    , Megaparsec.try assignStatement
     , returnStatement
     , continueStatement
     , breakStatement
-    , expressionStatement
     , matchStatement
     , ifStatement
     , loopStatement
     , whileStatement
     , forStatement
+    , Megaparsec.try expressionStatement
     ]
  where
   letStatement = do

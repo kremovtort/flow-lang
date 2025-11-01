@@ -87,7 +87,7 @@ pOfTypeSuffix ::
   Parser (ty SourceRegion) ->
   expr SourceRegion ->
   Parser (expr SourceRegion, ty SourceRegion)
-pOfTypeSuffix pTy expr = do
+pOfTypeSuffix pTy expr = Megaparsec.label "of type" do
   _ <- single (Lexer.Punctuation Lexer.Colon)
   ty' <- pTy
   pure (expr, ty')
@@ -131,7 +131,7 @@ pAppSuffix ::
   Parser (expr SourceRegion) ->
   expr SourceRegion ->
   Parser (AppF ty expr SourceRegion)
-pAppSuffix pTy pExpr expr = do
+pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
   typeParams <- Megaparsec.optional (pBindersApp pTy)
   (args, end) <-
     Megaparsec.choice
@@ -427,12 +427,13 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       ]
 
   pSuffix expr =
-    Megaparsec.choice
-      [ pOfTypeSuffix' expr
-      , pIndexSuffix' expr
-      , pDotAccessSuffix' expr
-      , pAppSuffix' expr
-      ]
+    Megaparsec.label "expression suffix" $
+      Megaparsec.choice
+        [ pOfTypeSuffix' expr
+        , pIndexSuffix' expr
+        , pDotAccessSuffix' expr
+        , pAppSuffix' expr
+        ]
 
   pNotSuffixable =
     Megaparsec.choice
@@ -516,6 +517,6 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
     (expr', field, ann) <- pDotAccessSuffix pTy expr
     pure $ Expression (EDotAccess expr' field) ann
 
-  pAppSuffix' expr = do
+  pAppSuffix' expr = Megaparsec.label "application" do
     app <- pAppSuffix pTy pExpr expr
     pure $ Expression (EAppF app) app.ann

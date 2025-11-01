@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module Flow.AST.Surface.Expr where
 
 import "base" GHC.Generics (Generic)
@@ -9,8 +7,6 @@ import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
 import Flow.AST.Surface.Callable (
-  FnDefinitionF,
-  FnInfixDefinitionF,
   OpDefinitionF,
   OpInfixDefinitionF,
  )
@@ -201,8 +197,6 @@ data ArgNamedF expr ann = ArgNamedF
 -- Effect handler item definitions, parameterized by callable body type
 data EffectItemDefinitionF stmt simPat ty expr ann
   = EDefinitionLetF (LetDefinitionF simPat ty expr ann) ann
-  | EDefinitionFnF (FnDefinitionF stmt ty expr ann) ann
-  | EDefinitionFnInfixF (FnInfixDefinitionF stmt ty expr ann) ann
   | EDefinitionOpF (OpDefinitionF stmt ty expr ann) ann
   | EDefinitionOpInfixF (OpInfixDefinitionF stmt ty expr ann) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
