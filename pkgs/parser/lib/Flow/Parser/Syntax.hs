@@ -68,24 +68,10 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
     ]
  where
   letStatement = do
-    letTok <- single (Lexer.Keyword Lexer.Let)
-    lhs <- pSimPat
-    lhsType <- Megaparsec.optional do
-      _ <- single (Lexer.Punctuation Lexer.Colon)
-      pTy
-    _ <- single (Lexer.Punctuation Lexer.Assign)
-    rhs <- pExpr
-    semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
-    let ann = SourceRegion{start = letTok.region.start, end = semicolonTok.region.end}
+    let' <- pLetDefinition pSimPat pTy pExpr
     pure
-      ( SLetF $
-        LetDefinitionF
-          { lhs = lhs
-          , lhsType = lhsType
-          , rhs = rhs
-          , ann = ann
-          }
-      , ann
+      ( SLetF let'
+      , let'.ann
       )
 
   assignStatement = do
@@ -149,6 +135,32 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
   forStatement = do
     expr' <- pForExpression pPat pExpr
     pure (SForF expr', expr'.ann)
+
+pLetDefinition ::
+  (HasAnn simPat SourceRegion, HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
+  Parser (simPat SourceRegion) ->
+  Parser (ty SourceRegion) ->
+  Parser (expr SourceRegion) ->
+  Parser (LetDefinitionF simPat ty expr SourceRegion)
+pLetDefinition pSimPat pTy pExpr = do
+  letTok <- single (Lexer.Keyword Lexer.Let)
+  mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
+  lhs <- pSimPat
+  lhsType <- Megaparsec.optional do
+    _ <- single (Lexer.Punctuation Lexer.Colon)
+    pTy
+  _ <- single (Lexer.Punctuation Lexer.Assign)
+  rhs <- pExpr
+  semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
+  let ann = SourceRegion{start = letTok.region.start, end = semicolonTok.region.end}
+  pure
+    LetDefinitionF
+      { mut = (.region) <$> mut
+      , lhs = lhs
+      , lhsType = lhsType
+      , rhs = rhs
+      , ann = ann
+      }
 
 -- | LHSExpression parser (stub)
 pLHSExpression :: Parser (Expression SourceRegion) -> Parser (LHSExpression SourceRegion)

@@ -19,11 +19,10 @@ import Flow.AST.Surface.Module qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
+import Flow.Parser (pModDefinitionBody)
 import Flow.Parser.Helpers (testParser)
-import Flow.Parser.Module qualified as PMod
-import Flow.AST.Surface.Constraint (BinderWConstraintsF(kindShort))
 
-type ModuleItem = Surface.ModuleItemF Surface.Mod Surface.LHSExpression Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
+type ModuleItem = Surface.ModuleItemF Surface.Mod Surface.Statement Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
 
 modIdent :: Text -> Surface.ModuleIdentifier ()
 modIdent name = Surface.ModuleIdentifier{name, ann = ()}
@@ -56,7 +55,7 @@ modDecl :: Text -> ModuleItem ()
 modDecl name =
   Surface.ModuleItemF
     { pub = Nothing
-    , item = Surface.ModItemModF (Surface.Mod (Surface.ModDeclarationF (modIdent name)) ()) ()
+    , item = Surface.ModItemModF (Surface.Mod (Surface.ModDeclarationF (modIdent name)) ())
     , ann = ()
     }
 
@@ -74,7 +73,6 @@ modDef name uses items =
               , ann = ()
               }
           )
-          ()
     , ann = ()
     }
 
@@ -143,7 +141,7 @@ structItem pub' name =
           Surface.StructF
             { name = Surface.SimpleTypeIdentifier{name, ann = ()}
             , typeParams = Nothing
-            , fields = mempty
+            , fields = Surface.FieldsDeclNamedF mempty
             , ann = ()
             }
     , ann = ()
@@ -234,13 +232,15 @@ fnItem pub' name args effects result =
                   { receiver = Surface.UnitF
                   , name = simpleVar name
                   , typeParams = Nothing
-                  , argsRequired = Vector.fromList (map buildArg args)
-                  , argsOptional = mempty
-                  , effects = (,()) <$> effects
-                  , result = (,()) <$> result
+                  , args = Vector.fromList (map buildArg args)
+                  , effectsResult = do
+                      result' <- result
+                      pure (effects, result')
                   , whereBlock = Nothing
+                  , ann = ()
                   }
             , body = Surface.CodeBlockF{statements = mempty, result = Nothing, ann = ()}
+            , ann = ()
             }
     , ann = ()
     }
@@ -260,7 +260,8 @@ letItem pub' name ty expr =
     , item =
         Surface.ModItemLetF
           Surface.LetDefinitionF
-            { lhs =
+            { mut = Nothing
+            , lhs =
                 Surface.PatternSimple
                   { patternSimple =
                       Surface.PatSimVarF
@@ -294,18 +295,18 @@ pub = Just Surface.PubPub
 spec :: Spec
 spec = describe "Module parser (minimal subset)" do
   it "parses mod declaration 'mod m;'" do
-    testParser "mod m;" PMod.pModDefinitionBody (Just (moduleBody [] [modDecl "m"]))
+    testParser "mod m;" pModDefinitionBody (Just (moduleBody [] [modDecl "m"]))
 
   it "parses empty mod definition 'mod m { }'" do
-    testParser "mod m { }" PMod.pModDefinitionBody (Just (moduleBody [] [modDef "m" [] []]))
+    testParser "mod m { }" pModDefinitionBody (Just (moduleBody [] [modDef "m" [] []]))
 
   it "parses use leaf 'use std::io;'" do
     let expected = moduleBody [useClauseLeaf ["std", "io"]] []
-    testParser "use std::io;" PMod.pModDefinitionBody (Just expected)
+    testParser "use std::io;" pModDefinitionBody (Just expected)
 
   it "parses use leaf-as 'use std::io as io;'" do
     let expected = moduleBody [useClauseAs ["std", "io"] "io"] []
-    testParser "use std::io as io;" PMod.pModDefinitionBody (Just expected)
+    testParser "use std::io as io;" pModDefinitionBody (Just expected)
 
   it "parses nested use 'use std::{io, fs::{read, write}};'" do
     let nestedTree =
@@ -343,14 +344,14 @@ spec = describe "Module parser (minimal subset)" do
             , tree = Just nestedTree
             , ann = ()
             }
-    testParser "use std::{io, fs::{read, write}};" PMod.pModDefinitionBody (Just (moduleBody [useClause] []))
+    testParser "use std::{io, fs::{read, write}};" pModDefinitionBody (Just (moduleBody [useClause] []))
 
   it "parses minimal items: struct, enum, type alias, fn, let" do
     let src =
           Text.unlines
             [ "struct S {}"
             , "enum E { A, B }"
-            , "type Pair<X, Y> = (X, Y)"
+            , "type Pair<X, Y> = (X, Y);"
             , "fn add(a: i32, b: i32) -> i32 { }"
             , "let x: i32 = 42;"
             ]
@@ -368,4 +369,4 @@ spec = describe "Module parser (minimal subset)" do
               (Just Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32 (), ann = ()})
           , letItem nonPub "x" (Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32 (), ann = ()}) (literalInt 42)
           ]
-    testParser src PMod.pModDefinitionBody (Just (moduleBody [] items))
+    testParser src pModDefinitionBody (Just (moduleBody [] items))

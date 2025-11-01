@@ -622,8 +622,8 @@ instance Megaparsec.TraversableStream TokenStream where
     currentLine =
       Text.takeWhile (/= '\n') $
         dropLines
-          (Megaparsec.unPos currentState.pstateSourcePos.sourceLine - 1)
+          (Megaparsec.unPos newSourcePos.sourceLine - 1)
           currentState.pstateInput.input
     prefix = Text.take
-      (Megaparsec.unPos currentState.pstateSourcePos.sourceColumn - 1)
+      (Megaparsec.unPos newSourcePos.sourceColumn - 1)
       currentLine

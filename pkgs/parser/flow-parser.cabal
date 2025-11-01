@@ -45,6 +45,7 @@ library
     Flow.AST.Surface.Type
     Flow.Lexer
     Flow.Parser
+    Flow.Parser.Callable
     Flow.Parser.Common
     Flow.Parser.Constraint
     Flow.Parser.Decl

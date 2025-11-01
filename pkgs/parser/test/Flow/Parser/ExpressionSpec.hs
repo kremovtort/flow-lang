@@ -186,7 +186,8 @@ letStatement name rhsExpr =
     { stmt =
         Surface.SLetF
           Surface.LetDefinitionF
-            { lhs = patternSimpleVar False name
+            { mut = Nothing
+            , lhs = patternSimpleVar False name
             , lhsType = Nothing
             , rhs = rhsExpr
             , ann = ()

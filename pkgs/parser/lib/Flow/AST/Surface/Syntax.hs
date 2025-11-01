@@ -27,7 +27,8 @@ data StatementF stmt lhsExpr simPat pat ty expr ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LetDefinitionF simPat ty expr ann = LetDefinitionF
-  { lhs :: simPat ann
+  { mut :: Maybe ann
+  , lhs :: simPat ann
   , lhsType :: Maybe (ty ann)
   , rhs :: expr ann
   , ann :: ann

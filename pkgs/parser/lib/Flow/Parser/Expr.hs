@@ -47,7 +47,7 @@ import Flow.Parser.Common (
   SourceRegion (..),
   WithPos (..),
   simpleVarIdentifier,
-  single,
+  single, pEffectsResult,
  )
 import Flow.Parser.Constraint (
   anyTypeIdentifier,
@@ -325,20 +325,7 @@ pLambdaFull pStmt pTy pExpr = do
   argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
   args <- Megaparsec.sepBy1 (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
   _ <- single (Lexer.Punctuation Lexer.Pipe)
-  effectsResult <- Megaparsec.optional do
-    _ <- single (Lexer.Punctuation Lexer.Arrow)
-    effects <- Megaparsec.optional do
-      Megaparsec.choice
-        [ do
-            _ <- Megaparsec.lookAhead $ single (Lexer.Punctuation Lexer.AtLeftBracket)
-            -- parse effect row
-            pTy
-        , do
-            _ <- single (Lexer.Punctuation Lexer.At)
-            pTy
-        ]
-    result <- pTy
-    pure (effects, result)
+  effectsResult <- Megaparsec.optional (pEffectsResult pTy)
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   body <- pCodeBlock pStmt pExpr
   let ann =

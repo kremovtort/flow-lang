@@ -354,22 +354,28 @@ pWhereClause pTy =
     ty <- pTy
     pure (Surface.WhereConstraintF ty, ty.ann)
   pWhereAlias = do
-    typeDefinition <- pTypeDefinition
+    typeDefinition <- pTypeDefinition pTy
     pure (Surface.WhereAliasF typeDefinition, typeDefinition.ann)
-  pTypeDefinition = do
-    tokS <- single (Lexer.Keyword Lexer.Type)
-    name <- simpleTypeIdentifier
-    typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
-    _ <- single (Lexer.Punctuation Lexer.Assign)
-    type_ <- pTy
-    pure $
-      Surface.TypeDefinitionF
-        { name
-        , typeParams
-        , type_
-        , ann =
-            Lexer.SourceRegion
-              { start = tokS.region.start
-              , end = type_.ann.end
-              }
-        }
+
+pTypeDefinition ::
+  forall ty.
+  (HasAnn ty Lexer.SourceRegion) =>
+  Parser (ty Lexer.SourceRegion) ->
+  Parser (Surface.TypeDefinitionF ty Lexer.SourceRegion)
+pTypeDefinition pTy = do
+  tokS <- single (Lexer.Keyword Lexer.Type)
+  name <- simpleTypeIdentifier
+  typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
+  _ <- single (Lexer.Punctuation Lexer.Assign)
+  type_ <- pTy
+  pure $
+    Surface.TypeDefinitionF
+      { name
+      , typeParams
+      , type_
+      , ann =
+          Lexer.SourceRegion
+            { start = tokS.region.start
+            , end = type_.ann.end
+            }
+      }

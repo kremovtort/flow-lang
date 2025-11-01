@@ -15,9 +15,6 @@ import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
 data CallKind = KFn | KOp
   deriving (Eq, Ord, Show, Generic, ToExpr)
 
-data Fixity = Plain | Infix
-  deriving (Eq, Ord, Show, Generic, ToExpr)
-
 -- | Receiver header for infix calls
 data ReceiverHeader ty ann = ReceiverHeader
   { typeParams :: Maybe (BindersWConstraintsF ty ann)
@@ -32,11 +29,10 @@ data CallableHeader ty reciever ann = CallableHeader
   { receiver :: reciever ann
   , name :: SimpleVarIdentifier ann
   , typeParams :: Maybe (BindersWConstraintsF ty ann)
-  , argsRequired :: Vector (ArgF ty ann)
-  , argsOptional :: Vector (ArgF ty ann)
-  , effects :: Maybe (ty ann, ann)
-  , result :: Maybe (ty ann, ann)
+  , args :: Vector (ArgF ty ann)
+  , effectsResult :: Maybe (Maybe (ty ann), ty ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -58,6 +54,7 @@ data
   = CallableF
   { header :: CallableHeader ty reciever ann
   , body :: body ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 

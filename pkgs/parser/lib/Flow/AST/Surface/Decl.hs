@@ -29,7 +29,7 @@ import Flow.AST.Surface.Type (TypeF)
 data StructF ty ann = StructF
   { name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
-  , fields :: Vector (FieldsDeclF ty ann)
+  , fields :: FieldsDeclF ty ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -72,9 +72,7 @@ data EnumVariantGeneralizedF ty ann = EnumVariantGeneralizedF
   , typeParams :: Maybe (BindersWConstraintsF ty ann)
   , fields :: Maybe (FieldsDeclF ty ann)
   , result :: ty ann
-  , resultAnn :: ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
-  , whereAnn :: ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
