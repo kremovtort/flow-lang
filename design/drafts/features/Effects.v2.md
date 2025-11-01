@@ -100,13 +100,22 @@ with { let reader_handle(env) } in {
 
 ### Синтаксис хендлеров эффектов
 
+Внутри тела хендлера допустимо вводить приватные эффекты, которые не отражаются в его сигнатуре и не покидают область хендлера. Для этого используется директива `use <эффект> = <выражение>;`. Выражение вычисляется при входе в хендлер, а предоставленный хендл активен до конца хендлера, включая блок `returning`. Объявления обрабатываются сверху вниз, поэтому более поздний `use` может переопределить предыдущий хендл того же эффекта или метки.
+
 ```rust
 // синтаксис хендлера для эффекта State
 handle State<S> in @['r] returning<Y> (Y, S) {
+  use Reader<i32> = reader_handle(0);
+
   let mut state = 0; // внутри хендлера эффекта допустимо вводить локальные переменные
+
   op get() -> S { state }
   op put(s: S) { state = s }
-  returning (y: Y) -> (Y, S) { (y, state) }
+
+  returning (y: Y) -> (Y, S) {
+    let env = Reader::ask();
+    (y + env, state)
+  }
 }
 
 // мультихендлер для эффектов State и Writer
@@ -225,7 +234,10 @@ fn reader_handle<R>(env: R) -> Handle<@[Reader<R>], @[], <X> X> {
       env
     }
 
-    op local<X, Es>(f: fn(R) -> R, action: fn() -> @[Self, ..Es] X) -> @[Self, ..Es] X {
+    op local<X, Es>(
+      f: fn(R) -> R,
+      action: fn() -> @[Self, ..Es] X
+    ) -> @[Self, ..Es] X {
       let newEnv = f(env);
       action() with { self = reader_handle(newEnv) }
     }
@@ -258,13 +270,13 @@ Handle<
 ```rust
 fn io_file_system_handle<'r>() -> Handle<@[FileSystem<'r>], @[IO], <X> X> {
   handle FileSystem<'r> {
-    type FileHandle = std::io::Handle<'r>;
+    type FileHandle<'r1 <: 'r> = std::io::Handle<'r1>;
 
-    op open(path: String) -> FileHandle {
+    op open<'r1 <: 'r>(path: String) -> FileHandle<'r1> {
       std::io::open_file(path)
     }
 
-    op close(handle: FileHandle) {
+    op close<'r1 <: 'r>(handle: FileHandle<'r1>) {
       handle.close();
     }
 
