@@ -7,6 +7,7 @@ import "base" Prelude hiding (Enum)
 
 import Data.Vector.NonEmpty (NonEmptyVector)
 import Flow.AST.Surface.Common (SimpleVarIdentifier)
+import Flow.AST.Surface.Use (UseClause)
 
 data UnitF a = UnitF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -21,14 +22,13 @@ data StatementF stmt lhsExpr simPat pat ty expr ann
   | SMatchF (MatchExpressionF pat expr ann)
   | SIfF (IfExpressionF stmt pat expr ann)
   | SLoopF (LoopExpressionF stmt expr ann)
-  | SWhileF (WhileExpressionF stmt pat expr ann)
-  | SForF (ForExpressionF pat expr ann)
+  | SWhileF (WhileStatementF stmt pat expr ann)
+  | SForF (ForStatementF simPat expr ann)
   | SExpressionF (expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LetDefinitionF simPat ty expr ann = LetDefinitionF
-  { mut :: Maybe ann
-  , lhs :: simPat ann
+  { lhs :: simPat ann
   , lhsType :: Maybe (ty ann)
   , rhs :: expr ann
   , ann :: ann
@@ -56,7 +56,8 @@ newtype LHSUnOpExpression expr ann
   deriving anyclass (ToExpr)
 
 data CodeBlockF stmt expr ann = CodeBlockF
-  { statements :: Vector (stmt ann)
+  { uses :: Vector (UseClause ann)
+  , statements :: Vector (stmt ann)
   , result :: Maybe (expr ann)
   , ann :: ann
   }
@@ -113,7 +114,7 @@ data LoopExpressionF stmt expr ann = LoopExpressionF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data WhileExpressionF stmt pat expr ann = WhileExpressionF
+data WhileStatementF stmt pat expr ann = WhileStatementF
   { label :: Maybe (SimpleVarIdentifier ann)
   , condition :: ConditionF pat expr ann
   , body :: CodeBlockF stmt expr ann
@@ -121,7 +122,7 @@ data WhileExpressionF stmt pat expr ann = WhileExpressionF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ForExpressionF simPat expr ann = ForExpressionF
+data ForStatementF simPat expr ann = ForStatementF
   { label :: Maybe (SimpleVarIdentifier ann, ann)
   , pattern :: simPat ann
   , iterable :: expr ann

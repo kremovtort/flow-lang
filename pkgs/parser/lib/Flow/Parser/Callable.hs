@@ -15,15 +15,16 @@ import Flow.Parser.Constraint (pBindersWConstraints, pWhereBlockHead)
 import Flow.Parser.Syntax (pCodeBlock)
 
 pCallableHeader ::
-  (HasAnn ty SourceRegion) =>
+  (HasAnn ty SourceRegion, HasAnn name SourceRegion) =>
   Parser (WithPos ()) -> -- fn | op
   Parser (reciever SourceRegion) ->
+  Parser (name SourceRegion) ->
   Parser (ty SourceRegion) ->
-  Parser (CallableHeader ty reciever SourceRegion)
-pCallableHeader pKind pReciever pTy = do
+  Parser (CallableHeader reciever name ty SourceRegion)
+pCallableHeader pKind pReciever pName pTy = do
   kindTok <- pKind
   receiver <- pReciever
-  name <- simpleVarIdentifier
+  name <- pName
   typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
   _ <- single (Lexer.Punctuation Lexer.LeftParen)
   args <- Vector.fromList <$> pArgs
@@ -71,15 +72,16 @@ pCallableHeader pKind pReciever pTy = do
         }
 
 pCallable ::
-  forall kind reciever ty body.
-  (HasAnn ty SourceRegion) =>
+  forall kind reciever name body ty.
+  (HasAnn ty SourceRegion, HasAnn name SourceRegion) =>
   Parser (WithPos ()) -> -- fn | op
   Parser (reciever SourceRegion) ->
-  Parser (ty SourceRegion) ->
+  Parser (name SourceRegion) ->
   Parser (body SourceRegion, Maybe SourceRegion) ->
-  Parser (CallableF kind reciever ty body SourceRegion)
-pCallable pKind pReciever pTy pBody = do
-  header <- pCallableHeader pKind pReciever pTy
+  Parser (ty SourceRegion) ->
+  Parser (CallableF kind reciever name body ty SourceRegion)
+pCallable pKind pReciever pName pBody pTy = do
+  header <- pCallableHeader pKind pReciever pName pTy
   (body, bodyAnn) <- pBody
   pure
     CallableF
@@ -98,11 +100,11 @@ pFnDeclaration ::
   (HasAnn ty SourceRegion) =>
   Parser (ty SourceRegion) ->
   Parser (FnDeclarationF ty SourceRegion)
-pFnDeclaration pTy =
+pFnDeclaration =
   pCallable
     (void <$> single (Lexer.Keyword Lexer.Fn))
     (pure Surface.UnitF)
-    pTy
+    simpleVarIdentifier
     (pure (Surface.UnitF, Nothing))
 
 pFnDefinition ::
@@ -115,5 +117,6 @@ pFnDefinition pStmt pTy pExpr =
   pCallable
     (void <$> single (Lexer.Keyword Lexer.Fn))
     (pure Surface.UnitF)
-    pTy
+    simpleVarIdentifier
     (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
+    pTy

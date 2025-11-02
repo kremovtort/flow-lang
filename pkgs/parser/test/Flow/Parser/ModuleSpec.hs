@@ -19,6 +19,7 @@ import Flow.AST.Surface.Module qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
+import Flow.AST.Surface.Use qualified as Surface
 import Flow.Parser (pModDefinitionBody)
 import Flow.Parser.Helpers (testParser)
 
@@ -95,8 +96,7 @@ useClauseLeaf path =
           Surface.UseTrBranch (modIdent segment) <$> buildTree segments
        in
         Surface.UseClause
-          { pub = Nothing
-          , root = modIdent root
+          { root = modIdent root
           , tree = buildTree rest
           , ann = ()
           }
@@ -126,8 +126,7 @@ useClauseAs path alias =
         build (segment : segments) = Surface.UseTrBranch (modIdent segment) <$> build segments
        in
         Surface.UseClause
-          { pub = Nothing
-          , root = modIdent root
+          { root = modIdent root
           , tree = build rest
           , ann = ()
           }
@@ -239,7 +238,13 @@ fnItem pub' name args effects result =
                   , whereBlock = Nothing
                   , ann = ()
                   }
-            , body = Surface.CodeBlockF{statements = mempty, result = Nothing, ann = ()}
+            , body =
+                Surface.CodeBlockF
+                  { uses = mempty
+                  , statements = mempty
+                  , result = Nothing
+                  , ann = ()
+                  }
             , ann = ()
             }
     , ann = ()
@@ -260,13 +265,13 @@ letItem pub' name ty expr =
     , item =
         Surface.ModItemLetF
           Surface.LetDefinitionF
-            { mut = Nothing
-            , lhs =
+            { lhs =
                 Surface.PatternSimple
                   { patternSimple =
                       Surface.PatSimVarF
                         ( Surface.PatternVariableF
-                            { mut = Nothing
+                            { ref = Nothing
+                            , mut = Nothing
                             , name = simpleVar name
                             , ann = ()
                             }
@@ -339,8 +344,7 @@ spec = describe "Module parser (minimal subset)" do
             )
         useClause =
           Surface.UseClause
-            { pub = Nothing
-            , root = modIdent "std"
+            { root = modIdent "std"
             , tree = Just nestedTree
             , ann = ()
             }

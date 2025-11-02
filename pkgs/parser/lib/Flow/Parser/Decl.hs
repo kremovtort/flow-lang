@@ -1,35 +1,16 @@
 module Flow.Parser.Decl where
 
-import "containers" Data.Set qualified as Set
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 
+import Data.Maybe (fromJust)
+import Data.Vector qualified as Vector
+import Data.Vector.NonEmpty qualified as NonEmptyVector
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Decl qualified as Surface
 import Flow.Lexer (SourceRegion (..))
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, simpleTypeIdentifier, simpleVarIdentifier, single, token)
-import Flow.Parser.Constraint (pBindersWoConstraints, pWhereBlockNested, pBindersWConstraints)
-import qualified Data.Vector as Vector
-import Data.Maybe (fromJust)
-import qualified Data.Vector.NonEmpty as NonEmptyVector
-
-pPub :: Parser (Surface.Pub Lexer.SourceRegion, Lexer.SourceRegion)
-pPub = do
-  pubTok <- single (Lexer.Keyword Lexer.Pub)
-  packageWithEnd <- Megaparsec.optional do
-    _ <- single (Lexer.Punctuation Lexer.LeftParen)
-    package' <- token
-      (Set.singleton $ Megaparsec.Label "package")
-      \case
-        Lexer.Identifier i
-          | i == "package " -> Just ()
-        _ -> Nothing
-    tokE <- single (Lexer.Punctuation Lexer.RightParen)
-    let ann = Lexer.SourceRegion{start = package'.region.start, end = package'.region.end}
-    pure (Surface.PubPackage ann, tokE.region.end)
-  case packageWithEnd of
-    Just (package', end) -> pure (package', Lexer.SourceRegion{start = pubTok.region.start, end})
-    Nothing -> pure (Surface.PubPub, pubTok.region)
+import Flow.Parser.Common (HasAnn, Parser, pPub, simpleTypeIdentifier, simpleVarIdentifier, single)
+import Flow.Parser.Constraint (pBindersWConstraints, pBindersWoConstraints, pWhereBlockNested)
 
 pStruct ::
   (HasAnn ty Lexer.SourceRegion) =>
@@ -66,60 +47,64 @@ pEnum pTy = do
       , variants
       , ann
       }
-  where
-    pEnumVariants = do
-      Megaparsec.choice
-        [ pEnumVariantsSimple
-        , pEnumVariantsGeneralized
-        ]
-    pEnumVariantsSimple = do
-      tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
-      variants <- Megaparsec.sepEndBy1 pEnumVariant (single (Lexer.Punctuation Lexer.Comma))
-      tokE <- single (Lexer.Punctuation Lexer.RightBrace)
-      pure
-        ( Surface.EVariantsSimpleF $ fromJust $ NonEmptyVector.fromList variants
-        , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
-        )
-      where
-        pEnumVariant = do
-          name <- simpleTypeIdentifier
-          fields <- Megaparsec.optional (pFieldsDecl pTy)
-          let ann = Lexer.SourceRegion{start = name.ann.start, end = case fields of
-                Just (_, ann') -> ann'.end
-                Nothing -> name.ann.end}
-          pure
-            Surface.EnumVariantF
-              { name
-              , fields = fst <$> fields
-              , ann
+ where
+  pEnumVariants = do
+    Megaparsec.choice
+      [ pEnumVariantsSimple
+      , pEnumVariantsGeneralized
+      ]
+  pEnumVariantsSimple = do
+    tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
+    variants <- Megaparsec.sepEndBy1 pEnumVariant (single (Lexer.Punctuation Lexer.Comma))
+    tokE <- single (Lexer.Punctuation Lexer.RightBrace)
+    pure
+      ( Surface.EVariantsSimpleF $ fromJust $ NonEmptyVector.fromList variants
+      , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      )
+   where
+    pEnumVariant = do
+      name <- simpleTypeIdentifier
+      fields <- Megaparsec.optional (pFieldsDecl pTy)
+      let ann =
+            Lexer.SourceRegion
+              { start = name.ann.start
+              , end = case fields of
+                  Just (_, ann') -> ann'.end
+                  Nothing -> name.ann.end
               }
+      pure
+        Surface.EnumVariantF
+          { name
+          , fields = fst <$> fields
+          , ann
+          }
 
-    pEnumVariantsGeneralized = do
-      tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
-      variants <- Megaparsec.sepEndBy1 pEnumVariantGeneralized (single (Lexer.Punctuation Lexer.Comma))
-      tokE <- single (Lexer.Punctuation Lexer.RightBrace)
+  pEnumVariantsGeneralized = do
+    tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
+    variants <- Megaparsec.sepEndBy1 pEnumVariantGeneralized (single (Lexer.Punctuation Lexer.Comma))
+    tokE <- single (Lexer.Punctuation Lexer.RightBrace)
+    pure
+      ( Surface.EVariantsGeneralized $ fromJust $ NonEmptyVector.fromList variants
+      , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      )
+   where
+    pEnumVariantGeneralized = do
+      name <- simpleTypeIdentifier
+      typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
+      fields <- Megaparsec.optional (pFieldsDecl pTy)
+      _ <- single (Lexer.Punctuation Lexer.Colon)
+      result <- pTy
+      whereBlock <- Megaparsec.optional (pWhereBlockNested pTy)
+      let ann = Lexer.SourceRegion{start = name.ann.start, end = result.ann.end}
       pure
-        ( Surface.EVariantsGeneralized $ fromJust $ NonEmptyVector.fromList variants
-        , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
-        )
-      where
-        pEnumVariantGeneralized = do
-          name <- simpleTypeIdentifier
-          typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
-          fields <- Megaparsec.optional (pFieldsDecl pTy)
-          _ <- single (Lexer.Punctuation Lexer.Colon)
-          result <- pTy
-          whereBlock <- Megaparsec.optional (pWhereBlockNested pTy)
-          let ann = Lexer.SourceRegion{start = name.ann.start, end = result.ann.end}
-          pure
-            Surface.EnumVariantGeneralizedF
-              { name
-              , typeParams = typeParams
-              , fields = fst <$> fields
-              , result
-              , whereBlock
-              , ann
-              }
+        Surface.EnumVariantGeneralizedF
+          { name
+          , typeParams = typeParams
+          , fields = fst <$> fields
+          , result
+          , whereBlock
+          , ann
+          }
 
 pFieldsDecl ::
   (HasAnn ty Lexer.SourceRegion) =>

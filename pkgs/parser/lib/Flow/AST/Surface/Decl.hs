@@ -16,7 +16,7 @@ import Flow.AST.Surface.Callable (
   OpInfixDeclarationF,
   OpInfixDefinitionF,
  )
-import Flow.AST.Surface.Common (SimpleTypeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (Pub, SimpleTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (
   BindersWConstraintsF,
   BindersWoConstraintsF,
@@ -169,9 +169,4 @@ data LetDeclarationF ty ann = LetDeclarationF
   { name :: SimpleVarIdentifier ann
   , type_ :: ty ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data Pub ann
-  = PubPub
-  | PubPackage ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

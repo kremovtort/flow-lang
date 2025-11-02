@@ -95,7 +95,7 @@ tyBuiltin = do
     Lexer.Identifier "f64" -> Just Surface.BuiltinF64
     Lexer.Identifier "f128" -> Just Surface.BuiltinF128
     Lexer.Identifier "byte" -> Just Surface.BuiltinByte
-    Lexer.Identifier "byteString" -> Just Surface.BuiltinByteString
+    Lexer.Identifier "bytestring" -> Just Surface.BuiltinByteString
     Lexer.Identifier "char" -> Just Surface.BuiltinChar
     Lexer.Identifier "string" -> Just Surface.BuiltinString
     _ -> Nothing

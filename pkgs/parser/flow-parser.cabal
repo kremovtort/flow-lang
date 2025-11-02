@@ -20,6 +20,7 @@ common extensions
     DeriveAnyClass
     DerivingStrategies
     DuplicateRecordFields
+    MultilineStrings
     NoFieldSelectors
     OverloadedRecordDot
     OverloadedStrings
@@ -43,6 +44,7 @@ library
     Flow.AST.Surface.Pattern
     Flow.AST.Surface.Syntax
     Flow.AST.Surface.Type
+    Flow.AST.Surface.Use
     Flow.Lexer
     Flow.Parser
     Flow.Parser.Callable
@@ -56,6 +58,7 @@ library
     Flow.Parser.Pattern
     Flow.Parser.Syntax
     Flow.Parser.Type
+    Flow.Parser.Use
 
   build-depends:
     base ^>=4.21.0.0,

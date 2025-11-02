@@ -52,11 +52,13 @@ pLiteral = do
 
 pVar :: Parser (Surface.PatternVariableF pat ty SourceRegion)
 pVar = do
+  ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
   mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
   name <- simpleVarIdentifier
   pure
     Surface.PatternVariableF
-      { mut = (.region) <$> mut
+      { ref = (.region) <$> ref
+      , mut = (.region) <$> mut
       , name = name
       , ann =
           SourceRegion
@@ -156,28 +158,25 @@ pCons pPat pTy = do
   pFieldNamedValue :: Parser (Surface.PatternFieldNamedValueF pat ty SourceRegion)
   pFieldNamedValue = do
     name <- simpleVarIdentifier
-    optional <-
-      Megaparsec.choice
-        [ Nothing <$ single (Lexer.Punctuation Lexer.Assign)
-        , Just . (.region) <$> single (Lexer.Punctuation Lexer.QuestionAssign)
-        ]
+    _ <- single (Lexer.Punctuation Lexer.Assign)
     value <- pPat
     pure
       Surface.PatternFieldNamedValueF
         { name
         , value
-        , optional = optional
         , ann = SourceRegion{start = name.ann.start, end = value.ann.end}
         }
 
   pFieldNamedPunning :: Parser (Surface.PatternFieldNamedPunningF pat ty SourceRegion)
   pFieldNamedPunning = do
+    ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
     mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
     name <- simpleVarIdentifier
     optional <- Megaparsec.optional $ single (Lexer.Punctuation Lexer.Question)
     pure
       Surface.PatternFieldNamedPunningF
-        { mut = (.region) <$> mut
+        { ref = (.region) <$> ref
+        , mut = (.region) <$> mut
         , name
         , optional = (.region) <$> optional
         , ann =

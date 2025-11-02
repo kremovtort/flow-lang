@@ -25,7 +25,8 @@ data PatternSimpleF pat ty ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data PatternVariableF pat ty ann = PatternVariableF
-  { mut :: Maybe ann
+  { ref :: Maybe ann
+  , mut :: Maybe ann
   , name :: SimpleVarIdentifier ann
   , ann :: ann
   }
@@ -59,13 +60,13 @@ data PatternFieldNamedF pat ty ann
 data PatternFieldNamedValueF pat ty ann = PatternFieldNamedValueF
   { name :: SimpleVarIdentifier ann
   , value :: pat ann
-  , optional :: Maybe ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data PatternFieldNamedPunningF pat ty ann = PatternFieldNamedPunningF
-  { mut :: Maybe ann
+  { ref :: Maybe ann
+  , mut :: Maybe ann
   , name :: SimpleVarIdentifier ann
   , optional :: Maybe ann
   , ann :: ann

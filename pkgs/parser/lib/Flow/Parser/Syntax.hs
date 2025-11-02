@@ -23,6 +23,7 @@ import Flow.Parser.Common (
   single,
   token,
  )
+import Flow.Parser.Use (pUseClause)
 
 pCodeBlock ::
   (HasAnn stmt SourceRegion, HasAnn expr SourceRegion) =>
@@ -31,11 +32,12 @@ pCodeBlock ::
   Parser (CodeBlockF stmt expr SourceRegion)
 pCodeBlock pStmt pExpr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
+  uses <- Megaparsec.many pUseClause
   statements <- Megaparsec.many pStmt
   result <- Megaparsec.optional pExpr
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
   let ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
-  pure $ CodeBlockF{statements = Vector.fromList statements, result = result, ann = ann}
+  pure $ CodeBlockF{uses = Vector.fromList uses, statements = Vector.fromList statements, result = result, ann = ann}
 
 pStatement ::
   ( HasAnn stmt SourceRegion
@@ -129,11 +131,11 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
     pure (SLoopF expr', expr'.ann)
 
   whileStatement = do
-    expr' <- pWhileExpression pStmt pPat pExpr
+    expr' <- pWhileStatement pStmt pPat pExpr
     pure (SWhileF expr', expr'.ann)
 
   forStatement = do
-    expr' <- pForExpression pPat pExpr
+    expr' <- pForStatement pSimPat pExpr
     pure (SForF expr', expr'.ann)
 
 pLetDefinition ::
@@ -144,7 +146,6 @@ pLetDefinition ::
   Parser (LetDefinitionF simPat ty expr SourceRegion)
 pLetDefinition pSimPat pTy pExpr = do
   letTok <- single (Lexer.Keyword Lexer.Let)
-  mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
   lhs <- pSimPat
   lhsType <- Megaparsec.optional do
     _ <- single (Lexer.Punctuation Lexer.Colon)
@@ -155,8 +156,7 @@ pLetDefinition pSimPat pTy pExpr = do
   let ann = SourceRegion{start = letTok.region.start, end = semicolonTok.region.end}
   pure
     LetDefinitionF
-      { mut = (.region) <$> mut
-      , lhs = lhs
+      { lhs = lhs
       , lhsType = lhsType
       , rhs = rhs
       , ann = ann
@@ -376,13 +376,13 @@ pLoopExpression pStmt pExpr = do
       , ann
       }
 
-pWhileExpression ::
+pWhileStatement ::
   (HasAnn stmt SourceRegion, HasAnn pat SourceRegion, HasAnn expr SourceRegion) =>
   Parser (stmt SourceRegion) ->
   Parser (pat SourceRegion) ->
   Parser (expr SourceRegion) ->
-  Parser (WhileExpressionF stmt pat expr SourceRegion)
-pWhileExpression pStmt pPat pExpr = do
+  Parser (WhileStatementF stmt pat expr SourceRegion)
+pWhileStatement pStmt pPat pExpr = do
   label <- Megaparsec.optional do
     labelTok <- token
       (Set.singleton $ Megaparsec.Label "label")
@@ -408,19 +408,19 @@ pWhileExpression pStmt pPat pExpr = do
           , end = body.ann.end
           }
   pure $
-    WhileExpressionF
+    WhileStatementF
       { label = fmap fst label
       , condition
       , body
       , ann
       }
 
-pForExpression ::
+pForStatement ::
   (HasAnn simPat SourceRegion, HasAnn expr SourceRegion) =>
   Parser (simPat SourceRegion) ->
   Parser (expr SourceRegion) ->
-  Parser (ForExpressionF simPat expr SourceRegion)
-pForExpression pSimPat pExpr = do
+  Parser (ForStatementF simPat expr SourceRegion)
+pForStatement pSimPat pExpr = do
   label <- Megaparsec.optional do
     labelTok <- token
       (Set.singleton $ Megaparsec.Label "label")
@@ -450,7 +450,7 @@ pForExpression pSimPat pExpr = do
           , end = rightBraceTok.region.end
           }
   pure $
-    ForExpressionF
+    ForStatementF
       { label = label
       , pattern = pattern
       , iterable = iterable

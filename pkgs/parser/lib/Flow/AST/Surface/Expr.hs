@@ -12,7 +12,7 @@ import Flow.AST.Surface.Callable (
  )
 import Flow.AST.Surface.Common (
   ScopeIdentifier,
-  SimpleVarIdentifier,
+  SimpleVarIdentifier, SimpleTypeIdentifier,
  )
 import Flow.AST.Surface.Constraint (
   AnyTypeIdentifier,
@@ -24,15 +24,14 @@ import Flow.AST.Surface.Constraint (
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF,
-  ForExpressionF,
   IfExpressionF,
   LetDefinitionF,
   LoopExpressionF,
   MatchExpressionF,
-  WhileExpressionF,
   WithF,
   WithStatementF,
  )
+import Flow.AST.Surface.Use (UseClause)
 
 -- Expressions
 
@@ -53,8 +52,6 @@ data ExpressionF stmt simPat pat ty expr ann
   | EMatchF (MatchExpressionF pat expr ann) -- match expr { Pattern => expr, ... }
   | EIfF (IfExpressionF stmt pat expr ann) -- if expr { then_ } else { else_ }
   | ELoopF (LoopExpressionF stmt expr ann) -- loop { ... } | 'label: loop { ... }
-  | EWhileF (WhileExpressionF stmt pat expr ann) -- while expr { ... } | 'label: while expr { ... }
-  | EForF (ForExpressionF simPat expr ann) -- for pattern in iterable { ... }
   | EBlockF (CodeBlockF stmt expr ann) -- { ... }
   | EHandleF (HandleExpressionF stmt simPat ty expr ann) -- handle Effect
   | ELambdaF (LambdaF stmt ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
@@ -141,30 +138,40 @@ data LambdaArgF ty ann = LambdaArgF
 -- Handle block normalized form
 
 data HandleExpressionF stmt simPat ty expr ann = HandleExpressionF
-  { in_ :: Maybe (ty ann)
+  { effects :: NonEmptyVector (ty ann)
+  , in_ :: Maybe (ty ann)
   , returning :: Maybe (HandleReturningF ty ann)
-  , handlers :: NonEmptyVector (HandlerSpecF stmt simPat ty expr ann)
+  , body :: HandleBodyF stmt simPat ty expr ann
   , ann :: ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data HandlerSpecF stmt simPat ty expr ann = HandlerSpecF
-  { effect :: ty ann
-  , returning :: Maybe (HandleReturningF ty ann)
-  , body :: NonEmptyVector (EffectItemDefinitionF stmt simPat ty expr ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data HandleReturningF ty ann = HandleReturningF
-  { binder :: ReturningBinderF ty ann
+  { binder :: SimpleTypeIdentifier ann
   , result :: ty ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ReturningBinderF ty ann = ReturningBinderF
-  { name :: SimpleVarIdentifier ann
-  , result :: ty ann
+data HandleBodyF stmt simPat ty expr ann = HandleBodyF
+  { uses :: Vector (UseClause ann)
+  , items :: NonEmptyVector (EffectItemDefinitionF stmt simPat ty expr ann)
+  , returning :: Maybe (HandleReturningBlockF stmt ty expr ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+-- Effect handler item definitions, parameterized by callable body type
+data EffectItemDefinitionF stmt simPat ty expr ann
+  = EDefinitionLetF (LetDefinitionF simPat ty expr ann) ann
+  | EDefinitionOpF (OpDefinitionF stmt ty expr ann) ann
+  | EDefinitionOpInfixF (OpInfixDefinitionF stmt ty expr ann) ann
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data HandleReturningBlockF stmt ty expr ann = HandleReturningBlockF
+  { arg :: SimpleVarIdentifier ann
+  , argType :: Maybe (SimpleTypeIdentifier ann)
+  , body :: CodeBlockF stmt expr ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -188,15 +195,7 @@ data AppArgsF expr ann
 
 data ArgNamedF expr ann = ArgNamedF
   { name :: SimpleVarIdentifier ann
-  , optional :: Maybe ann
   , value :: Maybe (expr ann)
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
--- Effect handler item definitions, parameterized by callable body type
-data EffectItemDefinitionF stmt simPat ty expr ann
-  = EDefinitionLetF (LetDefinitionF simPat ty expr ann) ann
-  | EDefinitionOpF (OpDefinitionF stmt ty expr ann) ann
-  | EDefinitionOpInfixF (OpInfixDefinitionF stmt ty expr ann) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

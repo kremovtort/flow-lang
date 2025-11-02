@@ -9,7 +9,7 @@ import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import "vector" Data.Vector (Vector)
 
 import Flow.AST.Surface.Common (SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF)
+import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF, AnyVarIdentifier)
 import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
 
 data CallKind = KFn | KOp
@@ -25,9 +25,9 @@ data ReceiverHeader ty ann = ReceiverHeader
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 -- | Common header for all callable entities
-data CallableHeader ty reciever ann = CallableHeader
+data CallableHeader reciever name ty ann = CallableHeader
   { receiver :: reciever ann
-  , name :: SimpleVarIdentifier ann
+  , name :: name ann
   , typeParams :: Maybe (BindersWConstraintsF ty ann)
   , args :: Vector (ArgF ty ann)
   , effectsResult :: Maybe (Maybe (ty ann), ty ann)
@@ -48,76 +48,75 @@ data
   CallableF
     (kind :: CallKind)
     reciever
-    ty
+    name
     body
+    ty
     ann
   = CallableF
-  { header :: CallableHeader ty reciever ann
+  { header :: CallableHeader reciever name ty ann
   , body :: body ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-type FnDeclarationF ty ann =
+type FnDeclarationF =
   CallableF
     'KFn
     UnitF
-    ty
+    SimpleVarIdentifier
     UnitF
-    ann
 
-type FnInfixDeclarationF ty ann =
+type FnInfixDeclarationF ty =
   CallableF
     'KFn
     (ReceiverHeader ty)
-    ty
+    SimpleVarIdentifier
     UnitF
-    ann
+    ty
 
-type OpDeclarationF ty ann =
+type OpDeclarationF =
   CallableF
     'KOp
     UnitF
-    ty
+    SimpleVarIdentifier
     UnitF
-    ann
 
-type OpInfixDeclarationF ty ann =
+type OpInfixDeclarationF ty =
   CallableF
     'KOp
     (ReceiverHeader ty)
-    ty
+    SimpleVarIdentifier
     UnitF
-    ann
+    ty
 
-type FnDefinitionF stmt ty expr ann =
+type FnDefinitionF stmt ty expr =
   CallableF
     'KFn
     UnitF
-    ty
+    SimpleVarIdentifier
     (CodeBlockF stmt expr)
-    ann
+    ty
 
-type FnInfixDefinitionF stmt ty expr ann =
+type FnInfixDefinitionF stmt ty expr =
   CallableF
     'KFn
     (ReceiverHeader ty)
-    ty
+    SimpleVarIdentifier
     (CodeBlockF stmt expr)
-    ann
+    ty
 
-type OpDefinitionF stmt ty expr ann =
+type OpDefinitionF stmt ty expr =
   CallableF
     'KOp
     UnitF
-    ty
+    (AnyVarIdentifier ty)
     (CodeBlockF stmt expr)
-    ann
+    ty
 
-type OpInfixDefinitionF stmt ty expr ann =
+type OpInfixDefinitionF stmt ty expr =
   CallableF
     'KOp
     (ReceiverHeader ty)
-    ty
+    (AnyVarIdentifier ty)
     (CodeBlockF stmt expr)
-    ann
+    ty

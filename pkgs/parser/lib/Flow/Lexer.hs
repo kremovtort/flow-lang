@@ -97,6 +97,7 @@ data Keyword
   | Mut
   | Op
   | Pub
+  | Ref
   | Return
   | Returning
   | Struct
@@ -160,8 +161,6 @@ data Punctuation
   | Hash
   | Dollar
   | Question
-  | QuestionColon
-  | QuestionAssign
   | Underscore
   | LeftBrace
   | RightBrace
@@ -426,6 +425,7 @@ keywordText = \case
   Mut -> "mut"
   Op -> "op"
   Pub -> "pub"
+  Ref -> "ref"
   Return -> "return"
   Returning -> "returning"
   Struct -> "struct"
@@ -489,8 +489,6 @@ punctuationText = \case
   Hash -> "#"
   Dollar -> "$"
   Question -> "?"
-  QuestionColon -> "?:"
-  QuestionAssign -> "?="
   Underscore -> "_"
   LeftBrace -> "{"
   RightBrace -> "}"

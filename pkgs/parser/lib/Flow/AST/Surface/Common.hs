@@ -41,3 +41,8 @@ data ScopeIdentifier ann = ScopeIdentifier
 
 instance (ToExpr a) => ToExpr (NonEmptyVector a) where
   toExpr = toExpr . NonEmptyVector.toList
+
+data Pub ann
+  = PubPub
+  | PubPackage ann
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

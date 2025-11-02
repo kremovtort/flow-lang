@@ -60,7 +60,8 @@ varPattern name =
   wrapSimple
     ( Surface.PatSimVarF
         ( Surface.PatternVariableF
-            { mut = Nothing
+            { ref = Nothing
+            , mut = Nothing
             , name = mkVar name
             , ann = ()
             }
@@ -126,7 +127,6 @@ mkFieldNamed name value =
   Surface.PatFldNmdValueF $
     Surface.PatternFieldNamedValueF
       { name = mkVar name
-      , optional = Nothing
       , value = value
       , ann = ()
       }
@@ -135,7 +135,8 @@ mkFieldNamedPun :: Text -> Surface.PatternFieldNamedF Surface.PatternSimple Surf
 mkFieldNamedPun name =
   Surface.PatFldNmdPunningF $
     Surface.PatternFieldNamedPunningF
-      { mut = Nothing
+      { ref = Nothing
+      , mut = Nothing
       , name = mkVar name
       , optional = Nothing
       , ann = ()

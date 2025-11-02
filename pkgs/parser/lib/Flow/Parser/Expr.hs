@@ -46,8 +46,9 @@ import Flow.Parser.Common (
   Parser,
   SourceRegion (..),
   WithPos (..),
+  pEffectsResult,
   simpleVarIdentifier,
-  single, pEffectsResult,
+  single,
  )
 import Flow.Parser.Constraint (
   anyTypeIdentifier,
@@ -58,7 +59,7 @@ import Flow.Parser.Constraint (
  )
 import Flow.Parser.Literal (literal)
 import Flow.Parser.Operators (pOperators)
-import Flow.Parser.Syntax (pCodeBlock, pForExpression, pIfExpression, pLoopExpression, pMatchExpression, pWhileExpression)
+import Flow.Parser.Syntax (pCodeBlock, pIfExpression, pLoopExpression, pMatchExpression)
 
 pWildcard :: Parser SourceRegion
 pWildcard = do
@@ -155,57 +156,49 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
       , ann
       }
  where
-  pUnnamedArgs = do
-    _ <- single (Lexer.Punctuation Lexer.LeftParen)
-    args <- Megaparsec.sepEndBy1 pExpr (single (Lexer.Punctuation Lexer.Comma))
-    tokE <- single (Lexer.Punctuation Lexer.RightParen)
-    pure (AppArgsUnnamedF (Vector.fromList args), tokE.region.end)
+  pUnnamedArgs =
+    Megaparsec.choice
+      [ do
+          _ <- single (Lexer.Punctuation Lexer.LeftParen)
+          args <- Megaparsec.sepEndBy pExpr (single (Lexer.Punctuation Lexer.Comma))
+          tokE <- single (Lexer.Punctuation Lexer.RightParen)
+          pure (AppArgsUnnamedF (Vector.fromList args), tokE.region.end)
+      , do
+          tokE <- single (Lexer.Punctuation Lexer.LeftRightParen)
+          pure (AppArgsUnnamedF Vector.empty, tokE.region.end)
+      ]
 
   pNamedArgs = do
     _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-    args <- Megaparsec.sepEndBy1 pNamedArg (single (Lexer.Punctuation Lexer.Comma))
+    args <- Megaparsec.sepEndBy pNamedArg (single (Lexer.Punctuation Lexer.Comma))
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure (AppArgsNamedF (Vector.fromList args), tokE.region.end)
 
   pNamedArg = do
     name <- simpleVarIdentifier
-    optionalPunned <- Megaparsec.optional (single (Lexer.Punctuation Lexer.Question))
-    (optional, value) <- case optionalPunned of
-      Just tok -> pure (Just tok.region, Nothing)
-      Nothing -> do
-        assign <-
-          Megaparsec.choice
-            [ single (Lexer.Punctuation Lexer.Assign)
-            , single (Lexer.Punctuation Lexer.QuestionAssign)
-            ]
-        case assign of
-          WithPos (Lexer.Punctuation Lexer.Assign) _ -> do
-            value <- pExpr
-            pure (Nothing, Just value)
-          WithPos (Lexer.Punctuation Lexer.QuestionAssign) region -> do
-            value <- pExpr
-            pure (Just region, Just value)
-          _ -> fail "Expected assign or question assign"
+    value <- Megaparsec.optional do
+      _ <- single (Lexer.Punctuation Lexer.Assign)
+      pExpr
     pure $
       ArgNamedF
         { name = name
-        , optional = optional
         , value = value
         , ann =
             SourceRegion
               { start = name.ann.start
               , end = case value of
                   Just value' -> value'.ann.end
-                  Nothing -> case optionalPunned of
-                    Just tok -> tok.region.end
-                    Nothing -> name.ann.end
+                  Nothing -> name.ann.end
               }
         }
 
   pWithPost = do
     _ <- single (Lexer.Keyword Lexer.With)
     _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-    effects <- Megaparsec.sepEndBy1 (pWithStatement pTy pExpr) (single (Lexer.Punctuation Lexer.Comma))
+    effects <-
+      Megaparsec.sepEndBy1
+        (pWithStatement pTy pExpr)
+        (single (Lexer.Punctuation Lexer.Comma))
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure (fromJust $ NonEmptyVector.fromList effects, tokE.region.end)
 
@@ -218,7 +211,7 @@ pWith ::
 pWith pStmt pTy pExpr = do
   tokS <- single (Lexer.Keyword Lexer.With)
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-  statements <- Megaparsec.sepEndBy1 (pWithStatement pTy pExpr) (single (Lexer.Punctuation Lexer.Comma))
+  statements <- Megaparsec.sepEndBy1 (pWithStatement pTy pExpr) (single (Lexer.Punctuation Lexer.Semicolon))
   _ <- single (Lexer.Punctuation Lexer.RightBrace)
   _ <- single (Lexer.Keyword Lexer.In)
   block <- pCodeBlock pStmt pExpr
@@ -300,9 +293,17 @@ pLambdaShort ::
   Parser (expr SourceRegion) ->
   Parser (LambdaF stmt ty expr SourceRegion, SourceRegion)
 pLambdaShort pTy pExpr = do
-  argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
-  args <- Megaparsec.sepBy1 (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
-  _ <- single (Lexer.Punctuation Lexer.Pipe)
+  (argsOpen, args) <-
+    Megaparsec.choice
+      [ do
+          argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
+          args <- Megaparsec.sepBy (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
+          _ <- single (Lexer.Punctuation Lexer.Pipe)
+          pure (argsOpen, args)
+      , do
+          argsOpenClose <- single (Lexer.Punctuation Lexer.Or)
+          pure (argsOpenClose, [])
+      ]
   body <- pExpr
   pure
     ( LamShortF
@@ -323,7 +324,7 @@ pLambdaFull ::
 pLambdaFull pStmt pTy pExpr = do
   mBinders <- Megaparsec.optional (pBindersWConstraints pTy)
   argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
-  args <- Megaparsec.sepBy1 (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
+  args <- Megaparsec.sepBy (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
   _ <- single (Lexer.Punctuation Lexer.Pipe)
   effectsResult <- Megaparsec.optional (pEffectsResult pTy)
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
@@ -427,8 +428,6 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       [ pWith'
       , pIf'
       , pLoop'
-      , pWhile'
-      , pFor'
       , pLambda'
       -- TODO handle
       ]
@@ -472,14 +471,6 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
   pLoop' = do
     loop <- pLoopExpression pStmt pExpr
     pure $ Expression (ELoopF loop) loop.ann
-
-  pWhile' = do
-    while <- pWhileExpression pStmt pPat pExpr
-    pure $ Expression (EWhileF while) while.ann
-
-  pFor' = do
-    for <- pForExpression pSimPat pExpr
-    pure $ Expression (EForF for) for.ann
 
   pBlock' = do
     block <- pCodeBlock pStmt pExpr

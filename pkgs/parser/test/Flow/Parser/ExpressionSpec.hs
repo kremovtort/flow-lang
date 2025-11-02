@@ -95,7 +95,6 @@ callNamed fname args =
                       ( args <&> \(name, expr) ->
                           Surface.ArgNamedF
                             { name = Surface.SimpleVarIdentifier name ()
-                            , optional = Nothing
                             , value = Just expr
                             , ann = ()
                             }
@@ -172,7 +171,8 @@ patternSimpleVar mut name =
     { patternSimple =
         Surface.PatSimVarF
           ( Surface.PatternVariableF
-              { mut = if mut then Just () else Nothing
+              { ref = Nothing
+              , mut = if mut then Just () else Nothing
               , name = Surface.SimpleVarIdentifier{name, ann = ()}
               , ann = ()
               }
@@ -186,8 +186,7 @@ letStatement name rhsExpr =
     { stmt =
         Surface.SLetF
           Surface.LetDefinitionF
-            { mut = Nothing
-            , lhs = patternSimpleVar False name
+            { lhs = patternSimpleVar False name
             , lhsType = Nothing
             , rhs = rhsExpr
             , ann = ()
@@ -201,7 +200,8 @@ blockExpr stmts resultExpr =
     { expr =
         Surface.EBlockF $
           Surface.CodeBlockF
-            { statements = Vector.fromList stmts
+            { uses = mempty
+            , statements = Vector.fromList stmts
             , result = resultExpr
             , ann = ()
             }
@@ -209,7 +209,7 @@ blockExpr stmts resultExpr =
     }
 
 spec :: Spec
-spec = describe @() "Expression parser (minimal subset)" do
+spec = describe "Expression parser (minimal subset)" do
   it "parses wildcard _" do
     testParser "_" pExpression (Just wildcard)
 
@@ -261,3 +261,14 @@ spec = describe @() "Expression parser (minimal subset)" do
     let stmt = letStatement "x" (literalInt 1)
         expected = blockExpr [stmt] (Just (var "x"))
     testParser "{ let x = 1; x }" pExpression (Just expected)
+
+  it "parses sequence of dot accesses with function calls with lambdas" do
+    let expected = Surface.Expression{expr = Surface.EWildcard, ann = ()}
+        source = """
+x
+  .map(|y| y + 1)
+  .filter(|y| y > 0)
+  .sum()
+  .times(|| println(\"hi\")) with { let Printer = printer_handle }
+        """
+    testParser source pExpression (Just expected)
