@@ -16,7 +16,6 @@ module Flow.Parser.Common (
   simpleVarIdentifier,
   scopeIdentifier,
   methodIdentifier,
-  pEffectsResult,
   pPub,
 ) where
 
@@ -133,25 +132,6 @@ methodIdentifier = do
       { name = tok.value
       , ann = Lexer.SourceRegion dotTok.region.start tok.region.end
       }
-
-pEffectsResult ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Maybe (ty Lexer.SourceRegion), ty Lexer.SourceRegion)
-pEffectsResult pTy = do
-  _ <- single (Lexer.Punctuation Lexer.Arrow)
-  effects <- Megaparsec.optional do
-    Megaparsec.choice
-      [ do
-          _ <- Megaparsec.lookAhead $ single (Lexer.Punctuation Lexer.AtLeftBracket)
-          -- parse effect row
-          pTy
-      , do
-          _ <- single (Lexer.Punctuation Lexer.At)
-          pTy
-      ]
-  result <- pTy
-  pure (effects, result)
 
 pPub :: Parser (Surface.Pub Lexer.SourceRegion, Lexer.SourceRegion)
 pPub = do

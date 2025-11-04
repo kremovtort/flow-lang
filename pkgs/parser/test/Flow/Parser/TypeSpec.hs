@@ -30,60 +30,63 @@ simpleType name =
     }
 
 builtin :: Surface.Builtin -> Surface.Type ()
-builtin b = Surface.Type{ty = Surface.TyBuiltinF b (), ann = ()}
+builtin b = Surface.Type{ty = Surface.TyBuiltinF b, ann = ()}
 
 ref :: Maybe (Surface.ScopeIdentifier ()) -> Bool -> Surface.Type () -> Surface.Type ()
 ref mscope mut inner =
   Surface.Type
     { ty =
-        Surface.TyAppF
-          Surface.AppF
-            { head =
-                Surface.Type
-                  { ty =
-                      Surface.TyRefF
-                        Surface.RefF
-                          { scope = mscope
-                          , mutability = if mut then Just () else Nothing
-                          , ann = ()
-                          }
-                  , ann = ()
-                  }
-            , args =
-                Surface.BindersF
-                  { scopes = Vector.empty
-                  , types = Vector.singleton $ Surface.BinderAppF inner
-                  , ann = ()
-                  }
-            , ann = ()
-            }
+        Surface.TyRefAppF
+          ( Surface.RefF
+              { scope = mscope
+              , mutability = if mut then Just () else Nothing
+              , ann = ()
+              }
+          )
+          inner
     , ann = ()
     }
 
-fnType :: [Surface.Type ()] -> Maybe (Surface.Type ()) -> Surface.Type () -> Surface.Type ()
-fnType args eff res =
+fnType :: [Surface.Type ()] -> Maybe (Surface.FnEffectsResultF Surface.Type ()) -> Surface.Type ()
+fnType args effRes =
   Surface.Type
     { ty =
         Surface.TyFnF
           Surface.FnF
             { args = Vector.fromList args
-            , argsAnn = ()
-            , effects = (,()) <$> eff
-            , result = res
-            , resultAnn = ()
+            , effectsResult = effRes
             , ann = ()
             }
     , ann = ()
     }
 
-effectRow :: [Surface.EffectAtomF Surface.Type ()] -> Maybe (Surface.AnyTypeIdentifier Surface.Type ()) -> Surface.Type ()
-effectRow atoms tailVar =
+fnEffRes :: Maybe (Surface.FnEffectsF Surface.Type ()) -> Surface.Type () -> Surface.FnEffectsResultF Surface.Type ()
+fnEffRes effects result =
+  Surface.FnEffectsResultF
+    { effects = effects
+    , result = result
+    , ann = ()
+    }
+
+fnEffectRow :: [Surface.FnEffectAtomF Surface.Type ()] -> Maybe (Surface.Type ()) -> Surface.FnEffectsF Surface.Type ()
+fnEffectRow atoms tailVar =
+  Surface.FnEffectsRowF
+    Surface.FnEffectRowF
+      { regions = Vector.empty
+      , effects = Vector.fromList atoms
+      , tailVars = maybe Vector.empty (Vector.singleton . (,())) tailVar
+      , ann = ()
+      }
+
+effectRow :: [Surface.Type ()] -> Maybe (Surface.Type ()) -> Surface.Type ()
+effectRow effects tailVar =
   Surface.Type
     { ty =
         Surface.TyEffectRowF
           Surface.EffectRowF
-            { effects = Vector.fromList atoms
-            , tailVar = tailVar
+            { regions = Vector.empty
+            , effects = Vector.fromList effects
+            , tailVars = maybe Vector.empty (Vector.singleton . (,())) tailVar
             , ann = ()
             }
     , ann = ()
@@ -129,7 +132,6 @@ spec = describe "Type parser (minimal subset)" do
                   ( fromJust $
                       NonEmptyVector.fromList [builtin Surface.BuiltinI32, builtin Surface.BuiltinString]
                   )
-                  ()
             , ann = ()
             }
     testParser "(i32, string)" PType.pType (Just tup)
@@ -151,21 +153,35 @@ spec = describe "Type parser (minimal subset)" do
       testParser "&'s mut T" PType.pType (Just (ref (Just s) True tT))
 
   it "parses fn type fn(i32) -> i32" do
-    let t = fnType [builtin Surface.BuiltinI32] Nothing (builtin Surface.BuiltinI32)
+    let t =
+          fnType
+            [builtin Surface.BuiltinI32]
+            (Just (fnEffRes Nothing (builtin Surface.BuiltinI32)))
     testParser "fn(i32) -> i32" PType.pType (Just t)
 
   it "parses fn with effect row fn(i32) -> @[IO] i32" do
     let ioType = simpleType "IO"
-        row = effectRow [Surface.EAtomTypeF ioType ()] Nothing
-        t = fnType [builtin Surface.BuiltinI32] (Just row) (builtin Surface.BuiltinI32)
+        row = fnEffectRow [Surface.FnEffectAtomTypeF ioType] Nothing
+        t =
+          fnType
+            [builtin Surface.BuiltinI32]
+            (Just (fnEffRes (Just row) (builtin Surface.BuiltinI32)))
     testParser "fn(i32) -> @[IO] i32" PType.pType (Just t)
 
   it "parses short effect row fn(i32) -> @R i32" do
     let row = simpleType "R"
-        t = fnType [builtin Surface.BuiltinI32] (Just row) (builtin Surface.BuiltinI32)
+        t =
+          fnType
+            [builtin Surface.BuiltinI32]
+            ( Just
+                ( fnEffRes
+                    (Just (Surface.FnEffectsTypeF row))
+                    (builtin Surface.BuiltinI32)
+                )
+            )
     testParser "fn(i32) -> @R i32" PType.pType (Just t)
 
   it "parses effect row @[IO]" do
     let ioType = simpleType "IO"
-        row = effectRow [Surface.EAtomTypeF ioType ()] Nothing
+        row = effectRow [ioType] Nothing
     testParser "@[IO]" PType.pType (Just row)

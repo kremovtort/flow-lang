@@ -32,6 +32,7 @@ import Flow.AST.Surface.Syntax (
   WithStatementF,
  )
 import Flow.AST.Surface.Use (UseClause)
+import Flow.AST.Surface.Type (EffectRowF, FnEffectsResultF)
 
 -- Expressions
 
@@ -120,7 +121,7 @@ data LambdaShortF ty expr ann = LambdaShortF
 data LambdaFullF stmt ty expr ann = LambdaFullF
   { typeParams :: Maybe (BindersWConstraintsF ty ann)
   , args :: Vector (LambdaArgF ty ann)
-  , effectsResult :: Maybe (Maybe (ty ann), ty ann)
+  , effectsResult :: Maybe (FnEffectsResultF ty ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)
   , body :: CodeBlockF stmt expr ann
   , ann :: ann
@@ -135,11 +136,9 @@ data LambdaArgF ty ann = LambdaArgF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
--- Handle block normalized form
-
 data HandleExpressionF stmt simPat ty expr ann = HandleExpressionF
   { effects :: NonEmptyVector (ty ann)
-  , in_ :: Maybe (ty ann)
+  , in_ :: Maybe (EffectRowF ty ann)
   , returning :: Maybe (HandleReturningF ty ann)
   , body :: HandleBodyF stmt simPat ty expr ann
   , ann :: ann

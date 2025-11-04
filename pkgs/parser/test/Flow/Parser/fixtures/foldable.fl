@@ -1,0 +1,23 @@
+trait Foldable<F<_>> {
+  fn fold_eff<A, B, R>(
+    v: F<A>,
+    init: B,
+    f: fn(B, A) -> @R B,
+  ) -> @R B;
+
+  fn fold_eff_right<A, B, R>(
+    v: F<A>,
+    init: fn() -> @R B,
+    f: fn(A, fn() -> @R B) -> @R B,
+  ) -> @R B {
+    fold_eff(v, init, f)
+  }
+  
+  fn fold_left<A, B>(v: F<A>, init: B, f: fn(B, A) -> B) -> B {
+    fold_eff(v, init, f)
+  }
+
+  fn fold_right<A, B>(v: F<A>, init: fn() -> B, f: fn(A, fn() -> B) -> B) -> B {
+    fold_eff_right(v, init, f)
+  }
+}

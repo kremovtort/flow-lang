@@ -8,11 +8,13 @@ import Flow.AST.Surface.Callable (ArgF (..), CallableF (..), CallableHeader (..)
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
+import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer (SourceRegion (..), WithPos (..))
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, pEffectsResult, simpleVarIdentifier, single)
+import Flow.Parser.Common (HasAnn, Parser, simpleVarIdentifier, single)
 import Flow.Parser.Constraint (pBindersWConstraints, pWhereBlockHead)
 import Flow.Parser.Syntax (pCodeBlock)
+import Flow.Parser.Type (pFnEffectsResult)
 
 pCallableHeader ::
   (HasAnn ty SourceRegion, HasAnn name SourceRegion) =>
@@ -29,7 +31,7 @@ pCallableHeader pKind pReciever pName pTy = do
   _ <- single (Lexer.Punctuation Lexer.LeftParen)
   args <- Vector.fromList <$> pArgs
   argsEnd <- single (Lexer.Punctuation Lexer.RightParen)
-  effectsResult <- Megaparsec.optional (pEffectsResult pTy)
+  effectsResult <- Megaparsec.optional (pFnEffectsResult pTy)
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   pure
     CallableHeader
@@ -45,7 +47,7 @@ pCallableHeader pKind pReciever pName pTy = do
             , end = case whereBlock of
                 Just whereBlock' -> whereBlock'.ann.end
                 Nothing -> case effectsResult of
-                  Just (_, result) -> result.ann.end
+                  Just effectsResult' -> effectsResult'.ann.end
                   Nothing -> argsEnd.region.end
             }
       }

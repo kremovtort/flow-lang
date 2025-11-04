@@ -234,7 +234,12 @@ fnItem pub' name args effects result =
                   , args = Vector.fromList (map buildArg args)
                   , effectsResult = do
                       result' <- result
-                      pure (effects, result')
+                      pure
+                        Surface.FnEffectsResultF
+                          { effects = fmap Surface.FnEffectsTypeF effects
+                          , result = result'
+                          , ann = ()
+                          }
                   , whereBlock = Nothing
                   , ann = ()
                   }
@@ -286,7 +291,7 @@ letItem pub' name ty expr =
     }
 
 tupleType :: [Surface.Type ()] -> Surface.Type ()
-tupleType tys = Surface.Type{ty = Surface.TyTupleF (fromJust $ NE.fromList tys) (), ann = ()}
+tupleType tys = Surface.Type{ty = Surface.TyTupleF (fromJust $ NE.fromList tys), ann = ()}
 
 literalInt :: Integer -> Surface.Expression ()
 literalInt n = Surface.Expression{expr = Surface.ELiteral (Surface.LitInteger n), ann = ()}
@@ -366,11 +371,11 @@ spec = describe "Module parser (minimal subset)" do
           , fnItem
               nonPub
               "add"
-              [ (False, "a", Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32 (), ann = ()})
-              , (False, "b", Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32 (), ann = ()})
+              [ (False, "a", Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()})
+              , (False, "b", Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()})
               ]
               Nothing
-              (Just Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32 (), ann = ()})
-          , letItem nonPub "x" (Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32 (), ann = ()}) (literalInt 42)
+              (Just Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()})
+          , letItem nonPub "x" (Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()}) (literalInt 42)
           ]
     testParser src pModDefinitionBody (Just (moduleBody [] items))

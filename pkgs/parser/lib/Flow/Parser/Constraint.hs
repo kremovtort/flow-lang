@@ -47,6 +47,7 @@ pBindersApp pTy = Megaparsec.label "binders app" do
       [ Left <$> Megaparsec.try scopeIdentifier
       , Right <$> pTy
       ]
+
   collect [] scopesAcc typesAcc =
     pure (reverse scopesAcc, reverse typesAcc)
   collect (Left scope : rest) scopesAcc typesAcc

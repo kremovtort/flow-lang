@@ -26,6 +26,7 @@ import Flow.AST.Surface.Expr (
   AppF (..),
   ArgNamedF (..),
   ExpressionF (..),
+  HandleExpressionF,
   LambdaArgF (..),
   LambdaF (..),
   LambdaFullF (..),
@@ -46,7 +47,6 @@ import Flow.Parser.Common (
   Parser,
   SourceRegion (..),
   WithPos (..),
-  pEffectsResult,
   simpleVarIdentifier,
   single,
  )
@@ -60,6 +60,7 @@ import Flow.Parser.Constraint (
 import Flow.Parser.Literal (literal)
 import Flow.Parser.Operators (pOperators)
 import Flow.Parser.Syntax (pCodeBlock, pIfExpression, pLoopExpression, pMatchExpression)
+import Flow.Parser.Type (pFnEffectsResult)
 
 pWildcard :: Parser SourceRegion
 pWildcard = do
@@ -326,7 +327,7 @@ pLambdaFull pStmt pTy pExpr = do
   argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
   args <- Megaparsec.sepBy (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
   _ <- single (Lexer.Punctuation Lexer.Pipe)
-  effectsResult <- Megaparsec.optional (pEffectsResult pTy)
+  effectsResult <- Megaparsec.optional (pFnEffectsResult pTy)
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   body <- pCodeBlock pStmt pExpr
   let ann =
@@ -375,7 +376,28 @@ pLambdaArg pTy = do
             }
       }
 
--- | Top-level expression parser (stub for TDD phase)
+-- pHandle ::
+--   ( HasAnn ty SourceRegion
+--   , HasAnn expr SourceRegion
+--   , HasAnn stmt SourceRegion
+--   , HasAnn simPat SourceRegion
+--   ) =>
+--   Parser (stmt SourceRegion) ->
+--   Parser (simPat SourceRegion) ->
+--   Parser (ty SourceRegion) ->
+--   Parser (expr SourceRegion) ->
+--   Parser (HandleExpressionF stmt simPat ty expr SourceRegion)
+-- pHandle pStmt pSimPat pTy pExpr = do
+--   tokS <- single (Lexer.Keyword Lexer.Handle)
+--   effects <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
+--   in_ <- Megaparsec.optional do
+--     _ <- single (Lexer.Keyword Lexer.In)
+--     pTy
+--   returning <- Megaparsec.optional do
+--     pHandleReturning pTy pExpr
+--   body <- pHandleBody pTy pExpr
+--   _
+
 pExpression ::
   Parser (Statement SourceRegion) ->
   Parser (PatternSimple SourceRegion) ->

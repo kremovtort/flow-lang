@@ -11,6 +11,7 @@ import "vector" Data.Vector (Vector)
 import Flow.AST.Surface.Common (SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (BindersWConstraintsF, WhereBlockF, AnyVarIdentifier)
 import Flow.AST.Surface.Syntax (CodeBlockF, UnitF)
+import Flow.AST.Surface.Type (FnEffectsResultF)
 
 data CallKind = KFn | KOp
   deriving (Eq, Ord, Show, Generic, ToExpr)
@@ -30,7 +31,7 @@ data CallableHeader reciever name ty ann = CallableHeader
   , name :: name ann
   , typeParams :: Maybe (BindersWConstraintsF ty ann)
   , args :: Vector (ArgF ty ann)
-  , effectsResult :: Maybe (Maybe (ty ann), ty ann)
+  , effectsResult :: Maybe (FnEffectsResultF ty ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)
   , ann :: ann
   }

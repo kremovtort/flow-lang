@@ -1,0 +1,158 @@
+use std::functional::*;
+
+pub enum Option<T> {
+  pub None,
+  pub Some(T),
+}
+
+impl AsEffect<Option> {
+  type Effect = Fail;
+
+  fn lift<A>(v: Option<A>) -> @[Fail] A {
+    match v {
+      None => fail(),
+      Some(a) => a,
+    }
+  }
+  
+  fn get_handle() -> effect::Handle<@[Fail], @[], <A> Option<A>> {
+    handle Fail {
+      op fail() -> ! {
+        abort(())
+      }
+      
+      op <A, R>(f: fn() -> @R A) on_fail(on_fail_handler: fn() -> @R A) -> @R A {
+        recover(f, |e| match e {
+          Left(()) => on_fail_handler(),
+          Right(a) => a,
+        })
+      }
+
+      returning<A> (a: A) -> Option<A> {
+        Some(a)
+      }
+    }
+  }
+}
+
+impl Functor<Option> {
+  fn map<A, B>(v: Option<A>, f: fn(A) -> B) -> Option<B> {
+    match v {
+      None => None,
+      Some(a) => Some(f(a)),
+    }
+  }
+}
+
+impl Applicative<Option> {
+  fn pure<A>(v: A) -> Option<A> {
+    Some(v)
+  }
+
+  fn apply<A, B>(v: Option<fn(A) -> B>, f: Option<A>) -> Option<B> {
+    match v {
+      None => None,
+      Some(f) => match f {
+        None => None,
+        Some(f) => Some(f(a)),
+      },
+    }
+  }
+}
+
+impl Monad<Option> {
+  fn and_then<A, B>(v: Option<A>, f: fn(A) -> Option<B>) -> Option<B> {
+    match v {
+      None => None,
+      Some(a) => f(a),
+    }
+  }
+}
+
+impl Alternative<Option> {
+  fn empty() -> Option<A> {
+    None
+  }
+  
+  fn or_else<A>(v: Option<A>, f: fn() -> Option<A>) -> Option<A> {
+    match v {
+      None => f(),
+      Some(a) => Some(a),
+    }
+  }
+}
+
+
+impl Foldable<Option> {
+  fn fold_left<A, B>(v: Option<A>, init: B, f: fn(B, A) -> B) -> B {
+    match v {
+      None => init,
+      Some(a) => f(init, a),
+    }
+  }
+
+  fn fold_right<A, B>(v: Option<A>, init: fn() -> B, f: fn(A, fn() -> B) -> B) -> B {
+    match v {
+      None => init(),
+      Some(a) => f(a, init),
+    }
+  }
+}
+
+impl Traversable<Option> {
+  fn traverse<A, B, F<_> :< Applicative>(v: Option<A>, f: fn(A) -> F<B>) -> F<Option<B>> {
+    match v {
+      None => pure(None),
+      Some(a) => f(a).map(Some),
+    }
+  }
+  
+  fn map_eff<A, B, R>(v: Option<A>, f: fn(A) -> @R B) -> @R Option<B> {
+    match v {
+      None => None,
+      Some(a) => Some(f(a)),
+    }
+  }
+}
+
+mod Option {
+  pub fn <A>(v: Option<A>) filter(f: fn(A) -> bool) -> Option<A> {
+    match v {
+      None => None,
+      Some(a) if f(a) => Some(a),
+      Some(_) => None,
+    }
+  }
+
+  pub fn <A>(v: Option<A>) get_or_else(default: fn() -> A) -> A {
+    match v {
+      None => default(),
+      Some(a) => a,
+    }
+  }
+
+  pub fn <A>(v: Option<A>) get_or_default(default: A) -> A {
+    match v {
+      None => default,
+      Some(a) => a,
+    }
+  }
+
+  pub fn <'r, A>(v: &'r Option<A>) as_ref() -> @['r] Option<&'r A> {
+    match v {
+      None => None,
+      Some(ref a) => Some(a),
+    }
+  }
+
+  pub fn <'r, A>(v: &'r mut Option<A>) as_mut() -> @['r] Option<&'r mut A> {
+    match v {
+      None => None,
+      Some(ref mut a) => Some(a),
+    }
+  }
+}
+
+pub fn <A>(v: A) some() -> Option<A> {
+  Some(v)
+}
