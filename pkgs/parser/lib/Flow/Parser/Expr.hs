@@ -3,10 +3,11 @@
 {-# HLINT ignore "Use <$>" #-}
 module Flow.Parser.Expr where
 
-import Data.Maybe (fromJust)
-import Data.Vector qualified as Vector
-import Data.Vector.NonEmpty qualified as NonEmptyVector
-import Text.Megaparsec qualified as Megaparsec
+import "base" Data.List.NonEmpty (NonEmpty ((:|)))
+import "base" Data.Maybe (fromJust)
+import "megaparsec" Text.Megaparsec qualified as Megaparsec
+import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
+import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface (
   Expression (..),
@@ -16,6 +17,7 @@ import Flow.AST.Surface (
   Type (..),
  )
 import Flow.AST.Surface.Common (SimpleVarIdentifier (..))
+import Flow.AST.Surface.Callable qualified as Surface
 import Flow.AST.Surface.Constraint (
   AnyTypeIdentifier (..),
   AnyVarIdentifier (..),
@@ -25,8 +27,12 @@ import Flow.AST.Surface.Expr (
   AppArgsF (..),
   AppF (..),
   ArgNamedF (..),
+  EffectItemDefinitionF (..),
   ExpressionF (..),
-  HandleExpressionF,
+  HandleBodyF (..),
+  HandleExpressionF (..),
+  HandleReturningBlockF (..),
+  HandleReturningF (..),
   LambdaArgF (..),
   LambdaF (..),
   LambdaFullF (..),
@@ -42,11 +48,13 @@ import Flow.AST.Surface.Syntax (
  )
 import Flow.AST.Surface.Syntax qualified as Syntax
 import Flow.Lexer qualified as Lexer
+import Flow.Parser.Callable (pOpDefinition, pOpInfixDefinition)
 import Flow.Parser.Common (
   HasAnn,
   Parser,
   SourceRegion (..),
   WithPos (..),
+  simpleTypeIdentifier,
   simpleVarIdentifier,
   single,
  )
@@ -59,8 +67,9 @@ import Flow.Parser.Constraint (
  )
 import Flow.Parser.Literal (literal)
 import Flow.Parser.Operators (pOperators)
-import Flow.Parser.Syntax (pCodeBlock, pIfExpression, pLoopExpression, pMatchExpression)
+import Flow.Parser.Syntax (pCodeBlock, pIfExpression, pLetDefinition, pLoopExpression, pMatchExpression)
 import Flow.Parser.Type (pFnEffectsResult)
+import Flow.Parser.Use (pUseClause)
 
 pWildcard :: Parser SourceRegion
 pWildcard = do
@@ -376,27 +385,87 @@ pLambdaArg pTy = do
             }
       }
 
--- pHandle ::
---   ( HasAnn ty SourceRegion
---   , HasAnn expr SourceRegion
---   , HasAnn stmt SourceRegion
---   , HasAnn simPat SourceRegion
---   ) =>
---   Parser (stmt SourceRegion) ->
---   Parser (simPat SourceRegion) ->
---   Parser (ty SourceRegion) ->
---   Parser (expr SourceRegion) ->
---   Parser (HandleExpressionF stmt simPat ty expr SourceRegion)
--- pHandle pStmt pSimPat pTy pExpr = do
---   tokS <- single (Lexer.Keyword Lexer.Handle)
---   effects <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
---   in_ <- Megaparsec.optional do
---     _ <- single (Lexer.Keyword Lexer.In)
---     pTy
---   returning <- Megaparsec.optional do
---     pHandleReturning pTy pExpr
---   body <- pHandleBody pTy pExpr
---   _
+pHandleExpression ::
+  ( HasAnn ty SourceRegion
+  , HasAnn expr SourceRegion
+  , HasAnn stmt SourceRegion
+  , HasAnn simPat SourceRegion
+  ) =>
+  Parser (stmt SourceRegion) ->
+  Parser (simPat SourceRegion) ->
+  Parser (ty SourceRegion) ->
+  Parser (expr SourceRegion) ->
+  Parser (HandleExpressionF stmt simPat ty expr SourceRegion)
+pHandleExpression pStmt pSimPat pTy pExpr = do
+  tokS <- single (Lexer.Keyword Lexer.Handle)
+  effects <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
+  in_ <- Megaparsec.optional do
+    _ <- single (Lexer.Keyword Lexer.In)
+    pTy
+  returning <- Megaparsec.optional do
+    returningTok <- single (Lexer.Keyword Lexer.Returning)
+    _ <- single (Lexer.Punctuation Lexer.LessThan)
+    binder <- simpleTypeIdentifier
+    _ <- single (Lexer.Punctuation Lexer.GreaterThan)
+    result <- pTy
+    pure $
+      HandleReturningF
+        { binder = binder
+        , result = result
+        , ann = SourceRegion{start = returningTok.region.start, end = result.ann.end}
+        }
+  body <- pHandleBody
+  pure HandleExpressionF
+    { effects = fromJust $ NonEmptyVector.fromList effects
+    , in_ = in_
+    , returning = returning
+    , body = body
+    , ann = SourceRegion{start = tokS.region.start, end = body.ann.end}
+    }
+ where
+  pHandleBody = do
+    tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
+    uses <- Megaparsec.many pUseClause
+    item <- pEffectItemDefinition
+    items <- Megaparsec.many pEffectItemDefinition
+    returning <- Megaparsec.optional pHandleReturningBlock
+    tokE <- single (Lexer.Punctuation Lexer.RightBrace)
+    pure
+      HandleBodyF
+        { uses = Vector.fromList uses
+        , items = NonEmptyVector.fromNonEmpty (item :| items)
+        , returning = returning
+        , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
+        }
+
+  pEffectItemDefinition = do
+    Megaparsec.choice
+      [ do
+          let' <- pLetDefinition pSimPat pTy pExpr
+          pure (EDefinitionLetF let', let'.ann)
+      , do
+          op' <- pOpDefinition pStmt pTy pExpr
+          pure (EDefinitionOpF op', op'.ann)
+      , do
+          opInfix' <- pOpInfixDefinition pStmt pTy pExpr
+          pure (EDefinitionOpInfixF opInfix', opInfix'.ann)
+      ]
+
+  pHandleReturningBlock = do
+    returningTok <- single (Lexer.Keyword Lexer.Returning)
+    _ <- single (Lexer.Punctuation Lexer.LeftParen)
+    arg <- simpleVarIdentifier
+    _ <- single (Lexer.Punctuation Lexer.Colon)
+    argType <- simpleTypeIdentifier
+    _ <- single (Lexer.Punctuation Lexer.RightParen)
+    body <- pCodeBlock pStmt pExpr
+    pure $
+      HandleReturningBlockF
+        { arg = arg
+        , argType = argType
+        , body = body
+        , ann = SourceRegion{start = returningTok.region.start, end = body.ann.end}
+        }
 
 pExpression ::
   Parser (Statement SourceRegion) ->
@@ -434,6 +503,7 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       , pConstructor'
       , pMatch'
       , pBlock'
+      , pHandle'
       ]
 
   pSuffix expr =
@@ -501,6 +571,10 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
   pLambda' = do
     (lambda, ann) <- Megaparsec.choice [Megaparsec.try (pLambdaShort pTy pExpr), pLambdaFull pStmt pTy pExpr]
     pure $ Expression (ELambdaF lambda) ann
+
+  pHandle' = do
+    handle <- pHandleExpression pStmt pSimPat pTy pExpr
+    pure $ Expression (EHandleF handle) handle.ann
 
   pOfTypeSuffix' expr = do
     (expr', ty) <- pOfTypeSuffix pTy expr

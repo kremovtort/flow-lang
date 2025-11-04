@@ -138,7 +138,7 @@ data LambdaArgF ty ann = LambdaArgF
 
 data HandleExpressionF stmt simPat ty expr ann = HandleExpressionF
   { effects :: NonEmptyVector (ty ann)
-  , in_ :: Maybe (EffectRowF ty ann)
+  , in_ :: Maybe (ty ann)
   , returning :: Maybe (HandleReturningF ty ann)
   , body :: HandleBodyF stmt simPat ty expr ann
   , ann :: ann
@@ -154,7 +154,7 @@ data HandleReturningF ty ann = HandleReturningF
 
 data HandleBodyF stmt simPat ty expr ann = HandleBodyF
   { uses :: Vector (UseClause ann)
-  , items :: NonEmptyVector (EffectItemDefinitionF stmt simPat ty expr ann)
+  , items :: NonEmptyVector (EffectItemDefinitionF stmt simPat ty expr ann, ann)
   , returning :: Maybe (HandleReturningBlockF stmt ty expr ann)
   , ann :: ann
   }
@@ -162,14 +162,14 @@ data HandleBodyF stmt simPat ty expr ann = HandleBodyF
 
 -- Effect handler item definitions, parameterized by callable body type
 data EffectItemDefinitionF stmt simPat ty expr ann
-  = EDefinitionLetF (LetDefinitionF simPat ty expr ann) ann
-  | EDefinitionOpF (OpDefinitionF stmt ty expr ann) ann
-  | EDefinitionOpInfixF (OpInfixDefinitionF stmt ty expr ann) ann
+  = EDefinitionLetF (LetDefinitionF simPat ty expr ann)
+  | EDefinitionOpF (OpDefinitionF stmt ty expr ann)
+  | EDefinitionOpInfixF (OpInfixDefinitionF stmt ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data HandleReturningBlockF stmt ty expr ann = HandleReturningBlockF
   { arg :: SimpleVarIdentifier ann
-  , argType :: Maybe (SimpleTypeIdentifier ann)
+  , argType :: SimpleTypeIdentifier ann
   , body :: CodeBlockF stmt expr ann
   , ann :: ann
   }

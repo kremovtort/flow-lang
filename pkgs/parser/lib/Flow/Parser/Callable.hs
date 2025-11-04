@@ -1,10 +1,26 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use <$>" #-}
 module Flow.Parser.Callable where
 
+import "base" Data.Functor (void, (<&>))
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
+import "vector" Data.Vector qualified as Vector
 
-import Data.Functor (void, (<&>))
-import Data.Vector qualified as Vector
-import Flow.AST.Surface.Callable (ArgF (..), CallableF (..), CallableHeader (..), FnDeclarationF, FnDefinitionF)
+import Flow.AST.Surface.Callable (
+  ArgF (..),
+  CallableF (..),
+  CallableHeader (..),
+  FnDeclarationF,
+  FnDefinitionF,
+  FnInfixDeclarationF,
+  FnInfixDefinitionF,
+  OpDeclarationF,
+  OpDefinitionF,
+  OpInfixDeclarationF,
+  OpInfixDefinitionF,
+  ReceiverHeaderF (..),
+ )
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
@@ -12,9 +28,32 @@ import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer (SourceRegion (..), WithPos (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (HasAnn, Parser, simpleVarIdentifier, single)
-import Flow.Parser.Constraint (pBindersWConstraints, pWhereBlockHead)
+import Flow.Parser.Constraint (anyVarIdentifier, pBindersWConstraints, pWhereBlockHead)
 import Flow.Parser.Syntax (pCodeBlock)
 import Flow.Parser.Type (pFnEffectsResult)
+
+pRecieverHeader ::
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (ReceiverHeaderF ty SourceRegion)
+pRecieverHeader pTy = do
+  typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
+  name <- simpleVarIdentifier
+  _ <- single (Lexer.Punctuation Lexer.Colon)
+  type_ <- pTy
+  pure
+    ReceiverHeaderF
+      { typeParams = typeParams
+      , name = name
+      , type_ = type_
+      , ann =
+          SourceRegion
+            { start = case typeParams of
+                Just typeParams' -> typeParams'.ann.start
+                Nothing -> name.ann.start
+            , end = type_.ann.end
+            }
+      }
 
 pCallableHeader ::
   (HasAnn ty SourceRegion, HasAnn name SourceRegion) =>
@@ -109,6 +148,18 @@ pFnDeclaration =
     simpleVarIdentifier
     (pure (Surface.UnitF, Nothing))
 
+pFnInfixDeclaration ::
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (FnInfixDeclarationF ty SourceRegion)
+pFnInfixDeclaration pTy =
+  pCallable
+    (void <$> single (Lexer.Keyword Lexer.Fn))
+    (pRecieverHeader pTy)
+    simpleVarIdentifier
+    (pure (Surface.UnitF, Nothing))
+    pTy
+
 pFnDefinition ::
   (HasAnn ty SourceRegion, HasAnn expr SourceRegion, HasAnn stmt SourceRegion) =>
   Parser (stmt SourceRegion) ->
@@ -120,5 +171,70 @@ pFnDefinition pStmt pTy pExpr =
     (void <$> single (Lexer.Keyword Lexer.Fn))
     (pure Surface.UnitF)
     simpleVarIdentifier
+    (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
+    pTy
+
+pFnInfixDefinition ::
+  (HasAnn ty SourceRegion, HasAnn expr SourceRegion, HasAnn stmt SourceRegion) =>
+  Parser (stmt SourceRegion) ->
+  Parser (ty SourceRegion) ->
+  Parser (expr SourceRegion) ->
+  Parser (FnInfixDefinitionF stmt ty expr SourceRegion)
+pFnInfixDefinition pStmt pTy pExpr =
+  pCallable
+    (void <$> single (Lexer.Keyword Lexer.Fn))
+    (pRecieverHeader pTy)
+    simpleVarIdentifier
+    (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
+    pTy
+
+pOpDeclaration ::
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (OpDeclarationF ty SourceRegion)
+pOpDeclaration =
+  pCallable
+    (void <$> single (Lexer.Keyword Lexer.Op))
+    (pure Surface.UnitF)
+    simpleVarIdentifier
+    (pure (Surface.UnitF, Nothing))
+
+pOpInfixDeclaration ::
+  (HasAnn ty SourceRegion) =>
+  Parser (ty SourceRegion) ->
+  Parser (OpInfixDeclarationF ty SourceRegion)
+pOpInfixDeclaration pTy =
+  pCallable
+    (void <$> single (Lexer.Keyword Lexer.Op))
+    (pRecieverHeader pTy)
+    simpleVarIdentifier
+    (pure (Surface.UnitF, Nothing))
+    pTy
+
+pOpDefinition ::
+  (HasAnn ty SourceRegion, HasAnn expr SourceRegion, HasAnn stmt SourceRegion) =>
+  Parser (stmt SourceRegion) ->
+  Parser (ty SourceRegion) ->
+  Parser (expr SourceRegion) ->
+  Parser (OpDefinitionF stmt ty expr SourceRegion)
+pOpDefinition pStmt pTy pExpr =
+  pCallable
+    (void <$> single (Lexer.Keyword Lexer.Op))
+    (pure Surface.UnitF)
+    (anyVarIdentifier pTy)
+    (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
+    pTy
+
+pOpInfixDefinition ::
+  (HasAnn ty SourceRegion, HasAnn expr SourceRegion, HasAnn stmt SourceRegion) =>
+  Parser (stmt SourceRegion) ->
+  Parser (ty SourceRegion) ->
+  Parser (expr SourceRegion) ->
+  Parser (OpInfixDefinitionF stmt ty expr SourceRegion)
+pOpInfixDefinition pStmt pTy pExpr =
+  pCallable
+    (void <$> single (Lexer.Keyword Lexer.Op))
+    (pRecieverHeader pTy)
+    (anyVarIdentifier pTy)
     (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
     pTy

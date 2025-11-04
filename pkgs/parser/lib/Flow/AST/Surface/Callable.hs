@@ -17,7 +17,7 @@ data CallKind = KFn | KOp
   deriving (Eq, Ord, Show, Generic, ToExpr)
 
 -- | Receiver header for infix calls
-data ReceiverHeader ty ann = ReceiverHeader
+data ReceiverHeaderF ty ann = ReceiverHeaderF
   { typeParams :: Maybe (BindersWConstraintsF ty ann)
   , name :: SimpleVarIdentifier ann
   , type_ :: ty ann
@@ -70,7 +70,7 @@ type FnDeclarationF =
 type FnInfixDeclarationF ty =
   CallableF
     'KFn
-    (ReceiverHeader ty)
+    (ReceiverHeaderF ty)
     SimpleVarIdentifier
     UnitF
     ty
@@ -85,7 +85,7 @@ type OpDeclarationF =
 type OpInfixDeclarationF ty =
   CallableF
     'KOp
-    (ReceiverHeader ty)
+    (ReceiverHeaderF ty)
     SimpleVarIdentifier
     UnitF
     ty
@@ -101,7 +101,7 @@ type FnDefinitionF stmt ty expr =
 type FnInfixDefinitionF stmt ty expr =
   CallableF
     'KFn
-    (ReceiverHeader ty)
+    (ReceiverHeaderF ty)
     SimpleVarIdentifier
     (CodeBlockF stmt expr)
     ty
@@ -117,7 +117,7 @@ type OpDefinitionF stmt ty expr =
 type OpInfixDefinitionF stmt ty expr =
   CallableF
     'KOp
-    (ReceiverHeader ty)
+    (ReceiverHeaderF ty)
     (AnyVarIdentifier ty)
     (CodeBlockF stmt expr)
     ty

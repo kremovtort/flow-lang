@@ -38,7 +38,7 @@ pType = do
     Megaparsec.choice
       [ pBuiltin'
       , pTuple'
-      , pRefApp'
+      , Megaparsec.try pRefApp'
       , pRef'
       , pFn'
       , pEffectRow'
