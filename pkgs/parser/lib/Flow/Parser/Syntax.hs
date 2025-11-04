@@ -19,6 +19,7 @@ import Flow.Parser.Common (
   Parser,
   SourceRegion (..),
   WithPos (region),
+  scopeIdentifier,
   simpleVarIdentifier,
   single,
   token,
@@ -32,12 +33,23 @@ pCodeBlock ::
   Parser (CodeBlockF stmt expr SourceRegion)
 pCodeBlock pStmt pExpr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
+  region <- Megaparsec.optional do
+    region <- scopeIdentifier
+    _ <- single (Lexer.Punctuation Lexer.FatArrow)
+    pure region
   uses <- Megaparsec.many pUseClause
   statements <- Megaparsec.many pStmt
   result <- Megaparsec.optional pExpr
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
   let ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
-  pure $ CodeBlockF{uses = Vector.fromList uses, statements = Vector.fromList statements, result = result, ann = ann}
+  pure $
+    CodeBlockF
+      { region
+      , uses = Vector.fromList uses
+      , statements = Vector.fromList statements
+      , result
+      , ann
+      }
 
 pStatement ::
   ( HasAnn stmt SourceRegion
@@ -57,7 +69,6 @@ pStatement ::
 pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
   Megaparsec.choice
     [ letStatement
-    , Megaparsec.try assignStatement
     , returnStatement
     , continueStatement
     , breakStatement
@@ -66,6 +77,7 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
     , loopStatement
     , whileStatement
     , forStatement
+    , Megaparsec.try assignStatement
     , Megaparsec.try expressionStatement
     ]
  where
@@ -84,11 +96,11 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
     let ann = SourceRegion{start = lhs.ann.start, end = semicolonTok.region.end}
     pure
       ( SAssignF $
-        AssignStatementF
-          { lhs = lhs
-          , rhs = rhs
-          , ann = ann
-          }
+          AssignStatementF
+            { lhs = lhs
+            , rhs = rhs
+            , ann = ann
+            }
       , ann
       )
 

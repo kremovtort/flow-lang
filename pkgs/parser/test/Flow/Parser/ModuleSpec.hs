@@ -21,7 +21,7 @@ import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.AST.Surface.Use qualified as Surface
 import Flow.Parser (pModDefinitionBody)
-import Flow.Parser.Helpers (testParser)
+import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
 
 type ModuleItem = Surface.ModuleItemF Surface.Mod Surface.Statement Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
 
@@ -245,7 +245,8 @@ fnItem pub' name args effects result =
                   }
             , body =
                 Surface.CodeBlockF
-                  { uses = mempty
+                  { region = Nothing
+                  , uses = mempty
                   , statements = mempty
                   , result = Nothing
                   , ann = ()
@@ -305,18 +306,18 @@ pub = Just Surface.PubPub
 spec :: Spec
 spec = describe "Module parser (minimal subset)" do
   it "parses mod declaration 'mod m;'" do
-    testParser "mod m;" pModDefinitionBody (Just (moduleBody [] [modDecl "m"]))
+    testParser "mod m;" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [] [modDecl "m"])
 
   it "parses empty mod definition 'mod m { }'" do
-    testParser "mod m { }" pModDefinitionBody (Just (moduleBody [] [modDef "m" [] []]))
+    testParser "mod m { }" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [] [modDef "m" [] []])
 
   it "parses use leaf 'use std::io;'" do
     let expected = moduleBody [useClauseLeaf ["std", "io"]] []
-    testParser "use std::io;" pModDefinitionBody (Just expected)
+    testParser "use std::io;" pModDefinitionBody $ shouldBeParsed (`shouldBe` expected)
 
   it "parses use leaf-as 'use std::io as io;'" do
     let expected = moduleBody [useClauseAs ["std", "io"] "io"] []
-    testParser "use std::io as io;" pModDefinitionBody (Just expected)
+    testParser "use std::io as io;" pModDefinitionBody $ shouldBeParsed (`shouldBe` expected)
 
   it "parses nested use 'use std::{io, fs::{read, write}};'" do
     let nestedTree =
@@ -353,7 +354,7 @@ spec = describe "Module parser (minimal subset)" do
             , tree = Just nestedTree
             , ann = ()
             }
-    testParser "use std::{io, fs::{read, write}};" pModDefinitionBody (Just (moduleBody [useClause] []))
+    testParser "use std::{io, fs::{read, write}};" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [useClause] [])
 
   it "parses minimal items: struct, enum, type alias, fn, let" do
     let src =
@@ -378,4 +379,4 @@ spec = describe "Module parser (minimal subset)" do
               (Just Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()})
           , letItem nonPub "x" (Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()}) (literalInt 42)
           ]
-    testParser src pModDefinitionBody (Just (moduleBody [] items))
+    testParser src pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [] items)

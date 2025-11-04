@@ -83,7 +83,7 @@ test-suite flow-parser-test
   other-modules:
     Flow.LexerSpec
     Flow.Parser.ExpressionSpec
-    Flow.Parser.Helpers
+    Flow.Parser.SpecHelpers
     Flow.Parser.LHSExpressionSpec
     Flow.Parser.ModuleSpec
     Flow.Parser.PatternSpec

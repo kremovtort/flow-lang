@@ -21,20 +21,29 @@ import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWConstrai
 
 pType :: Parser (Surface.Type SourceRegion)
 pType = do
-  Megaparsec.choice
-    [ pNotSuffixable'
-    , do
-        ty <- pSuffixable'
-        Megaparsec.choice [pAppSuffix' ty, pTyEqualsSuffix' ty, pure ty]
+  head' <- Megaparsec.choice
+    [ pApp'
+    , pNotAppable'
     ]
+  tyWSuffix <-Megaparsec.optional $ pTyEqualsSuffix' head'
+  case tyWSuffix of
+    Just tyWSuffix' -> pure tyWSuffix'
+    Nothing -> pure head'
  where
-  pSuffixable' =
+  pApp' = Megaparsec.try do
+    ty <- pAppable'
+    tyWSuffix <-Megaparsec.optional $ pAppSuffix' ty
+    case tyWSuffix of
+      Just tyWSuffix' -> pure tyWSuffix'
+      Nothing -> pure ty
+
+  pAppable' =
     Megaparsec.choice
       [ pIdentifier'
-      , pParens'
+      , Megaparsec.try pParens'
       ]
 
-  pNotSuffixable' =
+  pNotAppable' =
     Megaparsec.choice
       [ pBuiltin'
       , pTuple'

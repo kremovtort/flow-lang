@@ -6,7 +6,7 @@ import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
 import Data.Vector.NonEmpty (NonEmptyVector)
-import Flow.AST.Surface.Common (SimpleVarIdentifier)
+import Flow.AST.Surface.Common (SimpleVarIdentifier, ScopeIdentifier)
 import Flow.AST.Surface.Use (UseClause)
 
 data UnitF a = UnitF
@@ -56,7 +56,8 @@ newtype LHSUnOpExpression expr ann
   deriving anyclass (ToExpr)
 
 data CodeBlockF stmt expr ann = CodeBlockF
-  { uses :: Vector (UseClause ann)
+  { region :: Maybe (ScopeIdentifier ann)
+  , uses :: Vector (UseClause ann)
   , statements :: Vector (stmt ann)
   , result :: Maybe (expr ann)
   , ann :: ann
@@ -173,6 +174,25 @@ data WithLhsF ty ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data WithRhsF ty expr ann
-  = WRhsExprF (expr ann)
+  = WRhsExprF (WithRhsExprF ty expr ann)
   | WRhsTypeF (ty ann)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data WithRhsExprF ty expr ann = WithRhsExprF
+  { expr :: expr ann
+  , in_ :: Maybe (NonEmptyVector (InStatementF ty expr ann))
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data InStatementF ty expr ann = InStatementF
+  { lhs :: ty ann
+  , rhs :: InRhsF ty expr ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data InRhsF ty expr ann
+  = IRhsLabelF (SimpleVarIdentifier ann)
+  | IRhsTyF (ty ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

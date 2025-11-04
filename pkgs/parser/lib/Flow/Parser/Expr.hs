@@ -16,14 +16,15 @@ import Flow.AST.Surface (
   Statement (..),
   Type (..),
  )
-import Flow.AST.Surface.Common (SimpleVarIdentifier (..))
 import Flow.AST.Surface.Callable qualified as Surface
+import Flow.AST.Surface.Common (SimpleVarIdentifier (..))
 import Flow.AST.Surface.Constraint (
   AnyTypeIdentifier (..),
   AnyVarIdentifier (..),
   BindersF (..),
  )
 import Flow.AST.Surface.Expr (
+  AllocF (..),
   AppArgsF (..),
   AppF (..),
   ArgNamedF (..),
@@ -41,8 +42,11 @@ import Flow.AST.Surface.Expr (
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF (..),
+  InRhsF (..),
+  InStatementF (..),
   WithF (..),
   WithLhsF (..),
+  WithRhsExprF (..),
   WithRhsF (..),
   WithStatementF (..),
  )
@@ -54,6 +58,7 @@ import Flow.Parser.Common (
   Parser,
   SourceRegion (..),
   WithPos (..),
+  scopeIdentifier,
   simpleTypeIdentifier,
   simpleVarIdentifier,
   single,
@@ -247,6 +252,22 @@ pTuple pExpr = do
       , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
       }
 
+pAlloc ::
+  (HasAnn stmt SourceRegion, HasAnn expr SourceRegion) =>
+  Parser (stmt SourceRegion) ->
+  Parser (expr SourceRegion) ->
+  Parser (AllocF stmt expr SourceRegion)
+pAlloc pStmt pExpr = do
+  tokS <- single (Lexer.Keyword Lexer.Alloc)
+  into <- Megaparsec.optional scopeIdentifier
+  body <- pCodeBlock pStmt pExpr
+  pure $
+    AllocF
+      { into = into
+      , body = body
+      , ann = SourceRegion{start = tokS.region.start, end = body.ann.end}
+      }
+
 pWithStatement ::
   (HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
   Parser (ty SourceRegion) ->
@@ -292,10 +313,52 @@ pWithStatement pTy pExpr = do
    where
     pWithRhsExpr = do
       expr' <- pExpr
-      pure (WRhsExprF expr', expr'.ann.end)
+      in_ <- Megaparsec.optional do
+        _ <- single (Lexer.Keyword Lexer.In)
+        _ <- single (Lexer.Punctuation Lexer.LeftBrace)
+        statements <-
+          Megaparsec.sepEndBy1
+            pWithRhsInStatement
+            (single (Lexer.Punctuation Lexer.Comma))
+        _ <- single (Lexer.Punctuation Lexer.RightBrace)
+        pure $ fromJust $ NonEmptyVector.fromList statements
+      pure
+        ( WRhsExprF
+            ( WithRhsExprF
+                { expr = expr'
+                , in_
+                , ann = expr'.ann
+                }
+            )
+        , expr'.ann.end
+        )
+
     pWithRhsType = do
       ty <- pTy
       pure (WRhsTypeF ty, ty.ann.end)
+
+    pWithRhsInStatement = do
+      lhs <- pTy
+      _ <- single (Lexer.Punctuation Lexer.Assign)
+      (rhs, ann) <-
+        Megaparsec.choice
+          [ pWithRhsInLabel
+          , pWithRhsInType
+          ]
+      pure $
+        InStatementF
+          { lhs
+          , rhs
+          , ann = SourceRegion{start = lhs.ann.start, end = ann.end}
+          }
+
+    pWithRhsInLabel = do
+      name <- simpleVarIdentifier
+      pure (IRhsLabelF name, name.ann)
+
+    pWithRhsInType = do
+      ty <- pTy
+      pure (IRhsTyF ty, ty.ann)
 
 pLambdaShort ::
   (HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
@@ -415,13 +478,14 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
         , ann = SourceRegion{start = returningTok.region.start, end = result.ann.end}
         }
   body <- pHandleBody
-  pure HandleExpressionF
-    { effects = fromJust $ NonEmptyVector.fromList effects
-    , in_ = in_
-    , returning = returning
-    , body = body
-    , ann = SourceRegion{start = tokS.region.start, end = body.ann.end}
-    }
+  pure
+    HandleExpressionF
+      { effects = fromJust $ NonEmptyVector.fromList effects
+      , in_ = in_
+      , returning = returning
+      , body = body
+      , ann = SourceRegion{start = tokS.region.start, end = body.ann.end}
+      }
  where
   pHandleBody = do
     tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
@@ -485,13 +549,14 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       [ pNotSuffixable
       , do
           head' <- pSuffixable
-          Megaparsec.choice [pWithSuffix head', pure head']
+          pWithSuffix head'
       ]
 
   pWithSuffix expr = do
-    Megaparsec.try do
-      expr' <- pSuffix expr
-      Megaparsec.choice [pWithSuffix expr', pure expr']
+    expr' <- Megaparsec.optional $ pSuffix expr
+    case expr' of
+      Nothing -> pure expr
+      Just expr'' -> pWithSuffix expr''
 
   pSuffixable =
     Megaparsec.choice
@@ -504,6 +569,7 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       , pMatch'
       , pBlock'
       , pHandle'
+      , pAlloc'
       ]
 
   pSuffix expr =
@@ -521,7 +587,6 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       , pIf'
       , pLoop'
       , pLambda'
-      -- TODO handle
       ]
 
   pWildcard' = do
@@ -567,6 +632,10 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
   pBlock' = do
     block <- pCodeBlock pStmt pExpr
     pure $ Expression (EBlockF block) block.ann
+
+  pAlloc' = do
+    alloc <- pAlloc pStmt pExpr
+    pure $ Expression (EAllocF alloc) alloc.ann
 
   pLambda' = do
     (lambda, ann) <- Megaparsec.choice [Megaparsec.try (pLambdaShort pTy pExpr), pLambdaFull pStmt pTy pExpr]

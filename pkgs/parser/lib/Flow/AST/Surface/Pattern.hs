@@ -11,12 +11,12 @@ import Flow.AST.Surface.Literal (Literal)
 
 data PatternF pat ty ann
   = PatSimpleF (PatternSimpleF pat ty ann)
+  | PatLiteralF Literal
   | PatOrF (NonEmptyVector (PatternSimpleF pat ty ann))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data PatternSimpleF pat ty ann
   = PatSimWildcardF
-  | PatSimLiteralF Literal
   | PatSimVarF (PatternVariableF pat ty ann)
   | PatSimTupleF (NonEmptyVector (pat ann))
   | PatSimConstructorAppF (PatternConsturctorAppF pat ty ann)

@@ -23,6 +23,8 @@ pPattern ::
 pPattern pPat pTy = do
   Megaparsec.choice
     [ Bifunctor.first Surface.PatSimpleF <$> pPatternSimple pPat pTy
+    , pLiteral
+    , pOr pPat pTy
     ]
 
 pPatternSimple ::
@@ -34,7 +36,6 @@ pPatternSimple ::
 pPatternSimple pPat pTy =
   Megaparsec.choice
     [ pWildcard
-    , pLiteral
     , pVar <&> \var -> (Surface.PatSimVarF var, var.ann)
     , pTuple pPat
     , pCons pPat pTy <&> \cons -> (Surface.PatSimConstructorAppF cons, cons.ann)
@@ -45,10 +46,10 @@ pWildcard = do
   tok <- single (Lexer.Punctuation Lexer.Underscore)
   pure (Surface.PatSimWildcardF, tok.region)
 
-pLiteral :: Parser (Surface.PatternSimpleF pat ty SourceRegion, SourceRegion)
+pLiteral :: Parser (Surface.PatternF pat ty SourceRegion, SourceRegion)
 pLiteral = do
   (lit, ann) <- literal
-  pure (Surface.PatSimLiteralF lit, ann)
+  pure (Surface.PatLiteralF lit, ann)
 
 pVar :: Parser (Surface.PatternVariableF pat ty SourceRegion)
 pVar = do
@@ -187,3 +188,18 @@ pCons pPat pTy = do
                   Nothing -> name.ann.end
               }
         }
+
+pOr ::
+  (HasAnn pat SourceRegion, HasAnn ty SourceRegion) =>
+  Parser (pat SourceRegion) ->
+  Parser (ty SourceRegion) ->
+  Parser (Surface.PatternF pat ty SourceRegion, SourceRegion)
+pOr pPat pTy = do
+  items <- fromJust . NonEmptyVector.fromList <$> Megaparsec.sepEndBy1 (pPatternSimple pPat pTy) (single (Lexer.Punctuation Lexer.Pipe))
+  pure
+    ( Surface.PatOrF (fmap fst items)
+    , SourceRegion
+        { start = (snd $ NonEmptyVector.head items).start
+        , end = (snd $ NonEmptyVector.last items).end
+        }
+    )

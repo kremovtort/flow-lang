@@ -12,7 +12,8 @@ import Flow.AST.Surface.Callable (
  )
 import Flow.AST.Surface.Common (
   ScopeIdentifier,
-  SimpleVarIdentifier, SimpleTypeIdentifier,
+  SimpleTypeIdentifier,
+  SimpleVarIdentifier,
  )
 import Flow.AST.Surface.Constraint (
   AnyTypeIdentifier,
@@ -31,8 +32,8 @@ import Flow.AST.Surface.Syntax (
   WithF,
   WithStatementF,
  )
+import Flow.AST.Surface.Type (FnEffectsResultF)
 import Flow.AST.Surface.Use (UseClause)
-import Flow.AST.Surface.Type (EffectRowF, FnEffectsResultF)
 
 -- Expressions
 
@@ -54,6 +55,7 @@ data ExpressionF stmt simPat pat ty expr ann
   | EIfF (IfExpressionF stmt pat expr ann) -- if expr { then_ } else { else_ }
   | ELoopF (LoopExpressionF stmt expr ann) -- loop { ... } | 'label: loop { ... }
   | EBlockF (CodeBlockF stmt expr ann) -- { ... }
+  | EAllocF (AllocF stmt expr ann) -- alloc 'into { ... }
   | EHandleF (HandleExpressionF stmt simPat ty expr ann) -- handle Effect
   | ELambdaF (LambdaF stmt ty expr ann) -- <A>|a: T, b: T| -> T where { Monoid<T> } { a ++ B }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
@@ -175,9 +177,6 @@ data HandleReturningBlockF stmt ty expr ann = HandleReturningBlockF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
--- Callable references inside expressions are referenced via dedicated types
--- We'll keep these constructors here but their definitions live elsewhere
-
 data AppF ty expr ann = AppF
   { callee :: expr ann
   , typeParams :: Maybe (BindersAppF ty ann)
@@ -195,6 +194,13 @@ data AppArgsF expr ann
 data ArgNamedF expr ann = ArgNamedF
   { name :: SimpleVarIdentifier ann
   , value :: Maybe (expr ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data AllocF stmt expr ann = AllocF
+  { into :: Maybe (ScopeIdentifier ann)
+  , body :: CodeBlockF stmt expr ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

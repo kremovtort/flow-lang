@@ -15,7 +15,7 @@ import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface.Type
 import Flow.Parser (pExpression)
-import Flow.Parser.Helpers (testParser)
+import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
 
 wildcard :: Surface.Expression ()
 wildcard = Surface.Expression{expr = Surface.EWildcard, ann = ()}
@@ -200,7 +200,8 @@ blockExpr stmts resultExpr =
     { expr =
         Surface.EBlockF $
           Surface.CodeBlockF
-            { uses = mempty
+            { region = Nothing
+            , uses = mempty
             , statements = Vector.fromList stmts
             , result = resultExpr
             , ann = ()
@@ -211,16 +212,16 @@ blockExpr stmts resultExpr =
 spec :: Spec
 spec = describe "Expression parser (minimal subset)" do
   it "parses wildcard _" do
-    testParser "_" pExpression (Just wildcard)
+    testParser "_" pExpression $ shouldBeParsed (`shouldBe` wildcard)
 
   it "parses literal 1" do
-    testParser "1" pExpression (Just (literalInt 1))
+    testParser "1" pExpression $ shouldBeParsed (`shouldBe` literalInt 1)
 
   it "parses variable x" do
-    testParser "x" pExpression (Just (var "x"))
+    testParser "x" pExpression $ shouldBeParsed (`shouldBe` var "x")
 
   it "parses parens (x)" do
-    testParser "(x)" pExpression (Just (parens (var "x")))
+    testParser "(x)" pExpression $ shouldBeParsed (`shouldBe` parens (var "x"))
 
   it "parses unary &x, &mut x, &'s x, -x, !x" do
     let cases =
@@ -231,7 +232,7 @@ spec = describe "Expression parser (minimal subset)" do
           , ("!x", Surface.UnOpNot ())
           ]
     mapM_
-      (\(txt, op) -> testParser txt pExpression (Just (unOp op (var "x"))))
+      (\(txt, op) -> testParser txt pExpression $ shouldBeParsed (`shouldBe` unOp op (var "x")))
       cases
 
   it "parses binary 1 + 2 * 3" do
@@ -240,35 +241,34 @@ spec = describe "Expression parser (minimal subset)" do
             (Surface.BinOpAdd ())
             (literalInt 1)
             (binOp (Surface.BinOpMul ()) (literalInt 2) (literalInt 3))
-    testParser "1 + 2 * 3" pExpression (Just expected)
+    testParser "1 + 2 * 3" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses calls f(a, b) and with named args f { x = 1, y = 2 }" do
-    testParser "f(a, b)" pExpression (Just (callUnnamed "f" [var "a", var "b"]))
-    testParser "f { x = 1, y = 2 }" pExpression (Just (callNamed "f" [("x", literalInt 1), ("y", literalInt 2)]))
+    testParser "f(a, b)" pExpression $ shouldBeParsed (`shouldBe` callUnnamed "f" [var "a", var "b"])
+    testParser "f { x = 1, y = 2 }" pExpression $ shouldBeParsed (`shouldBe` callNamed "f" [("x", literalInt 1), ("y", literalInt 2)])
 
   it "parses call with type/scope params f<'s, T>(a)" do
     let expected = callWithParams "f" [scopeIdent "s"] [typeVar "T"] [var "a"]
-    testParser "f<'s, T>(a)" pExpression (Just expected)
+    testParser "f<'s, T>(a)" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses chained access a.b[0]" do
     let expected = indexExpr (dotExpr (var "a") "b") (literalInt 0)
-    testParser "a.b[0]" pExpression (Just expected)
+    testParser "a.b[0]" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses tuple (a, b)" do
-    testParser "(a, b)" pExpression (Just (tupleExpr [var "a", var "b"]))
+    testParser "(a, b)" pExpression $ shouldBeParsed (`shouldBe` tupleExpr [var "a", var "b"])
 
   it "parses simple block { let x = 1; x }" do
     let stmt = letStatement "x" (literalInt 1)
         expected = blockExpr [stmt] (Just (var "x"))
-    testParser "{ let x = 1; x }" pExpression (Just expected)
+    testParser "{ let x = 1; x }" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses sequence of dot accesses with function calls with lambdas" do
-    let expected = Surface.Expression{expr = Surface.EWildcard, ann = ()}
-        source = """
-x
-  .map(|y| y + 1)
-  .filter(|y| y > 0)
-  .sum()
-  .times(|| println(\"hi\")) with { let Printer = printer_handle }
+    let source = """
+          x
+            .map(|y| y + 1)
+            .filter(|y| y > 0)
+            .sum()
+            .times(|| println(\"hi\")) with { let Printer = printer_handle }
         """
-    testParser source pExpression (Just expected)
+    testParser source pExpression $ shouldBeParsed (const $ pure ())

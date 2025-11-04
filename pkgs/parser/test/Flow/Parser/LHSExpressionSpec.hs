@@ -9,7 +9,7 @@ import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Expr qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Syn
 import Flow.Parser (pLhsExpression)
-import Flow.Parser.Helpers (testParser)
+import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
 
 lhsVar :: Text -> Surface.LHSExpression ()
 lhsVar name =
@@ -63,20 +63,20 @@ exprVar name =
 spec :: Spec
 spec = describe "LHSExpression parser (minimal subset)" do
   it "parses variable x" do
-    testParser "x" pLhsExpression (Just (lhsVar "x"))
+    testParser "x" pLhsExpression $ shouldBeParsed (`shouldBe` lhsVar "x")
 
   it "parses index a[b]" do
     let expected = lhsIndex (lhsVar "a") (exprVar "b")
-    testParser "a[b]" pLhsExpression (Just expected)
+    testParser "a[b]" pLhsExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses dot access a.b" do
     let expected = lhsDot (lhsVar "a") "b"
-    testParser "a.b" pLhsExpression (Just expected)
+    testParser "a.b" pLhsExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses multiple dot accesses a.b.c" do
     let expected = lhsDot (lhsDot (lhsVar "a") "b") "c"
-    testParser "a.b.c" pLhsExpression (Just expected)
+    testParser "a.b.c" pLhsExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses deref *a" do
     let expected = lhsDeref (exprVar "a")
-    testParser "*a" pLhsExpression (Just expected)
+    testParser "*a" pLhsExpression $ shouldBeParsed (`shouldBe` expected)

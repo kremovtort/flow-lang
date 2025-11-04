@@ -10,7 +10,7 @@ import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
-import Flow.Parser.Helpers (testParser)
+import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
 import Flow.Parser.Type qualified as PType
 
 anyType :: Surface.SimpleTypeIdentifier () -> Surface.AnyTypeIdentifier ty ()
@@ -98,10 +98,10 @@ mkSimpleVar n = Surface.SimpleVarIdentifier{name = n, ann = ()}
 spec :: Spec
 spec = describe "Type parser (minimal subset)" do
   it "parses builtin bool" do
-    testParser "bool" PType.pType (Just (builtin Surface.BuiltinBool))
+    testParser "bool" PType.pType $ shouldBeParsed (`shouldBe` builtin Surface.BuiltinBool)
 
   it "parses simple identifier Option" do
-    testParser "Option" PType.pType (Just (simpleType "Option"))
+    testParser "Option" PType.pType $ shouldBeParsed (`shouldBe` simpleType "Option")
 
   it "parses application Option<i32>" do
     let headT = simpleType "Option"
@@ -122,7 +122,7 @@ spec = describe "Type parser (minimal subset)" do
                     }
             , ann = ()
             }
-    testParser "Option<i32>" PType.pType (Just app)
+    testParser "Option<i32>" PType.pType $ shouldBeParsed (`shouldBe` app)
 
   it "parses tuple (i32, string)" do
     let tup =
@@ -134,30 +134,30 @@ spec = describe "Type parser (minimal subset)" do
                   )
             , ann = ()
             }
-    testParser "(i32, string)" PType.pType (Just tup)
+    testParser "(i32, string)" PType.pType $ shouldBeParsed (`shouldBe` tup)
 
   describe "parses applied refs" do
     let tT = simpleType "T"
         s = Surface.ScopeIdentifier{name = "s", ann = ()}
 
     it "&T" do
-      testParser "&T" PType.pType (Just (ref Nothing False tT))
+      testParser "&T" PType.pType $ shouldBeParsed (`shouldBe` ref Nothing False tT)
 
     it "&mut T" do
-      testParser "&mut T" PType.pType (Just (ref Nothing True tT))
+      testParser "&mut T" PType.pType $ shouldBeParsed (`shouldBe` ref Nothing True tT)
 
     it "&'s T" do
-      testParser "&'s T" PType.pType (Just (ref (Just s) False tT))
+      testParser "&'s T" PType.pType $ shouldBeParsed (`shouldBe` ref (Just s) False tT)
 
     it "&'s mut T" do
-      testParser "&'s mut T" PType.pType (Just (ref (Just s) True tT))
+      testParser "&'s mut T" PType.pType $ shouldBeParsed (`shouldBe` ref (Just s) True tT)
 
   it "parses fn type fn(i32) -> i32" do
     let t =
           fnType
             [builtin Surface.BuiltinI32]
             (Just (fnEffRes Nothing (builtin Surface.BuiltinI32)))
-    testParser "fn(i32) -> i32" PType.pType (Just t)
+    testParser "fn(i32) -> i32" PType.pType $ shouldBeParsed (`shouldBe` t)
 
   it "parses fn with effect row fn(i32) -> @[IO] i32" do
     let ioType = simpleType "IO"
@@ -166,7 +166,7 @@ spec = describe "Type parser (minimal subset)" do
           fnType
             [builtin Surface.BuiltinI32]
             (Just (fnEffRes (Just row) (builtin Surface.BuiltinI32)))
-    testParser "fn(i32) -> @[IO] i32" PType.pType (Just t)
+    testParser "fn(i32) -> @[IO] i32" PType.pType $ shouldBeParsed (`shouldBe` t)
 
   it "parses short effect row fn(i32) -> @R i32" do
     let row = simpleType "R"
@@ -179,9 +179,9 @@ spec = describe "Type parser (minimal subset)" do
                     (builtin Surface.BuiltinI32)
                 )
             )
-    testParser "fn(i32) -> @R i32" PType.pType (Just t)
+    testParser "fn(i32) -> @R i32" PType.pType $ shouldBeParsed (`shouldBe` t)
 
   it "parses effect row @[IO]" do
     let ioType = simpleType "IO"
         row = effectRow [ioType] Nothing
-    testParser "@[IO]" PType.pType (Just row)
+    testParser "@[IO]" PType.pType $ shouldBeParsed (`shouldBe` row)
