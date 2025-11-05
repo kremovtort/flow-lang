@@ -147,7 +147,7 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
     pure (SWhileF expr', expr'.ann)
 
   forStatement = do
-    expr' <- pForStatement pSimPat pExpr
+    expr' <- pForStatement pStmt pSimPat pExpr
     pure (SForF expr', expr'.ann)
 
 pLetDefinition ::
@@ -421,11 +421,12 @@ pWhileStatement pStmt pPat pExpr = do
       }
 
 pForStatement ::
-  (HasAnn simPat SourceRegion, HasAnn expr SourceRegion) =>
+  (HasAnn stmt SourceRegion, HasAnn simPat SourceRegion, HasAnn expr SourceRegion) =>
+  Parser (stmt SourceRegion) ->
   Parser (simPat SourceRegion) ->
   Parser (expr SourceRegion) ->
-  Parser (ForStatementF simPat expr SourceRegion)
-pForStatement pSimPat pExpr = do
+  Parser (ForStatementF stmt simPat expr SourceRegion)
+pForStatement pStmt pSimPat pExpr = do
   label <- Megaparsec.optional do
     labelTok <- token
       (Set.singleton $ Megaparsec.Label "label")
@@ -444,15 +445,13 @@ pForStatement pSimPat pExpr = do
   pattern <- pSimPat
   _ <- single (Lexer.Keyword Lexer.In)
   iterable <- pExpr
-  _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-  body <- pExpr
-  rightBraceTok <- single (Lexer.Punctuation Lexer.RightBrace)
+  body <- pCodeBlock pStmt pExpr
   let ann =
         SourceRegion
           { start = case label of
               Just (_, ann') -> ann'.start
               Nothing -> forTok.region.start
-          , end = rightBraceTok.region.end
+          , end = body.ann.end
           }
   pure $
     ForStatementF

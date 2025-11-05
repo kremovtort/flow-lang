@@ -21,10 +21,9 @@ import Flow.AST.Surface.Constraint (
   BindersWConstraintsF,
   BindersWoConstraintsF,
   TypeDefinitionF,
-  WhereBlockF,
+  WhereBlockF, AnyTypeIdentifier, BindersAppF, KindTreeRootF,
  )
 import Flow.AST.Surface.Syntax (LetDefinitionF)
-import Flow.AST.Surface.Type (TypeF)
 
 data StructF ty ann = StructF
   { name :: SimpleTypeIdentifier ann
@@ -84,10 +83,10 @@ data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data Trait stmt ty expr ann = Trait
+data TraitF stmt ty expr ann = TraitF
   { name :: SimpleTypeIdentifier ann
-  , typeParams :: Maybe (BindersWConstraintsF ty ann)
-  , superTraits :: Vector (ty ann)
+  , typeParams :: BindersWoConstraintsF ty ann
+  , superTraits :: Maybe (NonEmptyVector (ty ann))
   , traitBody :: Vector (TraitItemF stmt ty expr ann)
   , ann :: ann
   }
@@ -105,17 +104,14 @@ data TraitItemVariantF stmt ty expr ann
   | TItemVarLetDeclarationF (LetDeclarationF ty ann)
   | TItemVarFnDeclarationF (FnDeclarationF ty ann)
   | TItemVarFnInfixDeclarationF (FnInfixDeclarationF ty ann)
-  | TItemVarOpDeclarationF (OpDeclarationF ty ann)
-  | TItemVarOpInfixDeclarationF (OpInfixDeclarationF ty ann)
   | TItemVarFnDefinitionF (FnDefinitionF stmt ty expr ann)
   | TItemVarFnInfixDefinitionF (FnInfixDefinitionF stmt ty expr ann)
-  | TItemVarOpDefinitionF (OpDefinitionF stmt ty expr ann)
-  | TItemVarOpInfixDefinitionF (OpInfixDefinitionF stmt ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data Impl stmt simPat ty expr ann = Impl
-  { typeParams :: Maybe (BindersWConstraintsF ty ann)
-  , trait :: TypeF ty ann
+data ImplF stmt simPat ty expr ann = ImplF
+  { implParams :: Maybe (BindersWConstraintsF ty ann)
+  , trait :: AnyTypeIdentifier ty ann
+  , traitParams :: BindersAppF ty ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
   , body :: Vector (ImplItemVariantF stmt simPat ty expr ann)
   , ann :: ann
@@ -127,46 +123,45 @@ data ImplItemVariantF stmt simPat ty expr ann
   | IItemVarLetF (LetDefinitionF simPat ty expr ann)
   | IItemVarFnF (FnDefinitionF stmt ty expr ann)
   | IItemVarFnInfixF (FnInfixDefinitionF stmt ty expr ann)
-  | IItemVarOpF (OpDefinitionF stmt ty expr ann)
-  | IItemVarOpInfixF (OpInfixDefinitionF stmt ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectF stmt ty expr ann = EffectF
   { name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWConstraintsF ty ann)
-  , superEffects :: Vector (ty ann)
+  , superEffects :: Maybe (NonEmptyVector (ty ann))
   , whereBlock :: Maybe (WhereBlockF ty ann)
-  , effectContent :: Vector (EffectItemDeclarationF stmt ty expr ann)
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data EffectItemDeclarationF stmt ty expr ann = EffectItemDeclarationF
-  { pub :: Maybe (Pub ann)
-  , variant :: EffectItemDeclarationVariantF stmt ty expr ann
+  , effectBody :: Vector (EffectItemF stmt ty expr ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data EffectItemDeclarationVariantF stmt ty expr ann
-  = EItemDeclVarLet (LetDeclarationF ty ann)
-  | EItemDeclVarFn (FnDeclarationF ty ann)
-  | EItemDeclVarFnInfix (FnInfixDeclarationF ty ann)
-  | EItemDeclVarOp (OpDeclarationF ty ann)
-  | EItemDeclVarOpInfix (OpInfixDeclarationF ty ann)
-  | EItemDeclVarFnDef (FnDefinitionF stmt ty expr ann)
-  | EItemDeclVarFnInfixDef (FnInfixDefinitionF stmt ty expr ann)
-  | EItemDeclVarOpDef (OpDefinitionF stmt ty expr ann)
-  | EItemDeclVarOpInfixDef (OpInfixDefinitionF stmt ty expr ann)
+data EffectItemF stmt ty expr ann = EffectItemF
+  { pub :: Maybe (Pub ann)
+  , item :: EffectItemVariantF stmt ty expr ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data EffectItemVariantF stmt ty expr ann
+  = EItemVarTypeDeclarationF (TypeDeclarationF ty ann)
+  | EItemVarLetDeclarationF (LetDeclarationF ty ann)
+  | EItemVarOpDeclarationF (OpDeclarationF ty ann)
+  | EItemVarOpInfixDeclarationF (OpInfixDeclarationF ty ann)
+  | EItemVarOpDefinitionF (OpDefinitionF stmt ty expr ann)
+  | EItemVarOpInfixDefinitionF (OpInfixDefinitionF stmt ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data TypeDeclarationF ty ann = TypeDeclarationF
   { name :: SimpleTypeIdentifier ann
-  , type_ :: ty ann
+  , kindShort :: Maybe (KindTreeRootF ty ann, ann)
+  , type_ :: Maybe (ty ann)
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LetDeclarationF ty ann = LetDeclarationF
   { name :: SimpleVarIdentifier ann
   , type_ :: ty ann
+  , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

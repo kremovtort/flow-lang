@@ -12,19 +12,19 @@ import Flow.AST.Surface.Decl qualified as Decl
 import Flow.AST.Surface.Syntax (LetDefinitionF)
 import Flow.AST.Surface.Use (UseClause)
 
-data ModF mod stmt simPat pat ty expr ann
+data ModF mod stmt simPat ty expr ann
   = ModDeclarationF (ModuleIdentifier ann)
-  | ModDefinitionF (ModuleIdentifier ann) (ModDefinitionBodyF mod stmt simPat pat ty expr ann)
+  | ModDefinitionF (ModuleIdentifier ann) (ModDefinitionBodyF mod stmt simPat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ModDefinitionBodyF mod stmt simPat pat ty expr ann = ModDefinitionBodyF
+data ModDefinitionBodyF mod stmt simPat ty expr ann = ModDefinitionBodyF
   { uses :: Vector (UseClause ann)
-  , items :: Vector (ModuleItemF mod stmt simPat pat ty expr ann)
+  , items :: Vector (ModuleItemF mod stmt simPat ty expr ann)
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 
-data ModuleItemF mod stmt simPat pat ty expr ann
+data ModuleItemF mod stmt simPat ty expr ann
   = ModuleItemF
   { pub :: Maybe (Pub ann)
   , item :: ModuleItemVariantF mod stmt simPat ty expr ann
@@ -36,8 +36,8 @@ data ModuleItemVariantF mod stmt simPat ty expr ann
   = ModItemModF (mod ann)
   | ModItemStructF (Decl.StructF ty ann)
   | ModItemEnumF (Decl.EnumF ty ann)
-  | ModItemTraitF (Decl.Trait stmt ty expr ann)
-  | ModItemImplF (Decl.Impl stmt simPat ty expr ann)
+  | ModItemTraitF (Decl.TraitF stmt ty expr ann)
+  | ModItemImplF (Decl.ImplF stmt simPat ty expr ann)
   | ModItemEffectF (Decl.EffectF stmt ty expr ann)
   | ModItemTypeAliasF (TypeDefinitionF ty ann)
   | ModItemFnF (FnDefinitionF stmt ty expr ann)

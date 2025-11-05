@@ -21,9 +21,15 @@ import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.AST.Surface.Use qualified as Surface
 import Flow.Parser (pModDefinitionBody)
-import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
+import Flow.Parser.SpecHelpers (shouldBe, shouldBeParsed, testParser)
 
-type ModuleItem = Surface.ModuleItemF Surface.Mod Surface.Statement Surface.PatternSimple Surface.Pattern Surface.Type Surface.Expression
+type ModuleItem =
+  Surface.ModuleItemF
+    Surface.Mod
+    Surface.Statement
+    Surface.PatternSimple
+    Surface.Type
+    Surface.Expression
 
 modIdent :: Text -> Surface.ModuleIdentifier ()
 modIdent name = Surface.ModuleIdentifier{name, ann = ()}

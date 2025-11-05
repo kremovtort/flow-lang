@@ -8,8 +8,6 @@ module Flow.Parser.Common (
   type Lexer.TokenWithPos,
   Lexer.TokenStream (..),
   single,
-  foldPos,
-  dummySourceRegion,
   token,
   moduleIdentifier,
   simpleTypeIdentifier,
@@ -50,18 +48,8 @@ instance IsString (List.NonEmpty Char) where
 single :: Lexer.Token -> Parser (Lexer.WithPos Lexer.Token)
 single t = Megaparsec.satisfy ((== t) . (.value))
 
-foldPos :: (Foldable f) => f Lexer.SourceRegion -> Lexer.SourceRegion
-foldPos = foldr1 (\r acc -> Lexer.SourceRegion{start = r.start, end = acc.end})
-
-dummySourceRegion :: Lexer.SourceRegion
-dummySourceRegion =
-  Lexer.SourceRegion
-    { start = Megaparsec.initialPos "dummy"
-    , end = Megaparsec.initialPos "dummy"
-    }
-
 token ::
-  Set (Megaparsec.ErrorItem Lexer.Token) ->
+  Set (Megaparsec.ErrorItem (Lexer.WithPos Lexer.Token)) ->
   (Lexer.Token -> Maybe a) ->
   Parser (Lexer.WithPos a)
 token expected match =
@@ -70,10 +58,7 @@ token expected match =
         r <- match t
         pure $ tw{Lexer.value = r}
     )
-    ( Set.map
-        (fmap (\t -> Lexer.WithPos{value = t, region = dummySourceRegion}))
-        expected
-    )
+    expected
 
 moduleIdentifier :: Parser (ModuleIdentifier Lexer.SourceRegion)
 moduleIdentifier = do

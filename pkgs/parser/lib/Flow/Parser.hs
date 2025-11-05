@@ -54,7 +54,7 @@ pType = PType.pType
 
 pMod :: Parser (Mod SourceRegion)
 pMod = do
-  (mod', ann) <- PMod.pMod pMod pStatement pPatternSimple pPattern pType pExpression
+  (mod', ann) <- PMod.pMod pMod pStatement pPatternSimple pType pExpression
   pure $ Mod mod' ann
 
 pModDefinitionBody :: Parser (ModDefinitionBody SourceRegion)

@@ -146,7 +146,7 @@ pFnDeclaration =
     (void <$> single (Lexer.Keyword Lexer.Fn))
     (pure Surface.UnitF)
     simpleVarIdentifier
-    (pure (Surface.UnitF, Nothing))
+    pBodySemicolon
 
 pFnInfixDeclaration ::
   (HasAnn ty SourceRegion) =>
@@ -157,7 +157,7 @@ pFnInfixDeclaration pTy =
     (void <$> single (Lexer.Keyword Lexer.Fn))
     (pRecieverHeader pTy)
     simpleVarIdentifier
-    (pure (Surface.UnitF, Nothing))
+    pBodySemicolon
     pTy
 
 pFnDefinition ::
@@ -197,7 +197,7 @@ pOpDeclaration =
     (void <$> single (Lexer.Keyword Lexer.Op))
     (pure Surface.UnitF)
     simpleVarIdentifier
-    (pure (Surface.UnitF, Nothing))
+    pBodySemicolon
 
 pOpInfixDeclaration ::
   (HasAnn ty SourceRegion) =>
@@ -208,7 +208,7 @@ pOpInfixDeclaration pTy =
     (void <$> single (Lexer.Keyword Lexer.Op))
     (pRecieverHeader pTy)
     simpleVarIdentifier
-    (pure (Surface.UnitF, Nothing))
+    pBodySemicolon
     pTy
 
 pOpDefinition ::
@@ -238,3 +238,7 @@ pOpInfixDefinition pStmt pTy pExpr =
     (anyVarIdentifier pTy)
     (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
     pTy
+
+pBodySemicolon :: Parser (Surface.UnitF ann, Maybe SourceRegion)
+pBodySemicolon = single (Lexer.Punctuation Lexer.Semicolon) <&> \semicolon ->
+  (Surface.UnitF, Just semicolon.region)

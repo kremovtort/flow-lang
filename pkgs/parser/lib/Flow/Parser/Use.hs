@@ -12,7 +12,6 @@ import Flow.Parser.Common (
   Parser,
   methodIdentifier,
   moduleIdentifier,
-  pPub,
   simpleTypeIdentifier,
   simpleVarIdentifier,
   single,

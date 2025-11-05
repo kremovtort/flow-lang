@@ -314,6 +314,6 @@ spec = describe "Expression parser (minimal subset)" do
             .map(|y| y + 1)
             .filter(|y| y > 0)
             .sum()
-            .times(|| println(\"hi\")) with { let Printer = printer_handle }
+            .for_each(|y| println(y)) with { let Printer = printer_handle() }
           """
     testParser source pExpression $ shouldBeParsed (const $ pure ())

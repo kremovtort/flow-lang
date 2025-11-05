@@ -23,7 +23,7 @@ data StatementF stmt lhsExpr simPat pat ty expr ann
   | SIfF (IfExpressionF stmt pat expr ann)
   | SLoopF (LoopExpressionF stmt expr ann)
   | SWhileF (WhileStatementF stmt pat expr ann)
-  | SForF (ForStatementF simPat expr ann)
+  | SForF (ForStatementF stmt simPat expr ann)
   | SExpressionF (expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
@@ -123,35 +123,14 @@ data WhileStatementF stmt pat expr ann = WhileStatementF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ForStatementF simPat expr ann = ForStatementF
+data ForStatementF stmt simPat expr ann = ForStatementF
   { label :: Maybe (SimpleVarIdentifier ann, ann)
   , pattern :: simPat ann
   , iterable :: expr ann
-  , body :: expr ann
+  , body :: CodeBlockF stmt expr ann
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-{-
-- Fields syntax:
-  struct X { a: i32, b?: string }
-  let x = X { a = 1, b ?= "hello" }; // direct construction, b wrapped in Some
-  { let b = "hello"; let x = X { a = 1, b? }; } // optional field punning
-  let x = X { a = 1, b = Some("hello") };
-  { let b = Some("hello"); let x = X { a = 1, b }; } // field punning
-
-- Fields syntax in function arguments:
-    fn f(a: i32, b?: string)
-  - For unnamed arguments call:
-      f(1, "hello"?);
-      f(1, Some("hello"));
-  - For named arguments call:
-      f { a = 1, b ?= "hello" };
-      f { a = 1, b = Some("hello") };
-      { let b = "hello"; f { a = 1, b? }; }
-      { let b = Some("hello"); f { a = 1, b }; }
--}
-
 
 data WithF stmt ty expr ann = WithF
   { statements :: NonEmptyVector (WithStatementF ty expr ann)
