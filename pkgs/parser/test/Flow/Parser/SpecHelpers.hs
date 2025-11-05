@@ -16,6 +16,7 @@ import "tree-diff" Data.TreeDiff.Pretty (ansiWlBgEditExprCompact, ansiWlExpr)
 
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser)
+import qualified GHC.Stack as Megaparsec
 
 pShow :: (ToExpr a) => a -> Text
 pShow = renderStrict . layoutSmart defaultLayoutOptions . ansiWlExpr . toExpr
@@ -28,7 +29,7 @@ pShowDiff a b =
         ediff a b
 
 shouldBeParsed ::
-  (Eq (f ()), ToExpr (f ()), HasCallStack) =>
+  (HasCallStack) =>
   ((HasCallStack) => f () -> Expectation) ->
   Either
     (Megaparsec.ParseErrorBundle Lexer.TokenStream Void)
@@ -38,6 +39,20 @@ shouldBeParsed expectation parseResult = do
   case parseResult of
     Left e ->
       expectationFailure $ "Parser failed to parse:\n" <> Megaparsec.errorBundlePretty e
+    Right v ->
+      expectation v
+
+shouldBeParsedDebug ::
+  (HasCallStack) =>
+  ((HasCallStack) => f () -> Expectation) ->
+  Either
+    (Megaparsec.ParseErrorBundle Lexer.TokenStream Void)
+    (f ()) ->
+  IO ()
+shouldBeParsedDebug expectation parseResult = do
+  case parseResult of
+    Left e ->
+      expectationFailure $ "Parser failed to parse:\n" <> show e
     Right v ->
       expectation v
 

@@ -177,6 +177,14 @@ spec = describe "Pattern parser (minimal subset)" do
   it "parses tuple (x, y)" do
     testParser "(x, y)" pPattern $ shouldBeParsed (`shouldBe` tuplePattern [varPattern "x", varPattern "y"])
 
+  it "parses constructor without arguments None" do
+    let expected =
+          constructorPattern
+            "None"
+            Nothing
+            Nothing
+    testParser "None" pPattern $ shouldBeParsed (`shouldBe` expected)
+
   it "parses constructor Some(1)" do
     let expected =
           constructorPattern

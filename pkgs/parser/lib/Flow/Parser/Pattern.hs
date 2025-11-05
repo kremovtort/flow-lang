@@ -20,7 +20,7 @@ pPattern ::
   Parser (pat SourceRegion) ->
   Parser (ty SourceRegion) ->
   Parser (Surface.PatternF pat ty SourceRegion, SourceRegion)
-pPattern pPat pTy = do
+pPattern pPat pTy = Megaparsec.label "pattern" do
   Megaparsec.choice
     [ Bifunctor.first Surface.PatSimpleF <$> pPatternSimple pPat pTy
     , pLiteral
@@ -38,7 +38,8 @@ pPatternSimple pPat pTy =
     [ pWildcard
     , pVar <&> \var -> (Surface.PatSimVarF var, var.ann)
     , pTuple pPat
-    , pCons pPat pTy <&> \cons -> (Surface.PatSimConstructorAppF cons, cons.ann)
+    , pCons pPat pTy <&> \cons ->
+        (Surface.PatSimConstructorAppF cons, cons.ann)
     ]
 
 pWildcard :: Parser (Surface.PatternSimpleF pat ty SourceRegion, SourceRegion)
@@ -52,7 +53,7 @@ pLiteral = do
   pure (Surface.PatLiteralF lit, ann)
 
 pVar :: Parser (Surface.PatternVariableF pat ty SourceRegion)
-pVar = do
+pVar = Megaparsec.label "pattern variable" do
   ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
   mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
   name <- simpleVarIdentifier
@@ -98,13 +99,12 @@ pCons pPat pTy = do
           Just params -> params.ann.end
           Nothing -> consName.ann.end
   pure
-    ( Surface.PatternConsturctorAppF
-        { name = consName
-        , typeParams = typeParams
-        , fields = fields
-        , ann = Lexer.SourceRegion{start = consName.ann.start, end}
-        }
-    )
+    Surface.PatternConsturctorAppF
+      { name = consName
+      , typeParams = typeParams
+      , fields = fields
+      , ann = Lexer.SourceRegion{start = consName.ann.start, end}
+      }
  where
   pFields = do
     Megaparsec.choice

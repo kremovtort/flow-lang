@@ -42,7 +42,6 @@ import Flow.AST.Surface.Expr (
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF (..),
-  InRhsF (..),
   InStatementF (..),
   WithF (..),
   WithLhsF (..),
@@ -213,7 +212,7 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
     effects <-
       Megaparsec.sepEndBy1
         (pWithStatement pTy pExpr)
-        (single (Lexer.Punctuation Lexer.Comma))
+        (single (Lexer.Punctuation Lexer.Semicolon))
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure (fromJust $ NonEmptyVector.fromList effects, tokE.region.end)
 
@@ -340,25 +339,13 @@ pWithStatement pTy pExpr = do
     pWithRhsInStatement = do
       lhs <- pTy
       _ <- single (Lexer.Punctuation Lexer.Assign)
-      (rhs, ann) <-
-        Megaparsec.choice
-          [ pWithRhsInLabel
-          , pWithRhsInType
-          ]
+      rhs <- simpleVarIdentifier
       pure $
         InStatementF
           { lhs
           , rhs
-          , ann = SourceRegion{start = lhs.ann.start, end = ann.end}
+          , ann = SourceRegion{start = lhs.ann.start, end = rhs.ann.end}
           }
-
-    pWithRhsInLabel = do
-      name <- simpleVarIdentifier
-      pure (IRhsLabelF name, name.ann)
-
-    pWithRhsInType = do
-      ty <- pTy
-      pure (IRhsTyF ty, ty.ann)
 
 pLambdaShort ::
   (HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
@@ -578,7 +565,7 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
         [ pOfTypeSuffix' expr
         , pIndexSuffix' expr
         , pDotAccessSuffix' expr
-        , pAppSuffix' expr
+        , Megaparsec.try $ pAppSuffix' expr
         ]
 
   pNotSuffixable =

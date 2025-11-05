@@ -242,20 +242,13 @@ pMatchExpression pPat pExpr = do
   matchTok <- single (Lexer.Keyword Lexer.Match)
   value <- pExpr
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-  arms <- Megaparsec.many do
-    arm <- matchArm
-    _ <- single (Lexer.Punctuation Lexer.Comma)
-    pure arm
-  lastArm <- do
-    arm <- matchArm
-    _ <- Megaparsec.optional (single (Lexer.Punctuation Lexer.Comma))
-    pure arm
+  arms <- Megaparsec.sepEndBy1 matchArm (single (Lexer.Punctuation Lexer.Comma))
   rightBraceTok <- single (Lexer.Punctuation Lexer.RightBrace)
   let ann = SourceRegion{start = matchTok.region.start, end = rightBraceTok.region.end}
   pure $
     MatchExpressionF
       { value = value
-      , arms = NonEmptyVector.snocV (Vector.fromList arms) lastArm
+      , arms = fromJust $ NonEmptyVector.fromList arms
       , ann = ann
       }
  where

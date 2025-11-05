@@ -187,12 +187,7 @@ data WithRhsExprF ty expr ann = WithRhsExprF
 
 data InStatementF ty expr ann = InStatementF
   { lhs :: ty ann
-  , rhs :: InRhsF ty expr ann
+  , rhs :: SimpleVarIdentifier ann
   , ann :: ann
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
-data InRhsF ty expr ann
-  = IRhsLabelF (SimpleVarIdentifier ann)
-  | IRhsTyF (ty ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

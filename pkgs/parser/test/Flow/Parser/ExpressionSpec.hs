@@ -15,7 +15,7 @@ import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface.Type
 import Flow.Parser (pExpression)
-import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
+import Flow.Parser.SpecHelpers (shouldBe, shouldBeParsed, testParser)
 
 wildcard :: Surface.Expression ()
 wildcard = Surface.Expression{expr = Surface.EWildcard, ann = ()}
@@ -247,6 +247,40 @@ spec = describe "Expression parser (minimal subset)" do
     testParser "f(a, b)" pExpression $ shouldBeParsed (`shouldBe` callUnnamed "f" [var "a", var "b"])
     testParser "f { x = 1, y = 2 }" pExpression $ shouldBeParsed (`shouldBe` callNamed "f" [("x", literalInt 1), ("y", literalInt 2)])
 
+  it "parses calls with \"with\" clauses" do
+    let source =
+          """
+          f(a, b) with {
+            let Reader<R> = reader_handle(env);
+            let state = state_handle(initial);
+            writer = w;
+          }
+          """
+    testParser source pExpression $ shouldBeParsed $ const $ pure ()
+
+  it "parses calls with \"with\" clauses and in blocks" do
+    let source =
+          """
+          my_func(a, b) with {
+            let writer = writer_handle() in {
+              State<W> = s,
+              Reader<R> = r
+            };
+          }
+          """
+    testParser source pExpression $ shouldBeParsed $ const $ pure ()
+
+  it "parses match expression" do
+    let source =
+          """
+          match x {
+            (v, a) => v,
+            Some(v) => v,
+            None => 0,
+          }
+          """
+    testParser source pExpression $ shouldBeParsed $ const $ pure ()
+
   it "parses call with type/scope params f<'s, T>(a)" do
     let expected = callWithParams "f" [scopeIdent "s"] [typeVar "T"] [var "a"]
     testParser "f<'s, T>(a)" pExpression $ shouldBeParsed (`shouldBe` expected)
@@ -258,17 +292,28 @@ spec = describe "Expression parser (minimal subset)" do
   it "parses tuple (a, b)" do
     testParser "(a, b)" pExpression $ shouldBeParsed (`shouldBe` tupleExpr [var "a", var "b"])
 
+  it "parses full lambda" do
+    let source =
+          """
+          <T>|a: T, b: T| -> @['r, Reader<T>, ..R] T where Monoid<T> {
+            let r = Reader::ask();
+            a ++ b ++ r
+          }
+          """
+    testParser source pExpression $ shouldBeParsed $ const $ pure ()
+
   it "parses simple block { let x = 1; x }" do
     let stmt = letStatement "x" (literalInt 1)
         expected = blockExpr [stmt] (Just (var "x"))
     testParser "{ let x = 1; x }" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses sequence of dot accesses with function calls with lambdas" do
-    let source = """
+    let source =
+          """
           x
             .map(|y| y + 1)
             .filter(|y| y > 0)
             .sum()
             .times(|| println(\"hi\")) with { let Printer = printer_handle }
-        """
+          """
     testParser source pExpression $ shouldBeParsed (const $ pure ())
