@@ -11,58 +11,58 @@ import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface.Common qualified as Surface
-import Flow.AST.Surface.Constraint (ScopeBinderWoConstraintsF (..))
+import Flow.AST.Surface.Constraint (RegionBinderWoConstraintsF (..))
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (
   HasAnn,
   Parser,
   moduleIdentifier,
-  scopeIdentifier,
+  regionIdentifier,
   simpleTypeIdentifier,
   simpleVarIdentifier,
   single,
  )
 
 pBindersApp ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.BindersAppF ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.BindersAppF ty Lexer.SourceSpan)
 pBindersApp pTy = Megaparsec.label "binders app" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
   elems <- Megaparsec.sepEndBy1 binderElem (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
-  (scopeElems, typeElems) <- collect elems [] []
-  let scopesVector = Vector.fromList (ScopeBinderWoConstraintsF <$> scopeElems)
+  (regionElems, typeElems) <- collect elems [] []
+  let regionsVector = Vector.fromList (RegionBinderWoConstraintsF <$> regionElems)
       typesVector = Vector.fromList (Surface.BinderAppF <$> typeElems)
   pure
     Surface.BindersF
-      { scopes = scopesVector
+      { regions = regionsVector
       , types = typesVector
-      , ann = Lexer.SourceRegion tokS.region.start tokE.region.end
+      , ann = Lexer.SourceSpan tokS.span.start tokE.span.end
       }
  where
   binderElem =
     Megaparsec.choice
-      [ Left <$> Megaparsec.try scopeIdentifier
+      [ Left <$> Megaparsec.try regionIdentifier
       , Right <$> pTy
       ]
 
-  collect [] scopesAcc typesAcc =
-    pure (reverse scopesAcc, reverse typesAcc)
-  collect (Left scope : rest) scopesAcc typesAcc
+  collect [] regionsAcc typesAcc =
+    pure (reverse regionsAcc, reverse typesAcc)
+  collect (Left region : rest) regionsAcc typesAcc
     | not (null typesAcc) =
-        fail "scope argument cannot follow type argument in application binders"
+        fail "region argument cannot follow type argument in application binders"
     | otherwise =
-        collect rest (scope : scopesAcc) typesAcc
-  collect (Right ty : rest) scopesAcc typesAcc =
-    collect rest scopesAcc (ty : typesAcc)
+        collect rest (region : regionsAcc) typesAcc
+  collect (Right ty : rest) regionsAcc typesAcc =
+    collect rest regionsAcc (ty : typesAcc)
 
 anyTypeIdentifier ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.AnyTypeIdentifier ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.AnyTypeIdentifier ty Lexer.SourceSpan)
 anyTypeIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional $ Megaparsec.try do
@@ -81,7 +81,7 @@ anyTypeIdentifier pTy = do
       , typeQualifier
       , identifier
       , ann =
-          Lexer.SourceRegion
+          Lexer.SourceSpan
             { start = case qualifier of
                 [] -> identifier.ann.start
                 q : _ -> q.ann.start
@@ -92,9 +92,9 @@ anyTypeIdentifier pTy = do
   moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
 
 anyVarIdentifier ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.AnyVarIdentifier ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.AnyVarIdentifier ty Lexer.SourceSpan)
 anyVarIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional do
@@ -112,7 +112,7 @@ anyVarIdentifier pTy = do
       , typeQualifier = typeQualifier
       , identifier = identifier
       , ann =
-          Lexer.SourceRegion
+          Lexer.SourceSpan
             { start = case qualifier of
                 [] -> identifier.ann.start
                 q : _ -> q.ann.start
@@ -123,18 +123,18 @@ anyVarIdentifier pTy = do
   moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
 
 pKindTreeRoot ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.KindTreeRootF ty Lexer.SourceRegion, Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.KindTreeRootF ty Lexer.SourceSpan, Lexer.SourceSpan)
 pKindTreeRoot pTy = do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
   trees <- Megaparsec.sepEndBy1 pKindTree (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
   pure
     ( fromJust $ NonEmptyVector.fromList trees
-    , Lexer.SourceRegion
-        { start = tokS.region.start
-        , end = tokE.region.end
+    , Lexer.SourceSpan
+        { start = tokS.span.start
+        , end = tokE.span.end
         }
     )
  where
@@ -152,14 +152,14 @@ pKindTreeRoot pTy = do
     pure $
       Surface.KTHoleF
         Surface.KindHoleF
-          { holeAnn = tokS.region
+          { holeAnn = tokS.span
           , typeType = typeType
           , ann =
-              Lexer.SourceRegion
-                { start = tokS.region.start
+              Lexer.SourceSpan
+                { start = tokS.span.start
                 , end = case typeType of
                     Just ty -> ty.ann.end
-                    Nothing -> tokS.region.end
+                    Nothing -> tokS.span.end
                 }
           }
   pKindParams = do
@@ -173,38 +173,38 @@ pKindTreeRoot pTy = do
     pure $
       Surface.KTParamsF
         Surface.KindParamsF
-          { holeAnn = tokS.region
+          { holeAnn = tokS.span
           , params = fromJust $ NonEmptyVector.fromList params
           , typeType
           , ann =
-              Lexer.SourceRegion
-                { start = tokS.region.start
+              Lexer.SourceSpan
+                { start = tokS.span.start
                 , end = case typeType of
                     Just ty -> ty.ann.end
-                    Nothing -> tokE.region.end
+                    Nothing -> tokE.span.end
                 }
           }
 
 pBindersWoConstraints ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.BindersWoConstraintsF ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.BindersWoConstraintsF ty Lexer.SourceSpan)
 pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
-  scopeBinders <- Megaparsec.sepBy scopeIdentifier (single (Lexer.Punctuation Lexer.Comma))
-  unless (null scopeBinders) do
+  regionBinders <- Megaparsec.sepBy regionIdentifier (single (Lexer.Punctuation Lexer.Comma))
+  unless (null regionBinders) do
     void $ single (Lexer.Punctuation Lexer.Comma)
   typeBinders <- Megaparsec.sepBy pBinderWoConstraints (single (Lexer.Punctuation Lexer.Comma))
-  when (null scopeBinders && null typeBinders) do
-    fail "Expected at least one scope or type binder"
+  when (null regionBinders && null typeBinders) do
+    fail "Expected at least one region or type binder"
   _ <- Megaparsec.optional $ single (Lexer.Punctuation Lexer.Comma)
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
   pure
     Surface.BindersF
-      { scopes = Vector.fromList (fmap Surface.ScopeBinderWoConstraintsF scopeBinders)
+      { regions = Vector.fromList (fmap Surface.RegionBinderWoConstraintsF regionBinders)
       , types = Vector.fromList typeBinders
-      , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
  where
   pBinderWoConstraints = do
@@ -219,7 +219,7 @@ pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do
         , kindShort = fst <$> kindShort
         , typeType = typeType
         , ann =
-            Lexer.SourceRegion
+            Lexer.SourceSpan
               { start = name.ann.start
               , end = case typeType of
                   Just ty -> ty.ann.end
@@ -231,35 +231,35 @@ pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do
 
 pBindersWConstraints ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.BindersWConstraintsF ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.BindersWConstraintsF ty Lexer.SourceSpan)
 pBindersWConstraints pTy = Megaparsec.label "binders with constraints" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
-  scopeBinders <- Megaparsec.sepBy pScopeBinderWConstraints (single (Lexer.Punctuation Lexer.Comma))
-  unless (null scopeBinders) do
+  regionBinders <- Megaparsec.sepBy pRegionBinderWConstraints (single (Lexer.Punctuation Lexer.Comma))
+  unless (null regionBinders) do
     void $ single (Lexer.Punctuation Lexer.Comma)
   typeBinders <- Megaparsec.sepBy pBinderWConstraints (single (Lexer.Punctuation Lexer.Comma))
-  when (null scopeBinders && null typeBinders) do
-    fail "Expected at least one scope or type binder"
+  when (null regionBinders && null typeBinders) do
+    fail "Expected at least one region or type binder"
   _ <- Megaparsec.optional $ single (Lexer.Punctuation Lexer.Comma)
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
   pure $
     Surface.BindersF
-      { scopes = Vector.fromList scopeBinders
+      { regions = Vector.fromList regionBinders
       , types = Vector.fromList typeBinders
-      , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
  where
-  pScopeBinderWConstraints = do
-    name <- scopeIdentifier
+  pRegionBinderWConstraints = do
+    name <- regionIdentifier
     constraint <- Megaparsec.optional pBinderConstraints
     pure $
-      Surface.ScopeBinderWConstraintsF
+      Surface.RegionBinderWConstraintsF
         { name
         , constraint
         , ann =
-            Lexer.SourceRegion
+            Lexer.SourceSpan
               { start = name.ann.start
               , end = case constraint of
                   Just cnst -> cnst.ann.end
@@ -281,7 +281,7 @@ pBindersWConstraints pTy = Megaparsec.label "binders with constraints" do
         , typeType = typeType
         , constraint = constraint
         , ann =
-            Lexer.SourceRegion
+            Lexer.SourceSpan
               { start = name.ann.start
               , end = case constraint of
                   Just cnst -> cnst.ann.end
@@ -300,17 +300,17 @@ pBindersWConstraints pTy = Megaparsec.label "binders with constraints" do
       Surface.BinderConstraintsF
         { constraints = fromJust $ NonEmptyVector.fromList constraints
         , ann =
-            Lexer.SourceRegion
-              { start = tokS.region.start
+            Lexer.SourceSpan
+              { start = tokS.span.start
               , end = (last constraints).ann.end
               }
         }
 
 pWhereBlockHead ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.WhereBlockF ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.WhereBlockF ty Lexer.SourceSpan)
 pWhereBlockHead pTy = do
   tokS <- single (Lexer.Keyword Lexer.Where)
   clauses <- fromJust . NonEmptyVector.fromList <$> Megaparsec.sepEndBy1 (pWhereClause pTy) (single (Lexer.Punctuation Lexer.Comma))
@@ -318,17 +318,17 @@ pWhereBlockHead pTy = do
     Surface.WhereBlockF
       { clauses = fmap fst clauses
       , ann =
-          Lexer.SourceRegion
-            { start = tokS.region.start
+          Lexer.SourceSpan
+            { start = tokS.span.start
             , end = (snd $ NonEmptyVector.last clauses).end
             }
       }
 
 pWhereBlockNested ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.WhereBlockF ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.WhereBlockF ty Lexer.SourceSpan)
 pWhereBlockNested pTy = do
   tokS <- single (Lexer.Keyword Lexer.Where)
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
@@ -337,14 +337,14 @@ pWhereBlockNested pTy = do
   pure $
     Surface.WhereBlockF
       { clauses = fmap fst clauses
-      , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
 
 pWhereClause ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.WhereClauseF ty Lexer.SourceRegion, Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.WhereClauseF ty Lexer.SourceSpan, Lexer.SourceSpan)
 pWhereClause pTy =
   Megaparsec.choice
     [ pWhereConstraint
@@ -360,9 +360,9 @@ pWhereClause pTy =
 
 pTypeDefinition ::
   forall ty.
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (Surface.TypeDefinitionF ty Lexer.SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.TypeDefinitionF ty Lexer.SourceSpan)
 pTypeDefinition pTy = do
   tokS <- single (Lexer.Keyword Lexer.Type)
   name <- simpleTypeIdentifier
@@ -375,8 +375,8 @@ pTypeDefinition pTy = do
       , typeParams
       , type_
       , ann =
-          Lexer.SourceRegion
-            { start = tokS.region.start
+          Lexer.SourceSpan
+            { start = tokS.span.start
             , end = type_.ann.end
             }
       }

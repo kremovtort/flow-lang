@@ -32,13 +32,13 @@ simpleType name =
 builtin :: Surface.Builtin -> Surface.Type ()
 builtin b = Surface.Type{ty = Surface.TyBuiltinF b, ann = ()}
 
-ref :: Maybe (Surface.ScopeIdentifier ()) -> Bool -> Surface.Type () -> Surface.Type ()
-ref mscope mut inner =
+ref :: Maybe (Surface.RegionIdentifier ()) -> Bool -> Surface.Type () -> Surface.Type ()
+ref mregion mut inner =
   Surface.Type
     { ty =
         Surface.TyRefAppF
           ( Surface.RefF
-              { scope = mscope
+              { region = mregion
               , mutability = if mut then Just () else Nothing
               , ann = ()
               }
@@ -114,7 +114,7 @@ spec = describe "Type parser (minimal subset)" do
                     { head = headT
                     , args =
                         Surface.BindersF
-                          { scopes = Vector.empty
+                          { regions = Vector.empty
                           , types = Vector.singleton $ Surface.BinderAppF i32T
                           , ann = ()
                           }
@@ -138,7 +138,7 @@ spec = describe "Type parser (minimal subset)" do
 
   describe "parses applied refs" do
     let tT = simpleType "T"
-        s = Surface.ScopeIdentifier{name = "s", ann = ()}
+        s = Surface.RegionIdentifier{name = "s", ann = ()}
 
     it "&T" do
       testParser "&T" PType.pType $ shouldBeParsed (`shouldBe` ref Nothing False tT)

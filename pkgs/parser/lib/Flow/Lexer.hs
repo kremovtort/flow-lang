@@ -4,7 +4,7 @@ module Flow.Lexer (
   Token (..),
   Keyword (..),
   Punctuation (..),
-  SourceRegion (..),
+  SourceSpan (..),
   WithPos (..),
   TokenStream (..),
   TokenWithPos,
@@ -52,13 +52,13 @@ data TokenStream = TokenStream
 
 data WithPos a = WithPos
   { value :: a
-  , region :: SourceRegion
+  , span :: SourceSpan
   }
   deriving (Eq, Ord, Show, Functor)
 
 type TokenWithPos = WithPos Token
 
-data SourceRegion = SourceRegion
+data SourceSpan = SourceSpan
   { start :: Megaparsec.SourcePos
   , end :: Megaparsec.SourcePos
   }
@@ -69,7 +69,7 @@ data Token
   | Punctuation Punctuation
   | Identifier Text
   | Optic Text
-  | RefScope Text
+  | Region Text
   | BoolLiteral Bool
   | IntegerLiteral Integer
   | FloatLiteral Scientific
@@ -193,7 +193,7 @@ token =
     , byteStringLiteral
     , Megaparsec.try charLiteral
     , stringLiteral
-    , Megaparsec.try refScope
+    , Megaparsec.try region
     , Megaparsec.try optic
     , punctuation
     , identifier
@@ -207,7 +207,7 @@ tokenWithPos = do
   pure $
     WithPos
       { value = token'
-      , region = SourceRegion{start = startPos, end = endPos}
+      , span = SourceSpan{start = startPos, end = endPos}
       }
 
 keyword :: Lexer Token
@@ -227,9 +227,9 @@ identifier =
     restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
     pure $ Text.cons fstChar restChars
 
-refScope :: Lexer Token
-refScope =
-  RefScope <$> lexeme do
+region :: Lexer Token
+region =
+  Region <$> lexeme do
     _ <- Megaparsec.Char.char '\''
     fstChar <- Megaparsec.Char.letterChar <|> Megaparsec.Char.char '_'
     restChars <- Megaparsec.takeWhileP Nothing (\c -> isAlphaNum c || c == '_')
@@ -540,7 +540,7 @@ instance Megaparsec.Stream TokenStream where
         ( t
         , stream
             { tokens = ts
-            , inputPos = t.region.end
+            , inputPos = t.span.end
             }
         )
 
@@ -550,13 +550,13 @@ instance Megaparsec.Stream TokenStream where
     | otherwise = case List.splitAt n stream.tokens of
         ([], _) -> Nothing
         (t, ts) ->
-          Just (t, stream{tokens = ts, inputPos = (List.last t).region.end})
+          Just (t, stream{tokens = ts, inputPos = (List.last t).span.end})
 
   takeWhile_ p stream =
     let (x, s') = List.span p stream.tokens
      in case NonEmpty.nonEmpty x of
           Nothing -> (x, stream{tokens = s'})
-          Just nex -> (x, stream{tokens = s', inputPos = (NonEmpty.last nex).region.end})
+          Just nex -> (x, stream{tokens = s', inputPos = (NonEmpty.last nex).span.end})
 
 dropLines :: Int -> Text -> Text
 dropLines 0 text = text
@@ -574,7 +574,7 @@ instance Megaparsec.VisualStream TokenStream where
           Punctuation p -> Text.unpack $ punctuationText p
           Identifier i -> Text.unpack i
           Optic i -> "#" <> Text.unpack i
-          RefScope i -> "'" <> Text.unpack i
+          Region i -> "'" <> Text.unpack i
           BoolLiteral b -> if b then "true" else "false"
           IntegerLiteral i -> show i
           FloatLiteral f -> show f
@@ -587,8 +587,8 @@ instance Megaparsec.VisualStream TokenStream where
     tokens'
       & NonEmpty.map
         ( \tokWithRegion ->
-            Megaparsec.unPos tokWithRegion.region.end.sourceColumn
-              - Megaparsec.unPos tokWithRegion.region.start.sourceColumn
+            Megaparsec.unPos tokWithRegion.span.end.sourceColumn
+              - Megaparsec.unPos tokWithRegion.span.start.sourceColumn
         )
       & sum
 
@@ -611,8 +611,8 @@ instance Megaparsec.TraversableStream TokenStream where
     newSourcePos = case post of
       [] -> case currentState.pstateInput.tokens of
         [] -> currentState.pstateSourcePos
-        ts -> (List.last ts).region.end
-      t : _ -> t.region.start
+        ts -> (List.last ts).span.end
+      t : _ -> t.span.start
     (_, post) =
       List.splitAt
         (offsetToReach - currentState.pstateOffset)

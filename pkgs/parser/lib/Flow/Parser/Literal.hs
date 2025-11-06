@@ -5,17 +5,17 @@ import "containers" Data.Set qualified as Set
 
 import Flow.AST.Surface.Literal qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, SourceRegion (..), token, single)
+import Flow.Parser.Common (Parser, SourceSpan (..), token, single)
 
-literal :: Parser (Surface.Literal, SourceRegion)
+literal :: Parser (Surface.Literal, SourceSpan)
 literal = Megaparsec.choice [unit, bool, integer, float, byte, byteString, char, string]
 
-unit :: Parser (Surface.Literal, SourceRegion)
+unit :: Parser (Surface.Literal, SourceSpan)
 unit = do
   tok <- single (Lexer.Punctuation Lexer.LeftRightParen)
-  pure (Surface.LitUnit, tok.region)
+  pure (Surface.LitUnit, tok.span)
 
-bool :: Parser (Surface.Literal, SourceRegion)
+bool :: Parser (Surface.Literal, SourceSpan)
 bool = do
   tok <-
     token
@@ -23,9 +23,9 @@ bool = do
       \case
           Lexer.BoolLiteral b -> Just b
           _ -> Nothing
-  pure (Surface.LitBool tok.value, tok.region)
+  pure (Surface.LitBool tok.value, tok.span)
 
-integer :: Parser (Surface.Literal, Lexer.SourceRegion)
+integer :: Parser (Surface.Literal, Lexer.SourceSpan)
 integer = do
   tok <-
     token
@@ -33,9 +33,9 @@ integer = do
       \case
           Lexer.IntegerLiteral i -> Just i
           _ -> Nothing
-  pure (Surface.LitInteger tok.value, tok.region)
+  pure (Surface.LitInteger tok.value, tok.span)
 
-float :: Parser (Surface.Literal, Lexer.SourceRegion)
+float :: Parser (Surface.Literal, Lexer.SourceSpan)
 float = do
   tok <-
     token
@@ -43,9 +43,9 @@ float = do
       \case
           Lexer.FloatLiteral f -> Just f
           _ -> Nothing
-  pure (Surface.LitFloat tok.value, tok.region)
+  pure (Surface.LitFloat tok.value, tok.span)
 
-byte :: Parser (Surface.Literal, Lexer.SourceRegion)
+byte :: Parser (Surface.Literal, Lexer.SourceSpan)
 byte = do
   tok <-
     token
@@ -53,9 +53,9 @@ byte = do
       \case
           Lexer.ByteLiteral b -> Just b
           _ -> Nothing
-  pure (Surface.LitByte tok.value, tok.region)
+  pure (Surface.LitByte tok.value, tok.span)
 
-byteString :: Parser (Surface.Literal, Lexer.SourceRegion)
+byteString :: Parser (Surface.Literal, Lexer.SourceSpan)
 byteString = do
   tok <-
     token
@@ -63,9 +63,9 @@ byteString = do
       \case
           Lexer.ByteStringLiteral b -> Just b
           _ -> Nothing
-  pure (Surface.LitByteString tok.value, tok.region)
+  pure (Surface.LitByteString tok.value, tok.span)
 
-char :: Parser (Surface.Literal, Lexer.SourceRegion)
+char :: Parser (Surface.Literal, Lexer.SourceSpan)
 char = do
   tok <-
     token
@@ -73,9 +73,9 @@ char = do
       \case
           Lexer.CharLiteral c -> Just c
           _ -> Nothing
-  pure (Surface.LitChar tok.value, tok.region)
+  pure (Surface.LitChar tok.value, tok.span)
 
-string :: Parser (Surface.Literal, Lexer.SourceRegion)
+string :: Parser (Surface.Literal, Lexer.SourceSpan)
 string = do
   tok <-
     token
@@ -83,4 +83,4 @@ string = do
       \case
           Lexer.StringLiteral s -> Just s
           _ -> Nothing
-  pure (Surface.LitString tok.value, tok.region)
+  pure (Surface.LitString tok.value, tok.span)

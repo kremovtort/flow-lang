@@ -23,18 +23,18 @@ import Flow.Parser.Syntax (pLetDefinition)
 import Flow.Parser.Use (pUseClause)
 
 pModDefinitionBody ::
-  ( HasAnn mod Lexer.SourceRegion
-  , HasAnn stmt Lexer.SourceRegion
-  , HasAnn simPat Lexer.SourceRegion
-  , HasAnn ty Lexer.SourceRegion
-  , HasAnn expr Lexer.SourceRegion
+  ( HasAnn mod Lexer.SourceSpan
+  , HasAnn stmt Lexer.SourceSpan
+  , HasAnn simPat Lexer.SourceSpan
+  , HasAnn ty Lexer.SourceSpan
+  , HasAnn expr Lexer.SourceSpan
   ) =>
-  Parser (mod Lexer.SourceRegion) ->
-  Parser (stmt Lexer.SourceRegion) ->
-  Parser (simPat Lexer.SourceRegion) ->
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (expr Lexer.SourceRegion) ->
-  Parser (Surface.ModDefinitionBodyF mod stmt simPat ty expr Lexer.SourceRegion)
+  Parser (mod Lexer.SourceSpan) ->
+  Parser (stmt Lexer.SourceSpan) ->
+  Parser (simPat Lexer.SourceSpan) ->
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (expr Lexer.SourceSpan) ->
+  Parser (Surface.ModDefinitionBodyF mod stmt simPat ty expr Lexer.SourceSpan)
 pModDefinitionBody pMod' pStmt pSimPat pTy pExpr = do
   uses <- Megaparsec.many pUseClause
   items <- Megaparsec.many (pModuleItem pMod' pStmt pSimPat pTy pExpr)
@@ -45,23 +45,23 @@ pModDefinitionBody pMod' pStmt pSimPat pTy pExpr = do
       }
 
 pModuleItem ::
-  ( HasAnn mod Lexer.SourceRegion
-  , HasAnn stmt Lexer.SourceRegion
-  , HasAnn simPat Lexer.SourceRegion
-  , HasAnn ty Lexer.SourceRegion
-  , HasAnn expr Lexer.SourceRegion
+  ( HasAnn mod Lexer.SourceSpan
+  , HasAnn stmt Lexer.SourceSpan
+  , HasAnn simPat Lexer.SourceSpan
+  , HasAnn ty Lexer.SourceSpan
+  , HasAnn expr Lexer.SourceSpan
   ) =>
-  Parser (mod Lexer.SourceRegion) ->
-  Parser (stmt Lexer.SourceRegion) ->
-  Parser (simPat Lexer.SourceRegion) ->
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (expr Lexer.SourceRegion) ->
-  Parser (Surface.ModuleItemF mod stmt simPat ty expr Lexer.SourceRegion)
+  Parser (mod Lexer.SourceSpan) ->
+  Parser (stmt Lexer.SourceSpan) ->
+  Parser (simPat Lexer.SourceSpan) ->
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (expr Lexer.SourceSpan) ->
+  Parser (Surface.ModuleItemF mod stmt simPat ty expr Lexer.SourceSpan)
 pModuleItem pMod' pStmt pSimPat pTy pExpr = do
   pub <- Megaparsec.optional pPub
   item <- pModuleItemVariant
   let ann =
-        Lexer.SourceRegion
+        Lexer.SourceSpan
           { start = case pub of
               Just (_, region) -> region.start
               Nothing -> (snd item).start
@@ -93,18 +93,18 @@ pModuleItem pMod' pStmt pSimPat pTy pExpr = do
   withRegion f item = (f item, item.ann)
 
 pMod ::
-  ( HasAnn mod Lexer.SourceRegion
-  , HasAnn stmt Lexer.SourceRegion
-  , HasAnn simPat Lexer.SourceRegion
-  , HasAnn ty Lexer.SourceRegion
-  , HasAnn expr Lexer.SourceRegion
+  ( HasAnn mod Lexer.SourceSpan
+  , HasAnn stmt Lexer.SourceSpan
+  , HasAnn simPat Lexer.SourceSpan
+  , HasAnn ty Lexer.SourceSpan
+  , HasAnn expr Lexer.SourceSpan
   ) =>
-  Parser (mod Lexer.SourceRegion) ->
-  Parser (stmt Lexer.SourceRegion) ->
-  Parser (simPat Lexer.SourceRegion) ->
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (expr Lexer.SourceRegion) ->
-  Parser (Surface.ModF mod stmt simPat ty expr Lexer.SourceRegion, Lexer.SourceRegion)
+  Parser (mod Lexer.SourceSpan) ->
+  Parser (stmt Lexer.SourceSpan) ->
+  Parser (simPat Lexer.SourceSpan) ->
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (expr Lexer.SourceSpan) ->
+  Parser (Surface.ModF mod stmt simPat ty expr Lexer.SourceSpan, Lexer.SourceSpan)
 pMod pMod' pStmt pSimPat pTy pExpr =
   Megaparsec.choice
     [ Megaparsec.try pModDeclaration
@@ -112,42 +112,42 @@ pMod pMod' pStmt pSimPat pTy pExpr =
     ]
 
 pModDeclaration ::
-  Parser (Surface.ModF mod lhsExpr simPat ty expr Lexer.SourceRegion, Lexer.SourceRegion)
+  Parser (Surface.ModF mod lhsExpr simPat ty expr Lexer.SourceSpan, Lexer.SourceSpan)
 pModDeclaration = do
   modTok <- single (Lexer.Keyword Lexer.Mod)
   ident <- moduleIdentifier
   tokE <- single (Lexer.Punctuation Lexer.Semicolon)
-  pure (Surface.ModDeclarationF ident, Lexer.SourceRegion{start = modTok.region.start, end = tokE.region.end})
+  pure (Surface.ModDeclarationF ident, Lexer.SourceSpan{start = modTok.span.start, end = tokE.span.end})
 
 pModDefinition ::
-  ( HasAnn mod Lexer.SourceRegion
-  , HasAnn stmt Lexer.SourceRegion
-  , HasAnn simPat Lexer.SourceRegion
-  , HasAnn ty Lexer.SourceRegion
-  , HasAnn expr Lexer.SourceRegion
+  ( HasAnn mod Lexer.SourceSpan
+  , HasAnn stmt Lexer.SourceSpan
+  , HasAnn simPat Lexer.SourceSpan
+  , HasAnn ty Lexer.SourceSpan
+  , HasAnn expr Lexer.SourceSpan
   ) =>
-  Parser (mod Lexer.SourceRegion) ->
-  Parser (stmt Lexer.SourceRegion) ->
-  Parser (simPat Lexer.SourceRegion) ->
-  Parser (ty Lexer.SourceRegion) ->
-  Parser (expr Lexer.SourceRegion) ->
-  Parser (Surface.ModF mod stmt simPat ty expr Lexer.SourceRegion, Lexer.SourceRegion)
+  Parser (mod Lexer.SourceSpan) ->
+  Parser (stmt Lexer.SourceSpan) ->
+  Parser (simPat Lexer.SourceSpan) ->
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (expr Lexer.SourceSpan) ->
+  Parser (Surface.ModF mod stmt simPat ty expr Lexer.SourceSpan, Lexer.SourceSpan)
 pModDefinition pMod' pStmt pSimPat pTy pExpr = do
   modTok <- single (Lexer.Keyword Lexer.Mod)
   ident <- moduleIdentifier
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
   body <- pModDefinitionBody pMod' pStmt pSimPat pTy pExpr
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
-  let ann = Lexer.SourceRegion{start = modTok.region.start, end = tokE.region.end}
+  let ann = Lexer.SourceSpan{start = modTok.span.start, end = tokE.span.end}
   pure (Surface.ModDefinitionF ident body, ann)
 
 pPubUse ::
   Parser
-    ( Surface.Pub Lexer.SourceRegion
-    , Surface.UseClause Lexer.SourceRegion
-    , Lexer.SourceRegion
+    ( Surface.Pub Lexer.SourceSpan
+    , Surface.UseClause Lexer.SourceSpan
+    , Lexer.SourceSpan
     )
 pPubUse = do
   (pub, pubAnn) <- pPub
   use <- pUseClause
-  pure (pub, use, Lexer.SourceRegion{start = pubAnn.start, end = use.ann.end})
+  pure (pub, use, Lexer.SourceSpan{start = pubAnn.start, end = use.ann.end})

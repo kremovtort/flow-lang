@@ -16,7 +16,6 @@ import "tree-diff" Data.TreeDiff.Pretty (ansiWlBgEditExprCompact, ansiWlExpr)
 
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (Parser)
-import qualified GHC.Stack as Megaparsec
 
 pShow :: (ToExpr a) => a -> Text
 pShow = renderStrict . layoutSmart defaultLayoutOptions . ansiWlExpr . toExpr
@@ -96,7 +95,7 @@ testParser ::
   , ToExpr (f ())
   ) =>
   Text ->
-  Parser (f Lexer.SourceRegion) ->
+  Parser (f Lexer.SourceSpan) ->
   ( (HasCallStack) =>
     Either
       (Megaparsec.ParseErrorBundle Lexer.TokenStream Void)

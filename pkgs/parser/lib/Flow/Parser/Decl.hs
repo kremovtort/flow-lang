@@ -8,7 +8,7 @@ import Data.Vector.NonEmpty qualified as NonEmptyVector
 import Flow.AST.Surface.Callable qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Decl qualified as Surface
-import Flow.Lexer (SourceRegion (..))
+import Flow.Lexer (SourceSpan (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Callable (
   pFnDeclaration,
@@ -24,15 +24,15 @@ import Flow.Parser.Common (HasAnn, Parser, pPub, simpleTypeIdentifier, simpleVar
 import Flow.Parser.Constraint (pBindersWConstraints, pBindersWoConstraints, pKindTreeRoot, pWhereBlockHead, pWhereBlockNested)
 
 pStruct ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.StructF ty SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.StructF ty SourceSpan)
 pStruct pTy = do
   structTok <- single (Lexer.Keyword Lexer.Struct)
   name <- simpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   (fields, fieldsAnn) <- pFieldsDecl pTy
-  let ann = Lexer.SourceRegion{start = structTok.region.start, end = fieldsAnn.end}
+  let ann = Lexer.SourceSpan{start = structTok.span.start, end = fieldsAnn.end}
   pure
     Surface.StructF
       { name
@@ -42,15 +42,15 @@ pStruct pTy = do
       }
 
 pEnum ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.EnumF ty SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.EnumF ty SourceSpan)
 pEnum pTy = do
   enumTok <- single (Lexer.Keyword Lexer.Enum)
   name <- simpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   (variants, variantsAnn) <- pEnumVariants
-  let ann = Lexer.SourceRegion{start = enumTok.region.start, end = variantsAnn.end}
+  let ann = Lexer.SourceSpan{start = enumTok.span.start, end = variantsAnn.end}
   pure
     Surface.EnumF
       { name
@@ -70,14 +70,14 @@ pEnum pTy = do
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure
       ( Surface.EVariantsSimpleF $ fromJust $ NonEmptyVector.fromList variants
-      , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       )
    where
     pEnumVariant = do
       name <- simpleTypeIdentifier
       fields <- Megaparsec.optional (pFieldsDecl pTy)
       let ann =
-            Lexer.SourceRegion
+            Lexer.SourceSpan
               { start = name.ann.start
               , end = case fields of
                   Just (_, ann') -> ann'.end
@@ -96,7 +96,7 @@ pEnum pTy = do
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure
       ( Surface.EVariantsGeneralized $ fromJust $ NonEmptyVector.fromList variants
-      , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       )
    where
     pEnumVariantGeneralized = do
@@ -106,7 +106,7 @@ pEnum pTy = do
       _ <- single (Lexer.Punctuation Lexer.Colon)
       result <- pTy
       whereBlock <- Megaparsec.optional (pWhereBlockNested pTy)
-      let ann = Lexer.SourceRegion{start = name.ann.start, end = result.ann.end}
+      let ann = Lexer.SourceSpan{start = name.ann.start, end = result.ann.end}
       pure
         Surface.EnumVariantGeneralizedF
           { name
@@ -118,9 +118,9 @@ pEnum pTy = do
           }
 
 pFieldsDecl ::
-  (HasAnn ty Lexer.SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.FieldsDeclF ty SourceRegion, SourceRegion)
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.FieldsDeclF ty SourceSpan, SourceSpan)
 pFieldsDecl pTy = do
   Megaparsec.choice
     [ pFieldsDeclNamed
@@ -133,7 +133,7 @@ pFieldsDecl pTy = do
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure
       ( Surface.FieldsDeclNamedF $ Vector.fromList fields
-      , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       )
 
   pFieldDecl = do
@@ -147,7 +147,7 @@ pFieldsDecl pTy = do
         , name = name
         , type_ = type_
         , ann =
-            Lexer.SourceRegion
+            Lexer.SourceSpan
               { start = case pub of
                   Just (_, ann) -> ann.start
                   Nothing -> name.ann.start
@@ -161,15 +161,15 @@ pFieldsDecl pTy = do
     tokE <- single (Lexer.Punctuation Lexer.RightParen)
     pure
       ( Surface.FieldsDeclTupleF $ Vector.fromList fields
-      , Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       )
 
 pTrait ::
-  (HasAnn stmt SourceRegion, HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (stmt SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (Surface.TraitF stmt ty expr SourceRegion)
+  (HasAnn stmt SourceSpan, HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (stmt SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (Surface.TraitF stmt ty expr SourceSpan)
 pTrait pStmt pTy pExpr = do
   tokS <- single (Lexer.Keyword Lexer.Trait)
   name <- simpleTypeIdentifier
@@ -187,7 +187,7 @@ pTrait pStmt pTy pExpr = do
       , typeParams
       , superTraits
       , traitBody
-      , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
  where
   pTraitItem = do
@@ -198,7 +198,7 @@ pTrait pStmt pTy pExpr = do
         { pub = fmap fst pub
         , item
         , ann =
-            Lexer.SourceRegion
+            Lexer.SourceSpan
               { start = case pub of
                   Just (_, ann') -> ann'.start
                   Nothing -> itemAnn.start
@@ -219,11 +219,11 @@ pTrait pStmt pTy pExpr = do
   withRegion f item = (f item, item.ann)
 
 pEffect ::
-  (HasAnn stmt SourceRegion, HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (stmt SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (Surface.EffectF stmt ty expr SourceRegion)
+  (HasAnn stmt SourceSpan, HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (stmt SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (Surface.EffectF stmt ty expr SourceSpan)
 pEffect pStmt pTy pExpr = do
   tokS <- single (Lexer.Keyword Lexer.Effect)
   name <- simpleTypeIdentifier
@@ -243,7 +243,7 @@ pEffect pStmt pTy pExpr = do
       , superEffects
       , whereBlock
       , effectBody
-      , ann = Lexer.SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
  where
   pEffectItem = do
@@ -269,9 +269,9 @@ pEffect pStmt pTy pExpr = do
   withRegion f item = (f item, item.ann)
 
 pTypeDeclaration ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.TypeDeclarationF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.TypeDeclarationF ty SourceSpan)
 pTypeDeclaration pTy = do
   tokS <- single (Lexer.Keyword Lexer.Type)
   name <- simpleTypeIdentifier
@@ -284,16 +284,16 @@ pTypeDeclaration pTy = do
       , kindShort
       , type_
       , ann =
-          Lexer.SourceRegion
-            { start = tokS.region.start
-            , end = tokE.region.end
+          Lexer.SourceSpan
+            { start = tokS.span.start
+            , end = tokE.span.end
             }
       }
 
 pLetDeclaration ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.LetDeclarationF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.LetDeclarationF ty SourceSpan)
 pLetDeclaration pTy = do
   letTok <- single (Lexer.Keyword Lexer.Let)
   name <- simpleVarIdentifier
@@ -304,5 +304,5 @@ pLetDeclaration pTy = do
     Surface.LetDeclarationF
       { name
       , type_
-      , ann = Lexer.SourceRegion{start = letTok.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = letTok.span.start, end = tokE.span.end}
       }

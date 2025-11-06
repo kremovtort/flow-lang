@@ -187,7 +187,7 @@ typeAliasItem pub' name ty =
             , typeParams =
                 Just $
                   Surface.BindersF
-                    { scopes = mempty
+                    { regions = mempty
                     , types =
                         Vector.fromList
                           [ Surface.BinderWoConstraintF

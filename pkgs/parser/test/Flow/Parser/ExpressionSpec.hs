@@ -106,19 +106,19 @@ callNamed fname args =
     , ann = ()
     }
 
-callWithParams :: Text -> [Surface.ScopeIdentifier ()] -> [Surface.Type ()] -> [Surface.Expression ()] -> Surface.Expression ()
-callWithParams fname scopes types args =
+callWithParams :: Text -> [Surface.RegionIdentifier ()] -> [Surface.Type ()] -> [Surface.Expression ()] -> Surface.Expression ()
+callWithParams fname regions types args =
   Surface.Expression
     { expr =
         Surface.EAppF
           Surface.AppF
             { callee = var fname
             , typeParams =
-                if length scopes + length types > 0
+                if length regions + length types > 0
                   then
                     Just
                       Surface.BindersF
-                        { scopes = Vector.fromList $ Surface.ScopeBinderWoConstraintsF <$> scopes
+                        { regions = Vector.fromList $ Surface.RegionBinderWoConstraintsF <$> regions
                         , types = Vector.fromList $ Surface.BinderAppF <$> types
                         , ann = ()
                         }
@@ -130,8 +130,8 @@ callWithParams fname scopes types args =
     , ann = ()
     }
 
-scopeIdent :: Text -> Surface.ScopeIdentifier ()
-scopeIdent name = Surface.ScopeIdentifier{name, ann = ()}
+regionIdent :: Text -> Surface.RegionIdentifier ()
+regionIdent name = Surface.RegionIdentifier{name, ann = ()}
 
 typeVar :: Text -> Surface.Type ()
 typeVar name =
@@ -227,7 +227,7 @@ spec = describe "Expression parser (minimal subset)" do
     let cases =
           [ ("&x", Surface.UnOpTakeRef Nothing ())
           , ("&mut x", Surface.UnOpTakeMutRef Nothing ())
-          , ("&'s x", Surface.UnOpTakeRef (Just Surface.ScopeIdentifier{name = "s", ann = ()}) ())
+          , ("&'s x", Surface.UnOpTakeRef (Just Surface.RegionIdentifier{name = "s", ann = ()}) ())
           , ("-x", Surface.UnOpNeg ())
           , ("!x", Surface.UnOpNot ())
           ]
@@ -281,8 +281,8 @@ spec = describe "Expression parser (minimal subset)" do
           """
     testParser source pExpression $ shouldBeParsed $ const $ pure ()
 
-  it "parses call with type/scope params f<'s, T>(a)" do
-    let expected = callWithParams "f" [scopeIdent "s"] [typeVar "T"] [var "a"]
+  it "parses call with type/region params f<'s, T>(a)" do
+    let expected = callWithParams "f" [regionIdent "s"] [typeVar "T"] [var "a"]
     testParser "f<'s, T>(a)" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses chained access a.b[0]" do

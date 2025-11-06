@@ -20,7 +20,7 @@ import Flow.Parser.Common (Parser)
 import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
 import Flow.Parser.Pattern qualified as PPat
 
-pPatternSimple :: Parser (Surface.PatternSimple Lexer.SourceRegion)
+pPatternSimple :: Parser (Surface.PatternSimple Lexer.SourceSpan)
 pPatternSimple =
   PPat.pPatternSimple pPatternSimple (fail "anyType") <&> uncurry Surface.PatternSimple
 
@@ -98,7 +98,7 @@ constructorPattern name params fields =
             , typeParams =
                 params <&> \params' ->
                   Surface.BindersF
-                    { scopes = mempty
+                    { regions = mempty
                     , types =
                         Vector.fromList $
                           params' <&> \param'' ->

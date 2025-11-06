@@ -55,9 +55,9 @@ import Flow.Parser.Callable (pOpDefinition, pOpInfixDefinition)
 import Flow.Parser.Common (
   HasAnn,
   Parser,
-  SourceRegion (..),
+  SourceSpan (..),
   WithPos (..),
-  scopeIdentifier,
+  regionIdentifier,
   simpleTypeIdentifier,
   simpleVarIdentifier,
   single,
@@ -75,48 +75,48 @@ import Flow.Parser.Syntax (pCodeBlock, pIfExpression, pLetDefinition, pLoopExpre
 import Flow.Parser.Type (pFnEffectsResult)
 import Flow.Parser.Use (pUseClause)
 
-pWildcard :: Parser SourceRegion
+pWildcard :: Parser SourceSpan
 pWildcard = do
   tok <- single (Lexer.Punctuation Lexer.Underscore)
-  pure tok.region
+  pure tok.span
 
-pLiteral :: Parser (Literal, SourceRegion)
+pLiteral :: Parser (Literal, SourceSpan)
 pLiteral = literal
 
 pParens ::
-  Parser (expr Lexer.SourceRegion) ->
-  Parser (expr Lexer.SourceRegion, Lexer.SourceRegion)
+  Parser (expr Lexer.SourceSpan) ->
+  Parser (expr Lexer.SourceSpan, Lexer.SourceSpan)
 pParens expr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   expr' <- expr
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
-  pure (expr', SourceRegion{start = tokS.region.start, end = tokE.region.end})
+  pure (expr', SourceSpan{start = tokS.span.start, end = tokE.span.end})
 
 pVar ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (AnyVarIdentifier ty Lexer.SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (AnyVarIdentifier ty Lexer.SourceSpan)
 pVar = anyVarIdentifier
 
 pOfTypeSuffix ::
-  Parser (ty SourceRegion) ->
-  expr SourceRegion ->
-  Parser (expr SourceRegion, ty SourceRegion)
+  Parser (ty SourceSpan) ->
+  expr SourceSpan ->
+  Parser (expr SourceSpan, ty SourceSpan)
 pOfTypeSuffix pTy expr = Megaparsec.label "of type" do
   _ <- single (Lexer.Punctuation Lexer.Colon)
   ty' <- pTy
   pure (expr, ty')
 
 pConstructor ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (AnyTypeIdentifier ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (AnyTypeIdentifier ty SourceSpan)
 pConstructor = anyTypeIdentifier
 
 pIndexSuffix ::
-  Parser (expr SourceRegion) ->
-  expr SourceRegion ->
-  Parser (expr SourceRegion, expr SourceRegion, SourceRegion)
+  Parser (expr SourceSpan) ->
+  expr SourceSpan ->
+  Parser (expr SourceSpan, expr SourceSpan, SourceSpan)
 pIndexSuffix pExpr expr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftBracket)
   idxExpr <- pExpr
@@ -124,28 +124,28 @@ pIndexSuffix pExpr expr = do
   pure
     ( expr
     , idxExpr
-    , SourceRegion
-        { start = tokS.region.start
-        , end = tokE.region.end
+    , SourceSpan
+        { start = tokS.span.start
+        , end = tokE.span.end
         }
     )
 
 pDotAccessSuffix ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  expr SourceRegion ->
-  Parser (expr SourceRegion, AnyVarIdentifier ty SourceRegion, SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  expr SourceSpan ->
+  Parser (expr SourceSpan, AnyVarIdentifier ty SourceSpan, SourceSpan)
 pDotAccessSuffix pTy expr = do
   tokS <- single (Lexer.Punctuation Lexer.Dot)
   field <- anyVarIdentifier pTy
-  pure (expr, field, SourceRegion{start = tokS.region.start, end = field.ann.end})
+  pure (expr, field, SourceSpan{start = tokS.span.start, end = field.ann.end})
 
 pAppSuffix ::
-  (HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  expr SourceRegion ->
-  Parser (AppF ty expr SourceRegion)
+  (HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  expr SourceSpan ->
+  Parser (AppF ty expr SourceSpan)
 pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
   typeParams <- Megaparsec.optional (pBindersApp pTy)
   (args, end) <-
@@ -155,7 +155,7 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
       ]
   withEnd <- Megaparsec.optional pWithPost
   let ann =
-        SourceRegion
+        SourceSpan
           { start = expr.ann.start
           , end = case withEnd of
               Just (_, end') -> end'
@@ -176,17 +176,17 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
           _ <- single (Lexer.Punctuation Lexer.LeftParen)
           args <- Megaparsec.sepEndBy pExpr (single (Lexer.Punctuation Lexer.Comma))
           tokE <- single (Lexer.Punctuation Lexer.RightParen)
-          pure (AppArgsUnnamedF (Vector.fromList args), tokE.region.end)
+          pure (AppArgsUnnamedF (Vector.fromList args), tokE.span.end)
       , do
           tokE <- single (Lexer.Punctuation Lexer.LeftRightParen)
-          pure (AppArgsUnnamedF Vector.empty, tokE.region.end)
+          pure (AppArgsUnnamedF Vector.empty, tokE.span.end)
       ]
 
   pNamedArgs = do
     _ <- single (Lexer.Punctuation Lexer.LeftBrace)
     args <- Megaparsec.sepEndBy pNamedArg (single (Lexer.Punctuation Lexer.Comma))
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
-    pure (AppArgsNamedF (Vector.fromList args), tokE.region.end)
+    pure (AppArgsNamedF (Vector.fromList args), tokE.span.end)
 
   pNamedArg = do
     name <- simpleVarIdentifier
@@ -198,7 +198,7 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
         { name = name
         , value = value
         , ann =
-            SourceRegion
+            SourceSpan
               { start = name.ann.start
               , end = case value of
                   Just value' -> value'.ann.end
@@ -214,14 +214,14 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
         (pWithStatement pTy pExpr)
         (single (Lexer.Punctuation Lexer.Semicolon))
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
-    pure (fromJust $ NonEmptyVector.fromList effects, tokE.region.end)
+    pure (fromJust $ NonEmptyVector.fromList effects, tokE.span.end)
 
 pWith ::
-  (HasAnn stmt SourceRegion, HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (stmt SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (WithF stmt ty expr SourceRegion)
+  (HasAnn stmt SourceSpan, HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (stmt SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (WithF stmt ty expr SourceSpan)
 pWith pStmt pTy pExpr = do
   tokS <- single (Lexer.Keyword Lexer.With)
   _ <- single (Lexer.Punctuation Lexer.LeftBrace)
@@ -233,12 +233,12 @@ pWith pStmt pTy pExpr = do
     WithF
       { statements = fromJust $ NonEmptyVector.fromList statements
       , block
-      , ann = SourceRegion{start = tokS.region.start, end = block.ann.end}
+      , ann = SourceSpan{start = tokS.span.start, end = block.ann.end}
       }
 
 pTuple ::
-  Parser (Expression SourceRegion) ->
-  Parser (Expression SourceRegion)
+  Parser (Expression SourceSpan) ->
+  Parser (Expression SourceSpan)
 pTuple pExpr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   expr1 <- pExpr
@@ -248,30 +248,30 @@ pTuple pExpr = do
   pure
     Expression
       { expr = ETupleF expr1 (fromJust $ NonEmptyVector.fromList restExprs)
-      , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
 
 pAlloc ::
-  (HasAnn stmt SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (stmt SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (AllocF stmt expr SourceRegion)
+  (HasAnn stmt SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (stmt SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (AllocF stmt expr SourceSpan)
 pAlloc pStmt pExpr = do
   tokS <- single (Lexer.Keyword Lexer.Alloc)
-  into <- Megaparsec.optional scopeIdentifier
+  into <- Megaparsec.optional regionIdentifier
   body <- pCodeBlock pStmt pExpr
   pure $
     AllocF
       { into = into
       , body = body
-      , ann = SourceRegion{start = tokS.region.start, end = body.ann.end}
+      , ann = SourceSpan{start = tokS.span.start, end = body.ann.end}
       }
 
 pWithStatement ::
-  (HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (WithStatementF ty expr SourceRegion)
+  (HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (WithStatementF ty expr SourceSpan)
 pWithStatement pTy pExpr = do
   let_ <- Megaparsec.optional (single (Lexer.Keyword Lexer.Let))
   (lhs, start) <- pWithLhs
@@ -279,10 +279,10 @@ pWithStatement pTy pExpr = do
   (rhs, end) <- pWithRhs
   pure $
     WithStatementF
-      { let_ = fmap (.region) let_
+      { let_ = fmap (.span) let_
       , lhs = lhs
       , rhs = rhs
-      , ann = SourceRegion{start = maybe start (.region.start) let_, end = end}
+      , ann = SourceSpan{start = maybe start (.span.start) let_, end = end}
       }
  where
   pWithLhs =
@@ -344,14 +344,14 @@ pWithStatement pTy pExpr = do
         InStatementF
           { lhs
           , rhs
-          , ann = SourceRegion{start = lhs.ann.start, end = rhs.ann.end}
+          , ann = SourceSpan{start = lhs.ann.start, end = rhs.ann.end}
           }
 
 pLambdaShort ::
-  (HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (LambdaF stmt ty expr SourceRegion, SourceRegion)
+  (HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (LambdaF stmt ty expr SourceSpan, SourceSpan)
 pLambdaShort pTy pExpr = do
   (argsOpen, args) <-
     Megaparsec.choice
@@ -370,17 +370,17 @@ pLambdaShort pTy pExpr = do
         LambdaShortF
           { args = Vector.fromList args
           , body = body
-          , ann = SourceRegion{start = argsOpen.region.start, end = body.ann.end}
+          , ann = SourceSpan{start = argsOpen.span.start, end = body.ann.end}
           }
-    , SourceRegion{start = argsOpen.region.start, end = body.ann.end}
+    , SourceSpan{start = argsOpen.span.start, end = body.ann.end}
     )
 
 pLambdaFull ::
-  (HasAnn stmt SourceRegion, HasAnn ty SourceRegion, HasAnn expr SourceRegion) =>
-  Parser (stmt SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (LambdaF stmt ty expr SourceRegion, SourceRegion)
+  (HasAnn stmt SourceSpan, HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
+  Parser (stmt SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (LambdaF stmt ty expr SourceSpan, SourceSpan)
 pLambdaFull pStmt pTy pExpr = do
   mBinders <- Megaparsec.optional (pBindersWConstraints pTy)
   argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
@@ -390,10 +390,10 @@ pLambdaFull pStmt pTy pExpr = do
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   body <- pCodeBlock pStmt pExpr
   let ann =
-        SourceRegion
+        SourceSpan
           { start = case mBinders of
               Just binders -> binders.ann.start
-              Nothing -> argsOpen.region.start
+              Nothing -> argsOpen.span.start
           , end = body.ann.end
           }
   pure
@@ -410,9 +410,9 @@ pLambdaFull pStmt pTy pExpr = do
     )
 
 pLambdaArg ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (LambdaArgF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (LambdaArgF ty SourceSpan)
 pLambdaArg pTy = do
   mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
   name <- simpleVarIdentifier
@@ -421,13 +421,13 @@ pLambdaArg pTy = do
     pTy
   pure $
     LambdaArgF
-      { mut = fmap (.region) mut
+      { mut = fmap (.span) mut
       , name
       , type_
       , ann =
-          SourceRegion
+          SourceSpan
             { start = case mut of
-                Just mut' -> mut'.region.start
+                Just mut' -> mut'.span.start
                 Nothing -> name.ann.start
             , end = case type_ of
                 Just ty -> ty.ann.end
@@ -436,16 +436,16 @@ pLambdaArg pTy = do
       }
 
 pHandleExpression ::
-  ( HasAnn ty SourceRegion
-  , HasAnn expr SourceRegion
-  , HasAnn stmt SourceRegion
-  , HasAnn simPat SourceRegion
+  ( HasAnn ty SourceSpan
+  , HasAnn expr SourceSpan
+  , HasAnn stmt SourceSpan
+  , HasAnn simPat SourceSpan
   ) =>
-  Parser (stmt SourceRegion) ->
-  Parser (simPat SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (expr SourceRegion) ->
-  Parser (HandleExpressionF stmt simPat ty expr SourceRegion)
+  Parser (stmt SourceSpan) ->
+  Parser (simPat SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (expr SourceSpan) ->
+  Parser (HandleExpressionF stmt simPat ty expr SourceSpan)
 pHandleExpression pStmt pSimPat pTy pExpr = do
   tokS <- single (Lexer.Keyword Lexer.Handle)
   effects <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
@@ -462,7 +462,7 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
       HandleReturningF
         { binder = binder
         , result = result
-        , ann = SourceRegion{start = returningTok.region.start, end = result.ann.end}
+        , ann = SourceSpan{start = returningTok.span.start, end = result.ann.end}
         }
   body <- pHandleBody
   pure
@@ -471,7 +471,7 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
       , in_ = in_
       , returning = returning
       , body = body
-      , ann = SourceRegion{start = tokS.region.start, end = body.ann.end}
+      , ann = SourceSpan{start = tokS.span.start, end = body.ann.end}
       }
  where
   pHandleBody = do
@@ -486,7 +486,7 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
         { uses = Vector.fromList uses
         , items = NonEmptyVector.fromNonEmpty (item :| items)
         , returning = returning
-        , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
+        , ann = SourceSpan{start = tokS.span.start, end = tokE.span.end}
         }
 
   pEffectItemDefinition = do
@@ -515,16 +515,16 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
         { arg = arg
         , argType = argType
         , body = body
-        , ann = SourceRegion{start = returningTok.region.start, end = body.ann.end}
+        , ann = SourceSpan{start = returningTok.span.start, end = body.ann.end}
         }
 
 pExpression ::
-  Parser (Statement SourceRegion) ->
-  Parser (PatternSimple SourceRegion) ->
-  Parser (Pattern SourceRegion) ->
-  Parser (Type SourceRegion) ->
-  Parser (Expression SourceRegion) ->
-  Parser (Expression SourceRegion)
+  Parser (Statement SourceSpan) ->
+  Parser (PatternSimple SourceSpan) ->
+  Parser (Pattern SourceSpan) ->
+  Parser (Type SourceSpan) ->
+  Parser (Expression SourceSpan) ->
+  Parser (Expression SourceSpan)
 pExpression pStmt pSimPat pPat pTy pExpr = do
   Megaparsec.choice
     [ pOp'
@@ -637,7 +637,7 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
     pure $
       Expression
         (EOfType expr' ty)
-        SourceRegion{start = expr.ann.start, end = ty.ann.end}
+        SourceSpan{start = expr.ann.start, end = ty.ann.end}
 
   pIndexSuffix' expr = do
     (expr', exprIdx, ann) <- pIndexSuffix pExpr expr

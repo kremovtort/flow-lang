@@ -3,7 +3,7 @@
 module Flow.Parser.Common (
   type HasAnn,
   type Parser,
-  Lexer.SourceRegion (..),
+  Lexer.SourceSpan (..),
   Lexer.WithPos (..),
   type Lexer.TokenWithPos,
   Lexer.TokenStream (..),
@@ -12,7 +12,7 @@ module Flow.Parser.Common (
   moduleIdentifier,
   simpleTypeIdentifier,
   simpleVarIdentifier,
-  scopeIdentifier,
+  regionIdentifier,
   methodIdentifier,
   pPub,
 ) where
@@ -31,7 +31,7 @@ import Data.Char qualified as Char
 import Data.Text qualified as Text
 import Flow.AST.Surface.Common (
   ModuleIdentifier (..),
-  ScopeIdentifier (..),
+  RegionIdentifier (..),
   SimpleTypeIdentifier (..),
   SimpleVarIdentifier (..),
  )
@@ -60,7 +60,7 @@ token expected match =
     )
     expected
 
-moduleIdentifier :: Parser (ModuleIdentifier Lexer.SourceRegion)
+moduleIdentifier :: Parser (ModuleIdentifier Lexer.SourceSpan)
 moduleIdentifier = do
   tok <-
     token
@@ -68,9 +68,9 @@ moduleIdentifier = do
       \case
         Lexer.Identifier i -> Just i
         _ -> Nothing
-  pure $ ModuleIdentifier{name = tok.value, ann = tok.region}
+  pure $ ModuleIdentifier{name = tok.value, ann = tok.span}
 
-simpleTypeIdentifier :: Parser (SimpleTypeIdentifier Lexer.SourceRegion)
+simpleTypeIdentifier :: Parser (SimpleTypeIdentifier Lexer.SourceSpan)
 simpleTypeIdentifier = do
   tok <-
     token
@@ -79,9 +79,9 @@ simpleTypeIdentifier = do
         Lexer.Identifier i
           | Char.isUpper (Text.head i) -> Just i
         _ -> Nothing
-  pure $ SimpleTypeIdentifier{name = tok.value, ann = tok.region}
+  pure $ SimpleTypeIdentifier{name = tok.value, ann = tok.span}
 
-simpleVarIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceRegion)
+simpleVarIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceSpan)
 simpleVarIdentifier = do
   tok <-
     token
@@ -90,19 +90,19 @@ simpleVarIdentifier = do
         Lexer.Identifier i
           | Char.isLower (Text.head i) -> Just i
         _ -> Nothing
-  pure $ SimpleVarIdentifier{name = tok.value, ann = tok.region}
+  pure $ SimpleVarIdentifier{name = tok.value, ann = tok.span}
 
-scopeIdentifier :: Parser (ScopeIdentifier Lexer.SourceRegion)
-scopeIdentifier = do
+regionIdentifier :: Parser (RegionIdentifier Lexer.SourceSpan)
+regionIdentifier = do
   tok <-
     token
-      (Set.singleton $ Megaparsec.Label "scope identifier (should start with a single quote)")
+      (Set.singleton $ Megaparsec.Label "region identifier (should start with a single quote)")
       \case
-        Lexer.RefScope i -> Just i
+        Lexer.Region i -> Just i
         _ -> Nothing
-  pure $ ScopeIdentifier{name = tok.value, ann = tok.region}
+  pure $ RegionIdentifier{name = tok.value, ann = tok.span}
 
-methodIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceRegion)
+methodIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceSpan)
 methodIdentifier = do
   dotTok <- single (Lexer.Punctuation Lexer.Dot)
   tok <-
@@ -115,10 +115,10 @@ methodIdentifier = do
   pure
     SimpleVarIdentifier
       { name = tok.value
-      , ann = Lexer.SourceRegion dotTok.region.start tok.region.end
+      , ann = Lexer.SourceSpan dotTok.span.start tok.span.end
       }
 
-pPub :: Parser (Surface.Pub Lexer.SourceRegion, Lexer.SourceRegion)
+pPub :: Parser (Surface.Pub Lexer.SourceSpan, Lexer.SourceSpan)
 pPub = do
   pubTok <- single (Lexer.Keyword Lexer.Pub)
   packageWithEnd <- Megaparsec.optional do
@@ -130,8 +130,8 @@ pPub = do
           | i == "package " -> Just ()
         _ -> Nothing
     tokE <- single (Lexer.Punctuation Lexer.RightParen)
-    let ann = Lexer.SourceRegion{start = package'.region.start, end = package'.region.end}
-    pure (Surface.PubPackage ann, tokE.region.end)
+    let ann = Lexer.SourceSpan{start = package'.span.start, end = package'.span.end}
+    pure (Surface.PubPackage ann, tokE.span.end)
   case packageWithEnd of
-    Just (package', end) -> pure (package', Lexer.SourceRegion{start = pubTok.region.start, end})
-    Nothing -> pure (Surface.PubPub, pubTok.region)
+    Just (package', end) -> pure (package', Lexer.SourceSpan{start = pubTok.span.start, end})
+    Nothing -> pure (Surface.PubPub, pubTok.span)

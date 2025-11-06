@@ -16,10 +16,10 @@ import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Type (FnEffectsF (..))
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, SourceRegion (..), scopeIdentifier, simpleVarIdentifier, single, token)
+import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), regionIdentifier, simpleVarIdentifier, single, token)
 import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWConstraints, pWhereBlockNested)
 
-pType :: Parser (Surface.Type SourceRegion)
+pType :: Parser (Surface.Type SourceSpan)
 pType = do
   head' <- Megaparsec.choice
     [ pApp'
@@ -100,10 +100,10 @@ pType = do
     pure
       Surface.Type
         { ty = Surface.TyEquals left right
-        , ann = SourceRegion{start = left.ann.start, end = right.ann.end}
+        , ann = SourceSpan{start = left.ann.start, end = right.ann.end}
         }
 
-pBuiltin :: Parser (Surface.Builtin, SourceRegion)
+pBuiltin :: Parser (Surface.Builtin, SourceSpan)
 pBuiltin = do
   tok <- token (Set.singleton $ Megaparsec.Label "builtin type") \case
     Lexer.Punctuation Lexer.LeftRightParen -> Just Surface.BuiltinUnit
@@ -129,81 +129,76 @@ pBuiltin = do
     Lexer.Identifier "char" -> Just Surface.BuiltinChar
     Lexer.Identifier "string" -> Just Surface.BuiltinString
     _ -> Nothing
-  pure (tok.value, tok.region)
+  pure (tok.value, tok.span)
 
 pIdentifier ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.AnyTypeIdentifier ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.AnyTypeIdentifier ty SourceSpan)
 pIdentifier = anyTypeIdentifier
 
 pParens ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (ty SourceRegion, SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (ty SourceSpan, SourceSpan)
 pParens pTy = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   ty <- pTy
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
-  pure (ty, SourceRegion{start = tokS.region.start, end = tokE.region.end})
+  pure (ty, SourceSpan{start = tokS.span.start, end = tokE.span.end})
 
 pTuple ::
-  Parser (Surface.Type SourceRegion) ->
-  Parser (NonEmptyVector (Surface.Type SourceRegion), SourceRegion)
+  Parser (Surface.Type SourceSpan) ->
+  Parser (NonEmptyVector (Surface.Type SourceSpan), SourceSpan)
 pTuple pTy = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   args <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
   pure
     ( fromJust $ NonEmptyVector.fromList args
-    , SourceRegion{start = tokS.region.start, end = tokE.region.end}
+    , SourceSpan{start = tokS.span.start, end = tokE.span.end}
     )
 
-pRef :: Parser (Surface.RefF SourceRegion)
+pRef :: Parser (Surface.RefF SourceSpan)
 pRef = do
   tokS <- single (Lexer.Punctuation Lexer.Ampersand)
-  scope <- Megaparsec.optional $ do
-    tok <-
-      token (Set.singleton $ Megaparsec.Label "scope identifier") \case
-        Lexer.RefScope i -> Just i
-        _ -> Nothing
-    pure $ Surface.ScopeIdentifier{name = tok.value, ann = tok.region}
+  region <- Megaparsec.optional regionIdentifier
   mut <- Megaparsec.optional $ do
     tok <- single (Lexer.Keyword Lexer.Mut)
-    pure SourceRegion{start = tok.region.start, end = tok.region.end}
+    pure SourceSpan{start = tok.span.start, end = tok.span.end}
   pure $
     Surface.RefF
-      { scope = scope
+      { region = region
       , mutability = mut
       , ann =
-          SourceRegion
-            { start = tokS.region.start
+          SourceSpan
+            { start = tokS.span.start
             , end = case mut of
                 Just mut' -> mut'.end
-                Nothing -> case scope of
-                  Just scope' -> scope'.ann.end
-                  Nothing -> tokS.region.end
+                Nothing -> case region of
+                  Just region' -> region'.ann.end
+                  Nothing -> tokS.span.end
             }
       }
 
 pAppSuffix ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  ty SourceRegion ->
-  Parser (Surface.AppF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  ty SourceSpan ->
+  Parser (Surface.AppF ty SourceSpan)
 pAppSuffix pTy ty = do
   args <- pBindersApp pTy
   pure
     Surface.AppF
       { head = ty
       , args = args
-      , ann = SourceRegion{start = ty.ann.start, end = args.ann.end}
+      , ann = SourceSpan{start = ty.ann.start, end = args.ann.end}
       }
 
 pFn ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.FnF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.FnF ty SourceSpan)
 pFn pTy = do
   tokS <- single (Lexer.Keyword Lexer.Fn)
   _ <- single (Lexer.Punctuation Lexer.LeftParen)
@@ -215,18 +210,18 @@ pFn pTy = do
       { args = Vector.fromList args
       , effectsResult = effectsResult
       , ann =
-          SourceRegion
-            { start = tokS.region.start
+          SourceSpan
+            { start = tokS.span.start
             , end = case effectsResult of
                 Just effectsResult' -> effectsResult'.ann.end
-                Nothing -> argsClose.region.end
+                Nothing -> argsClose.span.end
             }
       }
 
 pFnEffectsResult ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.FnEffectsResultF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.FnEffectsResultF ty SourceSpan)
 pFnEffectsResult pTy = do
   tokArrow <- single (Lexer.Punctuation Lexer.Arrow)
   effects <- Megaparsec.optional do
@@ -241,14 +236,14 @@ pFnEffectsResult pTy = do
     Surface.FnEffectsResultF
       { effects = effects
       , result = result
-      , ann = SourceRegion{start = tokArrow.region.start, end = result.ann.end}
+      , ann = SourceSpan{start = tokArrow.span.start, end = result.ann.end}
       }
 
 pFnEffectRow ::
   forall ty.
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.FnEffectRowF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.FnEffectRowF ty SourceSpan)
 pFnEffectRow pTy = do
   tokS <- single (Lexer.Punctuation Lexer.AtLeftBracket)
   effects <- Megaparsec.sepEndBy1 effectRowElem (single (Lexer.Punctuation Lexer.Comma))
@@ -259,58 +254,58 @@ pFnEffectRow pTy = do
       { regions = Vector.fromList regions
       , effects = Vector.fromList effects'
       , tailVars = Vector.fromList tailVars
-      , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
  where
   effectRowElem = do
     Megaparsec.choice
-      [ Left . Left <$> scopeIdentifier
+      [ Left . Left <$> regionIdentifier
       , Left . Right <$> effectAtom
       , Right <$> tailVarElem
       ]
 
-  collect [] scopesAcc effectsAcc tailVarsAcc =
-    pure (reverse scopesAcc, reverse effectsAcc, reverse tailVarsAcc)
-  collect (Left (Left scope) : rest) scopesAcc effectsAcc tailVarsAcc
+  collect [] regionsAcc effectsAcc tailVarsAcc =
+    pure (reverse regionsAcc, reverse effectsAcc, reverse tailVarsAcc)
+  collect (Left (Left region) : rest) regionsAcc effectsAcc tailVarsAcc
     | not (null effectsAcc) || not (null tailVarsAcc) =
-        fail "scope argument cannot follow effect argument in effect row"
+        fail "region argument cannot follow effect argument in effect row"
     | otherwise =
-        collect rest (scope : scopesAcc) effectsAcc tailVarsAcc
-  collect (Left (Right effect) : rest) scopesAcc effectsAcc tailVarsAcc
+        collect rest (region : regionsAcc) effectsAcc tailVarsAcc
+  collect (Left (Right effect) : rest) regionsAcc effectsAcc tailVarsAcc
     | not (null tailVarsAcc) =
         fail "effect argument cannot follow tail variable in effect row"
     | otherwise =
-        collect rest scopesAcc (effect : effectsAcc) tailVarsAcc
-  collect (Right tailVar : rest) scopesAcc effectsAcc tailVarsAcc =
-    collect rest scopesAcc effectsAcc (tailVar : tailVarsAcc)
+        collect rest regionsAcc (effect : effectsAcc) tailVarsAcc
+  collect (Right tailVar : rest) regionsAcc effectsAcc tailVarsAcc =
+    collect rest regionsAcc effectsAcc (tailVar : tailVarsAcc)
 
-  tailVarElem :: Parser (ty SourceRegion, SourceRegion)
+  tailVarElem :: Parser (ty SourceSpan, SourceSpan)
   tailVarElem = do
     tokDD <- single (Lexer.Punctuation Lexer.DotDot)
     ty <- pTy
-    pure (ty, SourceRegion{start = tokDD.region.start, end = ty.ann.end})
+    pure (ty, SourceSpan{start = tokDD.span.start, end = ty.ann.end})
 
-  effectAtom :: Parser (Surface.FnEffectAtomF ty SourceRegion)
+  effectAtom :: Parser (Surface.FnEffectAtomF ty SourceSpan)
   effectAtom = do
     Megaparsec.choice
       [ eAtomNameType
       , eAtomType
       ]
    where
-    eAtomNameType :: Parser (Surface.FnEffectAtomF ty SourceRegion)
+    eAtomNameType :: Parser (Surface.FnEffectAtomF ty SourceSpan)
     eAtomNameType = do
       name <- simpleVarIdentifier
       _ <- single (Lexer.Punctuation Lexer.Colon)
       Surface.FnEffectAtomNameTypeF name <$> pTy
 
-    eAtomType :: Parser (Surface.FnEffectAtomF ty SourceRegion)
+    eAtomType :: Parser (Surface.FnEffectAtomF ty SourceSpan)
     eAtomType = Surface.FnEffectAtomTypeF <$> pTy
 
 pEffectRow ::
   forall ty.
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.EffectRowF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.EffectRowF ty SourceSpan)
 pEffectRow pTy = do
   tokS <- single (Lexer.Punctuation Lexer.AtLeftBracket)
   effects <- Megaparsec.sepEndBy1 effectRowElem (single (Lexer.Punctuation Lexer.Comma))
@@ -321,41 +316,41 @@ pEffectRow pTy = do
       { regions = Vector.fromList regions
       , effects = Vector.fromList effects'
       , tailVars = Vector.fromList tailVars
-      , ann = SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , ann = SourceSpan{start = tokS.span.start, end = tokE.span.end}
       }
  where
   effectRowElem = do
     Megaparsec.choice
-      [ Left . Left <$> scopeIdentifier
+      [ Left . Left <$> regionIdentifier
       , Left . Right <$> pTy
       , Right <$> tailVarElem
       ]
 
-  tailVarElem :: Parser (ty SourceRegion, SourceRegion)
+  tailVarElem :: Parser (ty SourceSpan, SourceSpan)
   tailVarElem = do
     tokDD <- single (Lexer.Punctuation Lexer.DotDot)
     ty <- pTy
-    pure (ty, SourceRegion{start = tokDD.region.start, end = ty.ann.end})
+    pure (ty, SourceSpan{start = tokDD.span.start, end = ty.ann.end})
 
-  collect [] scopesAcc effectsAcc tailVarsAcc =
-    pure (reverse scopesAcc, reverse effectsAcc, reverse tailVarsAcc)
-  collect (Left (Left scope) : rest) scopesAcc effectsAcc tailVarsAcc
+  collect [] regionsAcc effectsAcc tailVarsAcc =
+    pure (reverse regionsAcc, reverse effectsAcc, reverse tailVarsAcc)
+  collect (Left (Left region) : rest) regionsAcc effectsAcc tailVarsAcc
     | not (null effectsAcc) || not (null tailVarsAcc) =
-        fail "scope argument cannot follow effect argument in effect row"
+        fail "region argument cannot follow effect argument in effect row"
     | otherwise =
-        collect rest (scope : scopesAcc) effectsAcc tailVarsAcc
-  collect (Left (Right effect) : rest) scopesAcc effectsAcc tailVarsAcc
+        collect rest (region : regionsAcc) effectsAcc tailVarsAcc
+  collect (Left (Right effect) : rest) regionsAcc effectsAcc tailVarsAcc
     | not (null tailVarsAcc) =
         fail "effect argument cannot follow tail variable in effect row"
     | otherwise =
-        collect rest scopesAcc (effect : effectsAcc) tailVarsAcc
-  collect (Right tailVar : rest) scopesAcc effectsAcc tailVarsAcc =
-    collect rest scopesAcc effectsAcc (tailVar : tailVarsAcc)
+        collect rest regionsAcc (effect : effectsAcc) tailVarsAcc
+  collect (Right tailVar : rest) regionsAcc effectsAcc tailVarsAcc =
+    collect rest regionsAcc effectsAcc (tailVar : tailVarsAcc)
 
 pForall ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  Parser (Surface.ForallF ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  Parser (Surface.ForallF ty SourceSpan)
 pForall pTy = do
   params <- pBindersWConstraints pTy
   result <- pTy
@@ -366,7 +361,7 @@ pForall pTy = do
       , result
       , whereBlock
       , ann =
-          SourceRegion
+          SourceSpan
             { start = params.ann.start
             , end = case whereBlock of
                 Just whereBlock' -> whereBlock'.ann.end
@@ -375,10 +370,10 @@ pForall pTy = do
       }
 
 pTyEqualsSuffix ::
-  (HasAnn ty SourceRegion) =>
-  Parser (ty SourceRegion) ->
-  ty SourceRegion ->
-  Parser (ty SourceRegion, ty SourceRegion)
+  (HasAnn ty SourceSpan) =>
+  Parser (ty SourceSpan) ->
+  ty SourceSpan ->
+  Parser (ty SourceSpan, ty SourceSpan)
 pTyEqualsSuffix pTy left = do
   _ <- single (Lexer.Punctuation Lexer.Equal)
   right <- pTy

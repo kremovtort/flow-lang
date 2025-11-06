@@ -8,7 +8,7 @@ import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
 import Data.Vector.NonEmpty (NonEmptyVector)
-import Flow.AST.Surface.Common (ModuleIdentifier, ScopeIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (ModuleIdentifier, RegionIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
 
 data AnyTypeIdentifier ty ann = AnyTypeIdentifier
   { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
@@ -32,29 +32,30 @@ data AnyVarIdentifier ty ann = AnyVarIdentifier
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data BindersF scopeBinder typeBinder ty ann = BindersF
-  { scopes :: Vector (scopeBinder ty ann)
+data BindersF regionBinder typeBinder ty ann = BindersF
+  { regions :: Vector (regionBinder ty ann)
   , types :: Vector (typeBinder ty ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-type BindersAppF = BindersF ScopeBinderWoConstraintsF BinderAppF
-type BindersWConstraintsF = BindersF ScopeBinderWConstraintsF BinderWConstraintsF
-type BindersWoConstraintsF = BindersF ScopeBinderWoConstraintsF BinderWoConstraintsF
+type BindersAppF = BindersF RegionBinderWoConstraintsF BinderAppF
+type BindersWConstraintsF = BindersF RegionBinderWConstraintsF BinderWConstraintsF
+type BindersWoConstraintsF = BindersF RegionBinderWoConstraintsF BinderWoConstraintsF
 
 newtype BinderAppF ty ann = BinderAppF {ty :: ty ann}
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
 
-data ScopeBinderWConstraintsF ty ann = ScopeBinderWConstraintsF
-  { name :: ScopeIdentifier ann
+data RegionBinderWConstraintsF ty ann = RegionBinderWConstraintsF
+  { name :: RegionIdentifier ann
   , constraint :: Maybe (BinderConstraintsF ty ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-newtype ScopeBinderWoConstraintsF ty ann = ScopeBinderWoConstraintsF (ScopeIdentifier ann)
+newtype RegionBinderWoConstraintsF ty ann =
+  RegionBinderWoConstraintsF (RegionIdentifier ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
 

@@ -1,7 +1,7 @@
 module Flow.AST.Surface.Type where
 
 import Data.Vector.NonEmpty (NonEmptyVector)
-import Flow.AST.Surface.Common (ScopeIdentifier, SimpleVarIdentifier)
+import Flow.AST.Surface.Common (RegionIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (AnyTypeIdentifier, BindersAppF, BindersWConstraintsF, WhereBlockF)
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
@@ -54,7 +54,7 @@ data AppF ty ann = AppF -- Option<A>
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
-  { scope :: Maybe (ScopeIdentifier ann)
+  { region :: Maybe (RegionIdentifier ann)
   , mutability :: Maybe ann
   , ann :: ann
   }
@@ -88,7 +88,7 @@ data FnEffectsF ty ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data FnEffectRowF ty ann = FnEffectRowF
-  { regions :: Vector (ScopeIdentifier ann)
+  { regions :: Vector (RegionIdentifier ann)
   , effects :: Vector (FnEffectAtomF ty ann)
   , tailVars :: Vector (ty ann, ann)
   , ann :: ann
@@ -101,7 +101,7 @@ data FnEffectAtomF ty ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectRowF ty ann = EffectRowF
-  { regions :: Vector (ScopeIdentifier ann)
+  { regions :: Vector (RegionIdentifier ann)
   , effects :: Vector (ty ann)
   , tailVars :: Vector (ty ann, ann)
   , ann :: ann

@@ -6,7 +6,7 @@ import "vector" Data.Vector (Vector)
 import "base" Prelude hiding (Enum)
 
 import Data.Vector.NonEmpty (NonEmptyVector)
-import Flow.AST.Surface.Common (SimpleVarIdentifier, ScopeIdentifier)
+import Flow.AST.Surface.Common (SimpleVarIdentifier, RegionIdentifier)
 import Flow.AST.Surface.Use (UseClause)
 
 data UnitF a = UnitF
@@ -56,7 +56,7 @@ newtype LHSUnOpExpression expr ann
   deriving anyclass (ToExpr)
 
 data CodeBlockF stmt expr ann = CodeBlockF
-  { region :: Maybe (ScopeIdentifier ann)
+  { region :: Maybe (RegionIdentifier ann)
   , uses :: Vector (UseClause ann)
   , statements :: Vector (stmt ann)
   , result :: Maybe (expr ann)

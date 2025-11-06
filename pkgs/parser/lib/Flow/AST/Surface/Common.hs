@@ -33,7 +33,7 @@ data SimpleVarIdentifier ann = SimpleVarIdentifier
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ScopeIdentifier ann = ScopeIdentifier
+data RegionIdentifier ann = RegionIdentifier
   { name :: Text
   , ann :: ann
   }

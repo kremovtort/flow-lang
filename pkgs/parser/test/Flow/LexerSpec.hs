@@ -21,7 +21,7 @@ spec = do
   punctuationSpec
   identifierSpec
   dotIdentifierSpec
-  refScopeSpec
+  refRegionSpec
   opticSpec
   boolLiteralSpec
   integerLiteralSpec
@@ -334,22 +334,22 @@ dotIdentifierSpec = describe "Dot identifiers" do
   it "parses dot tuple field identifier" $
     parse tokens "" ".123" `shouldParse` Vector.fromList [Punctuation Dot, IntegerLiteral 123]
 
--- | Test ref scopes
-refScopeSpec :: Spec
-refScopeSpec = describe "RefScope" do
-  it "parses simple ref scope" $
-    parse tokens "" "'foo" `shouldParse` singleToken (RefScope "foo")
+-- | Test ref regions
+refRegionSpec :: Spec
+refRegionSpec = describe "RefRegion" do
+  it "parses simple ref region" $
+    parse tokens "" "'foo" `shouldParse` singleToken (Region "foo")
 
-  it "parses ref scope with numbers" $
-    parse tokens "" "'foo123" `shouldParse` singleToken (RefScope "foo123")
+  it "parses ref region with numbers" $
+    parse tokens "" "'foo123" `shouldParse` singleToken (Region "foo123")
 
-  it "parses ref scope with underscores" $
-    parse tokens "" "'foo_bar" `shouldParse` singleToken (RefScope "foo_bar")
+  it "parses ref region with underscores" $
+    parse tokens "" "'foo_bar" `shouldParse` singleToken (Region "foo_bar")
 
-  it "parses ref scope starting with underscore" $
-    parse tokens "" "'_foo" `shouldParse` singleToken (RefScope "_foo")
+  it "parses ref region starting with underscore" $
+    parse tokens "" "'_foo" `shouldParse` singleToken (Region "_foo")
 
-  it "does not parse ref scope starting with number after apostrophe" $
+  it "does not parse ref region starting with number after apostrophe" $
     parse tokens "" `shouldFailOn` ("'123foo" :: Text)
 
 -- | Test optics
@@ -685,19 +685,19 @@ combinedTokensSpec = describe "Combined token sequences" do
         , ByteStringLiteral "world"
         ]
 
-  it "parses ref scope in context" $
+  it "parses ref region in context" $
     parse tokens "" "fn<'a> foo(x: &'a i32)"
       `shouldParse` Vector.fromList
         [ Keyword Fn
         , Punctuation LessThan
-        , RefScope "a"
+        , Region "a"
         , Punctuation GreaterThan
         , Identifier "foo"
         , Punctuation LeftParen
         , Identifier "x"
         , Punctuation Colon
         , Punctuation Ampersand
-        , RefScope "a"
+        , Region "a"
         , Identifier "i32"
         , Punctuation RightParen
         ]

@@ -12,7 +12,7 @@ import Flow.AST.Surface (
   Type (..),
   Mod (..), ModDefinitionBody,
  )
-import Flow.Lexer (SourceRegion)
+import Flow.Lexer (SourceSpan)
 import Flow.Parser.Common (Parser)
 import Flow.Parser.Expr qualified as PExpr
 import Flow.Parser.Pattern qualified as PPat
@@ -20,18 +20,18 @@ import Flow.Parser.Syntax qualified as PSyn
 import Flow.Parser.Type qualified as PType
 import Flow.Parser.Module qualified as PMod
 
-pExpression :: Parser (Expression SourceRegion)
+pExpression :: Parser (Expression SourceSpan)
 pExpression = PExpr.pExpression pStatement pPatternSimple pPattern pType pExpression
 
-pStatement :: Parser (Statement SourceRegion)
+pStatement :: Parser (Statement SourceSpan)
 pStatement = do
   (stmt, ann) <- PSyn.pStatement pStatement pLhsExpression pPatternSimple pPattern pType pExpression
   pure $ Statement stmt ann
 
-pLhsExpression :: Parser (LHSExpression SourceRegion)
+pLhsExpression :: Parser (LHSExpression SourceSpan)
 pLhsExpression = PSyn.pLHSExpression pExpression
 
-pPatternSimple :: Parser (PatternSimple SourceRegion)
+pPatternSimple :: Parser (PatternSimple SourceSpan)
 pPatternSimple = do
   (simPat, ann) <- PPat.pPatternSimple pPatternSimple pType
   pure
@@ -40,7 +40,7 @@ pPatternSimple = do
       , ann
       }
 
-pPattern :: Parser (Pattern SourceRegion)
+pPattern :: Parser (Pattern SourceSpan)
 pPattern = do
   (pattern, ann) <- PPat.pPattern pPattern pType
   pure
@@ -49,13 +49,13 @@ pPattern = do
       , ann
       }
 
-pType :: Parser (Type SourceRegion)
+pType :: Parser (Type SourceSpan)
 pType = PType.pType
 
-pMod :: Parser (Mod SourceRegion)
+pMod :: Parser (Mod SourceSpan)
 pMod = do
   (mod', ann) <- PMod.pMod pMod pStatement pPatternSimple pType pExpression
   pure $ Mod mod' ann
 
-pModDefinitionBody :: Parser (ModDefinitionBody SourceRegion)
+pModDefinitionBody :: Parser (ModDefinitionBody SourceSpan)
 pModDefinitionBody = PMod.pModDefinitionBody pMod pStatement pPatternSimple pType pExpression

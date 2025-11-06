@@ -11,7 +11,7 @@ import Flow.AST.Surface.Callable (
   OpInfixDefinitionF,
  )
 import Flow.AST.Surface.Common (
-  ScopeIdentifier,
+  RegionIdentifier,
   SimpleTypeIdentifier,
   SimpleVarIdentifier,
  )
@@ -81,8 +81,8 @@ data UnOp ann
   = UnOpNot ann
   | UnOpNeg ann
   | UnOpDeref ann
-  | UnOpTakeRef (Maybe (ScopeIdentifier ann)) ann
-  | UnOpTakeMutRef (Maybe (ScopeIdentifier ann)) ann
+  | UnOpTakeRef (Maybe (RegionIdentifier ann)) ann
+  | UnOpTakeMutRef (Maybe (RegionIdentifier ann)) ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BinOp ann
@@ -199,7 +199,7 @@ data ArgNamedF expr ann = ArgNamedF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data AllocF stmt expr ann = AllocF
-  { into :: Maybe (ScopeIdentifier ann)
+  { into :: Maybe (RegionIdentifier ann)
   , body :: CodeBlockF stmt expr ann
   , ann :: ann
   }

@@ -7,16 +7,16 @@ import Flow.AST.Surface (Expression (..))
 import Flow.AST.Surface.Common
 import Flow.AST.Surface.Expr
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, SourceRegion (..), scopeIdentifier, single)
+import Flow.Parser.Common (Parser, SourceSpan (..), regionIdentifier, single)
 import Text.Megaparsec qualified as Megaparsec
 
 pOperators ::
-  Parser (Expression SourceRegion) ->
-  Parser (Expression SourceRegion)
+  Parser (Expression SourceSpan) ->
+  Parser (Expression SourceSpan)
 pOperators pExpr = Expr.makeExprParser pExpr operators
 
 operators ::
-  [[Expr.Operator Parser (Expression SourceRegion)]]
+  [[Expr.Operator Parser (Expression SourceSpan)]]
 operators =
   [ [deref, not', neg, takeMutRef, takeRef]
   , [mul, divOp, modOp]
@@ -32,33 +32,33 @@ operators =
   deref =
     Expr.Prefix $
       single (Lexer.Punctuation Lexer.Star)
-        <&> \tok -> mkUnOp UnOpDeref tok.region
+        <&> \tok -> mkUnOp UnOpDeref tok.span
 
   not' =
     Expr.Prefix $
       single (Lexer.Punctuation Lexer.Not)
-        <&> \tok -> mkUnOp UnOpNot tok.region
+        <&> \tok -> mkUnOp UnOpNot tok.span
 
   neg =
     Expr.Prefix $
-      single (Lexer.Punctuation Lexer.Minus) <&> \tok -> mkUnOp UnOpNeg tok.region
+      single (Lexer.Punctuation Lexer.Minus) <&> \tok -> mkUnOp UnOpNeg tok.span
 
   takeRef = Expr.Prefix $ Megaparsec.try do
     tok <- single (Lexer.Punctuation Lexer.Ampersand)
-    mScope <- Megaparsec.optional scopeIdentifier
-    pure case mScope of
-      Nothing -> mkUnOp (UnOpTakeRef Nothing) tok.region
-      Just scope ->
+    mRegion <- Megaparsec.optional regionIdentifier
+    pure case mRegion of
+      Nothing -> mkUnOp (UnOpTakeRef Nothing) tok.span
+      Just region ->
         mkUnOp
-          (UnOpTakeRef (Just scope))
-          (SourceRegion tok.region.start scope.ann.end)
+          (UnOpTakeRef (Just region))
+          (SourceSpan tok.span.start region.ann.end)
 
   takeMutRef = Expr.Prefix $ Megaparsec.try do
     tok <- single (Lexer.Punctuation Lexer.Ampersand)
-    mScope <- Megaparsec.optional scopeIdentifier
+    mRegion <- Megaparsec.optional regionIdentifier
     mutTok <- single (Lexer.Keyword Lexer.Mut)
-    let region = SourceRegion tok.region.start mutTok.region.end
-    pure $ mkUnOp (UnOpTakeMutRef mScope) region
+    let region = SourceSpan tok.span.start mutTok.span.end
+    pure $ mkUnOp (UnOpTakeMutRef mRegion) region
 
   mul = binaryL Lexer.Star BinOpMul
   divOp = binaryL Lexer.Slash BinOpDiv
@@ -88,21 +88,21 @@ operators =
   binaryL token ctor =
     Expr.InfixL $
       single (Lexer.Punctuation token) <&> \tok lhs rhs ->
-        mkBinOp ctor tok.region lhs rhs
+        mkBinOp ctor tok.span lhs rhs
 
   binaryR token ctor =
     Expr.InfixR $
       single (Lexer.Punctuation token) <&> \tok lhs rhs ->
-        mkBinOp ctor tok.region lhs rhs
+        mkBinOp ctor tok.span lhs rhs
 
   binaryN token ctor =
     Expr.InfixN $
       single (Lexer.Punctuation token) <&> \tok lhs rhs ->
-        mkBinOp ctor tok.region lhs rhs
+        mkBinOp ctor tok.span lhs rhs
 
   mkBinOp ctor opRegion left right =
     let region =
-          SourceRegion
+          SourceSpan
             { start = left.ann.start
             , end = right.ann.end
             }
@@ -121,5 +121,5 @@ operators =
   mkUnOp mkOp opAnn operand =
     Expression
       { expr = EUnOpF UnOpExpression{op = mkOp opAnn, operand}
-      , ann = SourceRegion opAnn.start operand.ann.end
+      , ann = SourceSpan opAnn.start operand.ann.end
       }

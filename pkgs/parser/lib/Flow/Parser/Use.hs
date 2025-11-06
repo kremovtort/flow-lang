@@ -17,7 +17,7 @@ import Flow.Parser.Common (
   single,
  )
 
-pUseClause :: Parser (Surface.UseClause Lexer.SourceRegion)
+pUseClause :: Parser (Surface.UseClause Lexer.SourceSpan)
 pUseClause = do
   useTok <- single (Lexer.Keyword Lexer.Use)
   root <- moduleIdentifier
@@ -29,7 +29,7 @@ pUseClause = do
     Surface.UseClause
       { root
       , tree
-      , ann = Lexer.SourceRegion{start = useTok.region.start, end = tokE.region.end}
+      , ann = Lexer.SourceSpan{start = useTok.span.start, end = tokE.span.end}
       }
  where
   pUseTree =
@@ -65,7 +65,7 @@ pUseClause = do
         , as = as
         , ann = case as of
             Nothing -> use.ann
-            Just as' -> Lexer.SourceRegion use.ann.start as'.ann.end
+            Just as' -> Lexer.SourceSpan use.ann.start as'.ann.end
         }
 
   pUseTreeLeafMethod = do
@@ -89,9 +89,9 @@ pUseClause = do
         Surface.UseTreeLeafMethodAsFn
           { use
           , as
-          , ann = Lexer.SourceRegion use.ann.start as.ann.end
+          , ann = Lexer.SourceSpan use.ann.start as.ann.end
           }
 
   pUseTreeLeafWildcard = do
     tok <- single (Lexer.Punctuation Lexer.Star)
-    pure $ Surface.UseTrLeafWildcard tok.region
+    pure $ Surface.UseTrLeafWildcard tok.span

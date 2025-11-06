@@ -10,16 +10,16 @@ import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, SourceRegion (..), simpleVarIdentifier, single)
+import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), simpleVarIdentifier, single)
 import Flow.Parser.Constraint (anyTypeIdentifier, pBindersWoConstraints)
 import Flow.Parser.Literal (literal)
 
 pPattern ::
   forall pat ty.
-  (HasAnn pat SourceRegion, HasAnn ty SourceRegion) =>
-  Parser (pat SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (Surface.PatternF pat ty SourceRegion, SourceRegion)
+  (HasAnn pat SourceSpan, HasAnn ty SourceSpan) =>
+  Parser (pat SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (Surface.PatternF pat ty SourceSpan, SourceSpan)
 pPattern pPat pTy = Megaparsec.label "pattern" do
   Megaparsec.choice
     [ Bifunctor.first Surface.PatSimpleF <$> pPatternSimple pPat pTy
@@ -29,10 +29,10 @@ pPattern pPat pTy = Megaparsec.label "pattern" do
 
 pPatternSimple ::
   forall pat ty.
-  (HasAnn pat SourceRegion, HasAnn ty SourceRegion) =>
-  Parser (pat SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (Surface.PatternSimpleF pat ty SourceRegion, SourceRegion)
+  (HasAnn pat SourceSpan, HasAnn ty SourceSpan) =>
+  Parser (pat SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (Surface.PatternSimpleF pat ty SourceSpan, SourceSpan)
 pPatternSimple pPat pTy =
   Megaparsec.choice
     [ pWildcard
@@ -42,53 +42,53 @@ pPatternSimple pPat pTy =
         (Surface.PatSimConstructorAppF cons, cons.ann)
     ]
 
-pWildcard :: Parser (Surface.PatternSimpleF pat ty SourceRegion, SourceRegion)
+pWildcard :: Parser (Surface.PatternSimpleF pat ty SourceSpan, SourceSpan)
 pWildcard = do
   tok <- single (Lexer.Punctuation Lexer.Underscore)
-  pure (Surface.PatSimWildcardF, tok.region)
+  pure (Surface.PatSimWildcardF, tok.span)
 
-pLiteral :: Parser (Surface.PatternF pat ty SourceRegion, SourceRegion)
+pLiteral :: Parser (Surface.PatternF pat ty SourceSpan, SourceSpan)
 pLiteral = do
   (lit, ann) <- literal
   pure (Surface.PatLiteralF lit, ann)
 
-pVar :: Parser (Surface.PatternVariableF pat ty SourceRegion)
+pVar :: Parser (Surface.PatternVariableF pat ty SourceSpan)
 pVar = Megaparsec.label "pattern variable" do
   ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
   mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
   name <- simpleVarIdentifier
   pure
     Surface.PatternVariableF
-      { ref = (.region) <$> ref
-      , mut = (.region) <$> mut
+      { ref = (.span) <$> ref
+      , mut = (.span) <$> mut
       , name = name
       , ann =
-          SourceRegion
+          SourceSpan
             { start = case mut of
-                Just mut' -> mut'.region.start
+                Just mut' -> mut'.span.start
                 Nothing -> name.ann.start
             , end = name.ann.end
             }
       }
 
 pTuple ::
-  Parser (pat SourceRegion) ->
-  Parser (Surface.PatternSimpleF pat ty SourceRegion, SourceRegion)
+  Parser (pat SourceSpan) ->
+  Parser (Surface.PatternSimpleF pat ty SourceSpan, SourceSpan)
 pTuple p = do
   tokS <- single (Lexer.Punctuation Lexer.LeftParen)
   items <- Megaparsec.sepEndBy1 p (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.RightParen)
   pure
     ( Surface.PatSimTupleF (fromJust $ NonEmptyVector.fromList items)
-    , SourceRegion{start = tokS.region.start, end = tokE.region.end}
+    , SourceSpan{start = tokS.span.start, end = tokE.span.end}
     )
 
 pCons ::
   forall pat ty.
-  (HasAnn pat SourceRegion, HasAnn ty SourceRegion) =>
-  Parser (pat SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (Surface.PatternConsturctorAppF pat ty SourceRegion)
+  (HasAnn pat SourceSpan, HasAnn ty SourceSpan) =>
+  Parser (pat SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (Surface.PatternConsturctorAppF pat ty SourceSpan)
 pCons pPat pTy = do
   consName <- anyTypeIdentifier pTy
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
@@ -103,7 +103,7 @@ pCons pPat pTy = do
       { name = consName
       , typeParams = typeParams
       , fields = fields
-      , ann = Lexer.SourceRegion{start = consName.ann.start, end}
+      , ann = Lexer.SourceSpan{start = consName.ann.start, end}
       }
  where
   pFields = do
@@ -118,7 +118,7 @@ pCons pPat pTy = do
     tokE <- single (Lexer.Punctuation Lexer.RightParen)
     pure
       ( fromJust $ NonEmptyVector.fromList fields
-      , SourceRegion{start = tokS.region.start, end = tokE.region.end}
+      , SourceSpan{start = tokS.span.start, end = tokE.span.end}
       )
 
   pFieldUnnamed = do
@@ -127,12 +127,12 @@ pCons pPat pTy = do
     pure
       Surface.PatternFieldUnnamedF
         { value
-        , optional = (.region) <$> optional
+        , optional = (.span) <$> optional
         , ann =
-            SourceRegion
+            SourceSpan
               { start = value.ann.start
               , end = case optional of
-                  Just optional' -> optional'.region.end
+                  Just optional' -> optional'.span.end
                   Nothing -> value.ann.end
               }
         }
@@ -143,20 +143,20 @@ pCons pPat pTy = do
     tokE <- single (Lexer.Punctuation Lexer.RightBrace)
     pure
       ( fromJust $ NonEmptyVector.fromList fields
-      , SourceRegion
-          { start = tokS.region.start
-          , end = tokE.region.end
+      , SourceSpan
+          { start = tokS.span.start
+          , end = tokE.span.end
           }
       )
 
-  pFieldNamed :: Parser (Surface.PatternFieldNamedF pat ty SourceRegion)
+  pFieldNamed :: Parser (Surface.PatternFieldNamedF pat ty SourceSpan)
   pFieldNamed =
     Megaparsec.choice
       [ Surface.PatFldNmdValueF <$> Megaparsec.try pFieldNamedValue
       , Surface.PatFldNmdPunningF <$> pFieldNamedPunning
       ]
 
-  pFieldNamedValue :: Parser (Surface.PatternFieldNamedValueF pat ty SourceRegion)
+  pFieldNamedValue :: Parser (Surface.PatternFieldNamedValueF pat ty SourceSpan)
   pFieldNamedValue = do
     name <- simpleVarIdentifier
     _ <- single (Lexer.Punctuation Lexer.Assign)
@@ -165,10 +165,10 @@ pCons pPat pTy = do
       Surface.PatternFieldNamedValueF
         { name
         , value
-        , ann = SourceRegion{start = name.ann.start, end = value.ann.end}
+        , ann = SourceSpan{start = name.ann.start, end = value.ann.end}
         }
 
-  pFieldNamedPunning :: Parser (Surface.PatternFieldNamedPunningF pat ty SourceRegion)
+  pFieldNamedPunning :: Parser (Surface.PatternFieldNamedPunningF pat ty SourceSpan)
   pFieldNamedPunning = do
     ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
     mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
@@ -176,29 +176,29 @@ pCons pPat pTy = do
     optional <- Megaparsec.optional $ single (Lexer.Punctuation Lexer.Question)
     pure
       Surface.PatternFieldNamedPunningF
-        { ref = (.region) <$> ref
-        , mut = (.region) <$> mut
+        { ref = (.span) <$> ref
+        , mut = (.span) <$> mut
         , name
-        , optional = (.region) <$> optional
+        , optional = (.span) <$> optional
         , ann =
-            SourceRegion
+            SourceSpan
               { start = name.ann.start
               , end = case optional of
-                  Just optional' -> optional'.region.end
+                  Just optional' -> optional'.span.end
                   Nothing -> name.ann.end
               }
         }
 
 pOr ::
-  (HasAnn pat SourceRegion, HasAnn ty SourceRegion) =>
-  Parser (pat SourceRegion) ->
-  Parser (ty SourceRegion) ->
-  Parser (Surface.PatternF pat ty SourceRegion, SourceRegion)
+  (HasAnn pat SourceSpan, HasAnn ty SourceSpan) =>
+  Parser (pat SourceSpan) ->
+  Parser (ty SourceSpan) ->
+  Parser (Surface.PatternF pat ty SourceSpan, SourceSpan)
 pOr pPat pTy = do
   items <- fromJust . NonEmptyVector.fromList <$> Megaparsec.sepEndBy1 (pPatternSimple pPat pTy) (single (Lexer.Punctuation Lexer.Pipe))
   pure
     ( Surface.PatOrF (fmap fst items)
-    , SourceRegion
+    , SourceSpan
         { start = (snd $ NonEmptyVector.head items).start
         , end = (snd $ NonEmptyVector.last items).end
         }
