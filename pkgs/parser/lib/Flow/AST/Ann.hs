@@ -2,7 +2,7 @@ module Flow.AST.Ann where
 
 import "megaparsec" Text.Megaparsec (SourcePos)
 
-data Ann = Ann
+data SourceSpan = SourceSpan
   { start :: SourcePos
   , end :: SourcePos
   }

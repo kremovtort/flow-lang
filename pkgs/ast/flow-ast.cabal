@@ -26,15 +26,6 @@ common extensions
 library
   import: warnings, extensions
   exposed-modules:
-    Flow.AST
-    Flow.AST.Core.Type
-    Flow.AST.Core.Type.Alias
-    Flow.AST.Core.Type.Binder
-    Flow.AST.Core.Type.Common
-    Flow.AST.Core.Type.Constraint
-    Flow.AST.Core.Type.Effect
-    Flow.AST.Core.Type.Universe
-
   build-depends:
     base ^>=4.21.0.0,
     containers,
@@ -49,8 +40,6 @@ test-suite flow-ast-test
   import: warnings, extensions
   default-language: GHC2024
   other-modules:
-    Flow.ASTSpec
-
   -- other-extensions:
   type: exitcode-stdio-1.0
   hs-source-dirs: test
@@ -62,4 +51,3 @@ test-suite flow-ast-test
     hspec,
     text,
     vector,
-

@@ -15,6 +15,7 @@ module Flow.Lexer (
   tokenWithPos,
 ) where
 
+import Flow.AST.Ann (SourceSpan (..))
 import "base" Control.Applicative (many, (<|>))
 import "base" Data.Char (chr, isAlphaNum, isDigit, isHexDigit, isOctDigit)
 import "base" Data.Function ((&))
@@ -57,12 +58,6 @@ data WithPos a = WithPos
   deriving (Eq, Ord, Show, Functor)
 
 type TokenWithPos = WithPos Token
-
-data SourceSpan = SourceSpan
-  { start :: Megaparsec.SourcePos
-  , end :: Megaparsec.SourcePos
-  }
-  deriving (Eq, Ord, Show)
 
 data Token
   = Keyword Keyword
@@ -622,6 +617,7 @@ instance Megaparsec.TraversableStream TokenStream where
         dropLines
           (Megaparsec.unPos newSourcePos.sourceLine - 1)
           currentState.pstateInput.input
-    prefix = Text.take
-      (Megaparsec.unPos newSourcePos.sourceColumn - 1)
-      currentLine
+    prefix =
+      Text.take
+        (Megaparsec.unPos newSourcePos.sourceColumn - 1)
+        currentLine
