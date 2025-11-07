@@ -31,20 +31,6 @@ common extensions
 library
   import: warnings, extensions
   exposed-modules:
-    Flow.AST
-    Flow.AST.Ann
-    Flow.AST.Surface
-    Flow.AST.Surface.Callable
-    Flow.AST.Surface.Common
-    Flow.AST.Surface.Constraint
-    Flow.AST.Surface.Decl
-    Flow.AST.Surface.Expr
-    Flow.AST.Surface.Literal
-    Flow.AST.Surface.Module
-    Flow.AST.Surface.Pattern
-    Flow.AST.Surface.Syntax
-    Flow.AST.Surface.Type
-    Flow.AST.Surface.Use
     Flow.Lexer
     Flow.Parser
     Flow.Parser.Callable
@@ -64,6 +50,7 @@ library
     base ^>=4.21.0.0,
     bytestring,
     containers,
+    flow-ast,
     megaparsec,
     nonempty-vector,
     parser-combinators,
@@ -96,6 +83,7 @@ test-suite flow-parser-test
   build-depends:
     base ^>=4.21.0.0,
     bytestring,
+    flow-ast,
     flow-parser,
     hspec,
     hspec-megaparsec,

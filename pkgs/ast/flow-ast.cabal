@@ -17,6 +17,9 @@ common warnings
 common extensions
   default-extensions:
     BlockArguments
+    DeriveAnyClass
+    DerivingStrategies
+    DuplicateRecordFields
     NoFieldSelectors
     OverloadedRecordDot
     OverloadedStrings
@@ -26,11 +29,29 @@ common extensions
 library
   import: warnings, extensions
   exposed-modules:
+    Flow.AST
+    Flow.AST.Ann
+    Flow.AST.Surface
+    Flow.AST.Surface.Callable
+    Flow.AST.Surface.Common
+    Flow.AST.Surface.Constraint
+    Flow.AST.Surface.Decl
+    Flow.AST.Surface.Expr
+    Flow.AST.Surface.Literal
+    Flow.AST.Surface.Module
+    Flow.AST.Surface.Pattern
+    Flow.AST.Surface.Syntax
+    Flow.AST.Surface.Type
+    Flow.AST.Surface.Use
   build-depends:
     base ^>=4.21.0.0,
+    bytestring,
     containers,
+    megaparsec,
     nonempty-vector,
+    scientific,
     text,
+    tree-diff,
     vector,
 
   hs-source-dirs: lib
