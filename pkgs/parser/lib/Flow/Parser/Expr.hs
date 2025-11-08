@@ -39,15 +39,10 @@ import Flow.AST.Surface.Expr (
   LambdaFullF (..),
   LambdaShortF (..),
  )
+import Flow.AST.Surface.With (WithAppF (..), WithBlockF (..))
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF (..),
-  InStatementF (..),
-  WithF (..),
-  WithLhsF (..),
-  WithRhsExprF (..),
-  WithRhsF (..),
-  WithStatementF (..),
  )
 import Flow.AST.Surface.Syntax qualified as Syntax
 import Flow.Lexer qualified as Lexer
@@ -74,6 +69,7 @@ import Flow.Parser.Operators (pOperators)
 import Flow.Parser.Syntax (pCodeBlock, pIfExpression, pLetDefinition, pLoopExpression, pMatchExpression)
 import Flow.Parser.Type (pFnEffectsResult)
 import Flow.Parser.Use (pUseClause)
+import Flow.Parser.With (pWithApp, pWithBlock)
 
 pWildcard :: Parser SourceSpan
 pWildcard = do
@@ -153,12 +149,12 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
       [ pUnnamedArgs
       , pNamedArgs
       ]
-  withEnd <- Megaparsec.optional pWithPost
+  withApp <- Megaparsec.optional (pWithApp pTy pExpr)
   let ann =
         SourceSpan
           { start = expr.ann.start
-          , end = case withEnd of
-              Just (_, end') -> end'
+          , end = case withApp of
+              Just withApp' -> withApp'.ann.end
               Nothing -> end
           }
   pure
@@ -166,7 +162,7 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
       { callee = expr
       , typeParams
       , args
-      , with = fmap fst withEnd
+      , with = withApp
       , ann
       }
  where
@@ -206,36 +202,6 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
               }
         }
 
-  pWithPost = do
-    _ <- single (Lexer.Keyword Lexer.With)
-    _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-    effects <-
-      Megaparsec.sepEndBy1
-        (pWithStatement pTy pExpr)
-        (single (Lexer.Punctuation Lexer.Semicolon))
-    tokE <- single (Lexer.Punctuation Lexer.RightBrace)
-    pure (fromJust $ NonEmptyVector.fromList effects, tokE.span.end)
-
-pWith ::
-  (HasAnn stmt SourceSpan, HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
-  Parser (stmt SourceSpan) ->
-  Parser (ty SourceSpan) ->
-  Parser (expr SourceSpan) ->
-  Parser (WithF stmt ty expr SourceSpan)
-pWith pStmt pTy pExpr = do
-  tokS <- single (Lexer.Keyword Lexer.With)
-  _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-  statements <- Megaparsec.sepEndBy1 (pWithStatement pTy pExpr) (single (Lexer.Punctuation Lexer.Semicolon))
-  _ <- single (Lexer.Punctuation Lexer.RightBrace)
-  _ <- single (Lexer.Keyword Lexer.In)
-  block <- pCodeBlock pStmt pExpr
-  pure
-    WithF
-      { statements = fromJust $ NonEmptyVector.fromList statements
-      , block
-      , ann = SourceSpan{start = tokS.span.start, end = block.ann.end}
-      }
-
 pTuple ::
   Parser (Expression SourceSpan) ->
   Parser (Expression SourceSpan)
@@ -266,86 +232,6 @@ pAlloc pStmt pExpr = do
       , body = body
       , ann = SourceSpan{start = tokS.span.start, end = body.ann.end}
       }
-
-pWithStatement ::
-  (HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
-  Parser (ty SourceSpan) ->
-  Parser (expr SourceSpan) ->
-  Parser (WithStatementF ty expr SourceSpan)
-pWithStatement pTy pExpr = do
-  let_ <- Megaparsec.optional (single (Lexer.Keyword Lexer.Let))
-  (lhs, start) <- pWithLhs
-  _ <- single (Lexer.Punctuation Lexer.Assign)
-  (rhs, end) <- pWithRhs
-  pure $
-    WithStatementF
-      { let_ = fmap (.span) let_
-      , lhs = lhs
-      , rhs = rhs
-      , ann = SourceSpan{start = maybe start (.span.start) let_, end = end}
-      }
- where
-  pWithLhs =
-    Megaparsec.choice
-      [ pWithLhsLabelled
-      , pWithLhsUnlabelled
-      ]
-   where
-    pWithLhsLabelled = do
-      name <- simpleVarIdentifier
-      ty <- Megaparsec.optional do
-        _ <- single (Lexer.Punctuation Lexer.Colon)
-        pTy
-      pure
-        ( WLhsLabelled name ty
-        , name.ann.start
-        )
-    pWithLhsUnlabelled = do
-      ty <- pTy
-      pure (WLhsUnlabelled ty, ty.ann.start)
-
-  pWithRhs =
-    Megaparsec.choice
-      [ pWithRhsExpr
-      , pWithRhsType
-      ]
-   where
-    pWithRhsExpr = do
-      expr' <- pExpr
-      in_ <- Megaparsec.optional do
-        _ <- single (Lexer.Keyword Lexer.In)
-        _ <- single (Lexer.Punctuation Lexer.LeftBrace)
-        statements <-
-          Megaparsec.sepEndBy1
-            pWithRhsInStatement
-            (single (Lexer.Punctuation Lexer.Comma))
-        _ <- single (Lexer.Punctuation Lexer.RightBrace)
-        pure $ fromJust $ NonEmptyVector.fromList statements
-      pure
-        ( WRhsExprF
-            ( WithRhsExprF
-                { expr = expr'
-                , in_
-                , ann = expr'.ann
-                }
-            )
-        , expr'.ann.end
-        )
-
-    pWithRhsType = do
-      ty <- pTy
-      pure (WRhsTypeF ty, ty.ann.end)
-
-    pWithRhsInStatement = do
-      lhs <- pTy
-      _ <- single (Lexer.Punctuation Lexer.Assign)
-      rhs <- simpleVarIdentifier
-      pure $
-        InStatementF
-          { lhs
-          , rhs
-          , ann = SourceSpan{start = lhs.ann.start, end = rhs.ann.end}
-          }
 
 pLambdaShort ::
   (HasAnn ty SourceSpan, HasAnn expr SourceSpan) =>
@@ -547,8 +433,7 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
 
   pSuffixable =
     Megaparsec.choice
-      [ pWildcard'
-      , pLiteral'
+      [ pLiteral'
       , Megaparsec.try pTuple'
       , pParens'
       , pVar'
@@ -576,10 +461,6 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
       , pLambda'
       ]
 
-  pWildcard' = do
-    region <- pWildcard
-    pure $ Expression EWildcard region
-
   pLiteral' = do
     (lit, region) <- pLiteral
     pure $ Expression (ELiteral lit) region
@@ -599,8 +480,8 @@ pExpression pStmt pSimPat pPat pTy pExpr = do
   pOp' = pOperators pWithoutOp
 
   pWith' = do
-    with <- pWith pStmt pTy pExpr
-    pure $ Expression (EWithF with) with.ann
+    with <- pWithBlock pStmt pTy pExpr
+    pure $ Expression (EWithBlockF with) with.ann
 
   pTuple' = pTuple pExpr
 

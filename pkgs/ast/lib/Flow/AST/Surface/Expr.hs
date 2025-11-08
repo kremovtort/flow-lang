@@ -29,17 +29,15 @@ import Flow.AST.Surface.Syntax (
   LetDefinitionF,
   LoopExpressionF,
   MatchExpressionF,
-  WithF,
-  WithStatementF,
  )
 import Flow.AST.Surface.Type (FnEffectsResultF)
 import Flow.AST.Surface.Use (UseClause)
+import Flow.AST.Surface.With (WithBlockF, WithAppF)
 
 -- Expressions
 
 data ExpressionF stmt simPat pat ty expr ann
-  = EWildcard -- _
-  | ELiteral Literal -- 0 | true | "str"
+  = ELiteral Literal -- 0 | true | "str"
   | EOfType (expr ann) (ty ann) -- expr : T
   | EParens (expr ann) -- (expr)
   | EVar (AnyVarIdentifier ty ann) -- ident | someModule::ident
@@ -49,7 +47,7 @@ data ExpressionF stmt simPat pat ty expr ann
   | EUnOpF (UnOpExpression expr ann) -- -a | !a | *a | &a | &mut a | &'s mut a
   | EBinOpF (BinOpExpression expr ann) -- a * b | a + b | a ++ b | etc
   | EAppF (AppF ty expr ann) -- f(a, b, c) | f(a, b, c) with {}
-  | EWithF (WithF stmt ty expr ann) -- with { let a = b; c = d } in { ... }
+  | EWithBlockF (WithBlockF stmt ty expr ann) -- with { let a = b; c = d } in { ... }
   | ETupleF (expr ann) (NonEmptyVector (expr ann)) -- (a, b, c)
   | EMatchF (MatchExpressionF pat expr ann) -- match expr { Pattern => expr, ... }
   | EIfF (IfExpressionF stmt pat expr ann) -- if expr { then_ } else { else_ }
@@ -181,7 +179,7 @@ data AppF ty expr ann = AppF
   { callee :: expr ann
   , typeParams :: Maybe (BindersAppF ty ann)
   , args :: AppArgsF expr ann
-  , with :: Maybe (NonEmptyVector (WithStatementF ty expr ann))
+  , with :: Maybe (WithAppF ty expr ann)
   , ann :: ann
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

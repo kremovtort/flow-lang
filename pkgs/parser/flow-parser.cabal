@@ -45,6 +45,7 @@ library
     Flow.Parser.Syntax
     Flow.Parser.Type
     Flow.Parser.Use
+    Flow.Parser.With
 
   build-depends:
     base ^>=4.21.0.0,
@@ -54,7 +55,6 @@ library
     megaparsec,
     nonempty-vector,
     parser-combinators,
-    recursion-schemes,
     scientific,
     template-haskell,
     text,
@@ -70,10 +70,10 @@ test-suite flow-parser-test
   other-modules:
     Flow.LexerSpec
     Flow.Parser.ExpressionSpec
-    Flow.Parser.SpecHelpers
     Flow.Parser.LHSExpressionSpec
     Flow.Parser.ModuleSpec
     Flow.Parser.PatternSpec
+    Flow.Parser.SpecHelpers
     Flow.Parser.TypeSpec
 
   -- other-extensions:

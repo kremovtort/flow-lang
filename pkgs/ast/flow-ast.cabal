@@ -43,6 +43,8 @@ library
     Flow.AST.Surface.Syntax
     Flow.AST.Surface.Type
     Flow.AST.Surface.Use
+    Flow.AST.Surface.With
+
   build-depends:
     base ^>=4.21.0.0,
     bytestring,

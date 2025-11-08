@@ -5,7 +5,7 @@ import "containers" Data.Set qualified as Set
 
 import Flow.AST.Surface.Literal qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, SourceSpan (..), token, single)
+import Flow.Parser.Common (Parser, SourceSpan, token, single)
 
 literal :: Parser (Surface.Literal, SourceSpan)
 literal = Megaparsec.choice [unit, bool, integer, float, byte, byteString, char, string]
@@ -25,7 +25,7 @@ bool = do
           _ -> Nothing
   pure (Surface.LitBool tok.value, tok.span)
 
-integer :: Parser (Surface.Literal, Lexer.SourceSpan)
+integer :: Parser (Surface.Literal, SourceSpan)
 integer = do
   tok <-
     token
@@ -35,7 +35,7 @@ integer = do
           _ -> Nothing
   pure (Surface.LitInteger tok.value, tok.span)
 
-float :: Parser (Surface.Literal, Lexer.SourceSpan)
+float :: Parser (Surface.Literal, SourceSpan)
 float = do
   tok <-
     token
@@ -45,7 +45,7 @@ float = do
           _ -> Nothing
   pure (Surface.LitFloat tok.value, tok.span)
 
-byte :: Parser (Surface.Literal, Lexer.SourceSpan)
+byte :: Parser (Surface.Literal, SourceSpan)
 byte = do
   tok <-
     token
@@ -55,17 +55,17 @@ byte = do
           _ -> Nothing
   pure (Surface.LitByte tok.value, tok.span)
 
-byteString :: Parser (Surface.Literal, Lexer.SourceSpan)
+byteString :: Parser (Surface.Literal, SourceSpan)
 byteString = do
   tok <-
     token
-      (Set.singleton $ Megaparsec.Label "byte string literal")
+      (Set.singleton $ Megaparsec.Label "bytestring literal")
       \case
           Lexer.ByteStringLiteral b -> Just b
           _ -> Nothing
   pure (Surface.LitByteString tok.value, tok.span)
 
-char :: Parser (Surface.Literal, Lexer.SourceSpan)
+char :: Parser (Surface.Literal, SourceSpan)
 char = do
   tok <-
     token
@@ -75,7 +75,7 @@ char = do
           _ -> Nothing
   pure (Surface.LitChar tok.value, tok.span)
 
-string :: Parser (Surface.Literal, Lexer.SourceSpan)
+string :: Parser (Surface.Literal, SourceSpan)
 string = do
   tok <-
     token

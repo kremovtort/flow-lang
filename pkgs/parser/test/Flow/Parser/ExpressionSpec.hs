@@ -17,9 +17,6 @@ import Flow.AST.Surface.Type qualified as Surface.Type
 import Flow.Parser (pExpression)
 import Flow.Parser.SpecHelpers (shouldBe, shouldBeParsed, testParser)
 
-wildcard :: Surface.Expression ()
-wildcard = Surface.Expression{expr = Surface.EWildcard, ann = ()}
-
 literalInt :: Integer -> Surface.Expression ()
 literalInt n = Surface.Expression{expr = Surface.ELiteral (Surface.LitInteger n), ann = ()}
 
@@ -211,9 +208,6 @@ blockExpr stmts resultExpr =
 
 spec :: Spec
 spec = describe "Expression parser (minimal subset)" do
-  it "parses wildcard _" do
-    testParser "_" pExpression $ shouldBeParsed (`shouldBe` wildcard)
-
   it "parses literal 1" do
     testParser "1" pExpression $ shouldBeParsed (`shouldBe` literalInt 1)
 
@@ -251,9 +245,9 @@ spec = describe "Expression parser (minimal subset)" do
     let source =
           """
           f(a, b) with {
-            let Reader<R> = reader_handle(env);
-            let state = state_handle(initial);
-            writer = w;
+            Reader<R> = reader_handle(env),
+            state = state_handle(initial),
+            writer = w,
           }
           """
     testParser source pExpression $ shouldBeParsed $ const $ pure ()
@@ -262,10 +256,10 @@ spec = describe "Expression parser (minimal subset)" do
     let source =
           """
           my_func(a, b) with {
-            let writer = writer_handle() in {
+            writer = writer_handle() in {
               State<W> = s,
-              Reader<R> = r
-            };
+              Reader<R> = r,
+            },
           }
           """
     testParser source pExpression $ shouldBeParsed $ const $ pure ()
@@ -277,6 +271,31 @@ spec = describe "Expression parser (minimal subset)" do
             (v, a) => v,
             Some(v) => v,
             None => 0,
+          }
+          """
+    testParser source pExpression $ shouldBeParsed $ const $ pure ()
+
+  it "parses with block" do
+    let source =
+          """
+          with {
+            let Reader<R> = reader_handle(env);
+            let state: State<S> = state_handle(initial);
+
+            Reader<R> = reader_handle(env);
+            state = state_handle(initial);
+            Reader<R> = r;
+            state = State<S>;
+
+            let reader = Reader<R>;
+            let state1 = state;
+
+            let Reader<R>, State<S> = reader_state_handle(env, initial);
+            let reader, state2 = reader_state_handle(env, initial);
+            let reader1: Reader<R>, state2: State<S> = reader_state_handle(env, initial);
+            reader1, state2 = reader_state_handle(env, initial);
+          } in {
+            ()
           }
           """
     testParser source pExpression $ shouldBeParsed $ const $ pure ()
@@ -314,6 +333,6 @@ spec = describe "Expression parser (minimal subset)" do
             .map(|y| y + 1)
             .filter(|y| y > 0)
             .sum()
-            .for_each(|y| println(y)) with { let Printer = printer_handle() }
+            .for_each(|y| println(y)) with { Printer = printer_handle() }
           """
     testParser source pExpression $ shouldBeParsed (const $ pure ())

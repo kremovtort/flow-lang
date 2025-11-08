@@ -8,7 +8,8 @@ import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import "vector" Data.Vector (Vector)
 
 data TypeF ty ann
-  = TyBuiltinF Builtin
+  = TyWildcardF -- _
+  | TyBuiltinF Builtin
   | TyIdentifierF (AnyTypeIdentifier ty ann) -- MyType
   | TyParensF (ty ann) -- (A)
   | TyAppF (AppF ty ann) -- Option<A>
