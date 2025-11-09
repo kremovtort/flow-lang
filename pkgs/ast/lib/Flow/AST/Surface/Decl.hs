@@ -18,7 +18,6 @@ import Flow.AST.Surface.Callable (
  )
 import Flow.AST.Surface.Common (Pub, SimpleTypeIdentifier, SimpleVarIdentifier)
 import Flow.AST.Surface.Constraint (
-  BindersWConstraintsF,
   BindersWoConstraintsF,
   TypeDefinitionF,
   WhereBlockF, AnyTypeIdentifier, BindersAppF, KindTreeRootF,
@@ -68,7 +67,7 @@ data EnumVariantF ty ann = EnumVariantF
 
 data EnumVariantGeneralizedF ty ann = EnumVariantGeneralizedF
   { name :: SimpleTypeIdentifier ann
-  , typeParams :: Maybe (BindersWConstraintsF ty ann)
+  , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , fields :: Maybe (FieldsDeclF ty ann)
   , result :: ty ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
@@ -109,7 +108,7 @@ data TraitItemVariantF stmt ty expr ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ImplF stmt simPat ty expr ann = ImplF
-  { implParams :: Maybe (BindersWConstraintsF ty ann)
+  { implParams :: Maybe (BindersWoConstraintsF ty ann)
   , trait :: AnyTypeIdentifier ty ann
   , traitParams :: BindersAppF ty ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
@@ -127,7 +126,7 @@ data ImplItemVariantF stmt simPat ty expr ann
 
 data EffectF stmt ty expr ann = EffectF
   { name :: SimpleTypeIdentifier ann
-  , typeParams :: Maybe (BindersWConstraintsF ty ann)
+  , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , superEffects :: Maybe (NonEmptyVector (ty ann))
   , whereBlock :: Maybe (WhereBlockF ty ann)
   , effectBody :: Vector (EffectItemF stmt ty expr ann)

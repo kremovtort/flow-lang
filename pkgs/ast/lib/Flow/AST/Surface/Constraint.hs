@@ -45,33 +45,16 @@ data BindersAppF ty ann = BindersAppF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-type BindersWConstraintsF = BindersF RegionBinderWConstraintsF BinderWConstraintsF
 type BindersWoConstraintsF = BindersF RegionBinderWoConstraintsF BinderWoConstraintsF
 
 newtype BinderAppF ty ann = BinderAppF {ty :: ty ann}
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
 
-data RegionBinderWConstraintsF ty ann = RegionBinderWConstraintsF
-  { name :: RegionIdentifier ann
-  , constraint :: Maybe (BinderConstraintsF ty ann)
-  , ann :: ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
-
 newtype RegionBinderWoConstraintsF ty ann =
   RegionBinderWoConstraintsF (RegionIdentifier ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
-
-data BinderWConstraintsF ty ann = BinderWConstraintsF -- A | A :< Monoid
-  { name :: SimpleTypeIdentifier ann
-  , kindShort :: Maybe (KindTreeRootF ty ann)
-  , typeType :: Maybe (ty ann)
-  , constraint :: Maybe (BinderConstraintsF ty ann)
-  , ann :: ann
-  }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BinderConstraintsF ty ann = BinderConstraintsF
   { constraints :: NonEmptyVector (AnyTypeIdentifier ty ann)

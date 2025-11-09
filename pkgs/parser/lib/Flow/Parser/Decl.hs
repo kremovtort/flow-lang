@@ -20,8 +20,20 @@ import Flow.Parser.Callable (
   pOpInfixDeclaration,
   pOpInfixDefinition,
  )
-import Flow.Parser.Common (HasAnn, Parser, pPub, simpleTypeIdentifier, simpleVarIdentifier, single)
-import Flow.Parser.Constraint (pBindersWConstraints, pBindersWoConstraints, pKindTreeRoot, pWhereBlockHead, pWhereBlockNested)
+import Flow.Parser.Common (
+  HasAnn,
+  Parser,
+  pPub,
+  simpleTypeIdentifier,
+  simpleVarIdentifier,
+  single,
+ )
+import Flow.Parser.Constraint (
+  pBindersWoConstraints,
+  pKindTreeRoot,
+  pWhereBlockHead,
+  pWhereBlockNested,
+ )
 
 pStruct ::
   (HasAnn ty Lexer.SourceSpan) =>
@@ -101,7 +113,7 @@ pEnum pTy = do
    where
     pEnumVariantGeneralized = do
       name <- simpleTypeIdentifier
-      typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
+      typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
       fields <- Megaparsec.optional (pFieldsDecl pTy)
       _ <- single (Lexer.Punctuation Lexer.Colon)
       result <- pTy
@@ -227,7 +239,7 @@ pEffect ::
 pEffect pStmt pTy pExpr = do
   tokS <- single (Lexer.Keyword Lexer.Effect)
   name <- simpleTypeIdentifier
-  typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
+  typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   superEffects <-
     fmap (fromJust . NonEmptyVector.fromList) <$> Megaparsec.optional do
       _ <- single (Lexer.Punctuation Lexer.FatArrow)

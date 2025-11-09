@@ -17,7 +17,7 @@ import Flow.AST.Surface.Type (FnEffectsF (..))
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), regionIdentifier, simpleVarIdentifier, single, token)
-import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWConstraints, pWhereBlockNested)
+import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWoConstraints, pWhereBlockNested)
 
 pType :: Parser (Surface.Type SourceSpan)
 pType = do
@@ -358,7 +358,7 @@ pForall ::
   Parser (ty SourceSpan) ->
   Parser (Surface.ForallF ty SourceSpan)
 pForall pTy = do
-  params <- pBindersWConstraints pTy
+  params <- pBindersWoConstraints pTy
   result <- pTy
   whereBlock <- Megaparsec.optional (pWhereBlockNested pTy)
   pure

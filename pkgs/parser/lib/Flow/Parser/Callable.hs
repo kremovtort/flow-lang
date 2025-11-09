@@ -28,7 +28,11 @@ import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer (SourceSpan (..), WithPos (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (HasAnn, Parser, simpleVarIdentifier, single)
-import Flow.Parser.Constraint (anyVarIdentifier, pBindersWConstraints, pWhereBlockHead)
+import Flow.Parser.Constraint (
+  anyVarIdentifier,
+  pBindersWoConstraints,
+  pWhereBlockHead,
+ )
 import Flow.Parser.Syntax (pCodeBlock)
 import Flow.Parser.Type (pFnEffectsResult)
 
@@ -37,7 +41,7 @@ pRecieverHeader ::
   Parser (ty SourceSpan) ->
   Parser (ReceiverHeaderF ty SourceSpan)
 pRecieverHeader pTy = do
-  typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
+  typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   name <- simpleVarIdentifier
   _ <- single (Lexer.Punctuation Lexer.Colon)
   type_ <- pTy
@@ -66,7 +70,7 @@ pCallableHeader pKind pReciever pName pTy = do
   kindTok <- pKind
   receiver <- pReciever
   name <- pName
-  typeParams <- Megaparsec.optional (pBindersWConstraints pTy)
+  typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   _ <- single (Lexer.Punctuation Lexer.LeftParen)
   args <- Vector.fromList <$> pArgs
   argsEnd <- single (Lexer.Punctuation Lexer.RightParen)
@@ -240,5 +244,6 @@ pOpInfixDefinition pStmt pTy pExpr =
     pTy
 
 pBodySemicolon :: Parser (Surface.UnitF ann, Maybe SourceSpan)
-pBodySemicolon = single (Lexer.Punctuation Lexer.Semicolon) <&> \semicolon ->
-  (Surface.UnitF, Just semicolon.span)
+pBodySemicolon =
+  single (Lexer.Punctuation Lexer.Semicolon) <&> \semicolon ->
+    (Surface.UnitF, Just semicolon.span)

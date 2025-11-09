@@ -19,7 +19,7 @@ import Flow.AST.Surface.Constraint (
   AnyTypeIdentifier,
   AnyVarIdentifier,
   BindersAppF,
-  BindersWConstraintsF,
+  BindersWoConstraintsF,
   WhereBlockF,
  )
 import Flow.AST.Surface.Literal (Literal)
@@ -119,7 +119,7 @@ data LambdaShortF ty expr ann = LambdaShortF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data LambdaFullF stmt ty expr ann = LambdaFullF
-  { typeParams :: Maybe (BindersWConstraintsF ty ann)
+  { typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , args :: Vector (LambdaArgF ty ann)
   , effectsResult :: Maybe (FnEffectsResultF ty ann)
   , whereBlock :: Maybe (WhereBlockF ty ann)

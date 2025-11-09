@@ -61,7 +61,7 @@ import Flow.Parser.Constraint (
   anyTypeIdentifier,
   anyVarIdentifier,
   pBindersApp,
-  pBindersWConstraints,
+  pBindersWoConstraints,
   pWhereBlockHead,
  )
 import Flow.Parser.Literal (literal)
@@ -268,7 +268,7 @@ pLambdaFull ::
   Parser (expr SourceSpan) ->
   Parser (LambdaF stmt ty expr SourceSpan, SourceSpan)
 pLambdaFull pStmt pTy pExpr = do
-  mBinders <- Megaparsec.optional (pBindersWConstraints pTy)
+  mBinders <- Megaparsec.optional (pBindersWoConstraints pTy)
   argsOpen <- single (Lexer.Punctuation Lexer.Pipe)
   args <- Megaparsec.sepBy (pLambdaArg pTy) (single (Lexer.Punctuation Lexer.Comma))
   _ <- single (Lexer.Punctuation Lexer.Pipe)

@@ -2,7 +2,12 @@ module Flow.AST.Surface.Type where
 
 import Data.Vector.NonEmpty (NonEmptyVector)
 import Flow.AST.Surface.Common (RegionIdentifier, SimpleVarIdentifier)
-import Flow.AST.Surface.Constraint (AnyTypeIdentifier, BindersAppF, BindersWConstraintsF, WhereBlockF)
+import Flow.AST.Surface.Constraint (
+  AnyTypeIdentifier,
+  BindersAppF,
+  BindersWoConstraintsF,
+  WhereBlockF,
+ )
 import "base" GHC.Generics (Generic)
 import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import "vector" Data.Vector (Vector)
@@ -63,7 +68,7 @@ data RefF ann = RefF -- &'s T | &'s mut T | &T | &mut T
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data ForallF ty ann = ForallF -- <A :< Monoid> fn(List<A>) -> A
-  { params :: BindersWConstraintsF ty ann
+  { params :: BindersWoConstraintsF ty ann
   , result :: ty ann
   , whereBlock :: Maybe (WhereBlockF ty ann)
   , ann :: ann
