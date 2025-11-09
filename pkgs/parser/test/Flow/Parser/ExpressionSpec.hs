@@ -1,6 +1,7 @@
 module Flow.Parser.ExpressionSpec (spec) where
 
 import "base" Data.Functor ((<&>))
+import "base" Data.Maybe (fromJust)
 import "hspec" Test.Hspec (Spec, describe, it)
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "text" Data.Text (Text)
@@ -103,20 +104,19 @@ callNamed fname args =
     , ann = ()
     }
 
-callWithParams :: Text -> [Surface.RegionIdentifier ()] -> [Surface.Type ()] -> [Surface.Expression ()] -> Surface.Expression ()
-callWithParams fname regions types args =
+callWithParams :: Text -> [Surface.Type ()] -> [Surface.Expression ()] -> Surface.Expression ()
+callWithParams fname types args =
   Surface.Expression
     { expr =
         Surface.EAppF
           Surface.AppF
             { callee = var fname
             , typeParams =
-                if length regions + length types > 0
+                if not (null types)
                   then
                     Just
-                      Surface.BindersF
-                        { regions = Vector.fromList $ Surface.RegionBinderWoConstraintsF <$> regions
-                        , types = Vector.fromList $ Surface.BinderAppF <$> types
+                      Surface.BindersAppF
+                        { types = fromJust $ NonEmptyVector.fromList types
                         , ann = ()
                         }
                   else Nothing
@@ -127,8 +127,8 @@ callWithParams fname regions types args =
     , ann = ()
     }
 
-regionIdent :: Text -> Surface.RegionIdentifier ()
-regionIdent name = Surface.RegionIdentifier{name, ann = ()}
+regionIdent :: Text -> Surface.Type ()
+regionIdent name = Surface.Type{ty = Surface.Type.TyRegionF (Surface.RegionIdentifier{name, ann = ()}), ann = ()}
 
 typeVar :: Text -> Surface.Type ()
 typeVar name =
@@ -301,7 +301,7 @@ spec = describe "Expression parser (minimal subset)" do
     testParser source pExpression $ shouldBeParsed $ const $ pure ()
 
   it "parses call with type/region params f<'s, T>(a)" do
-    let expected = callWithParams "f" [regionIdent "s"] [typeVar "T"] [var "a"]
+    let expected = callWithParams "f" [regionIdent "s", typeVar "T"] [var "a"]
     testParser "f<'s, T>(a)" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses chained access a.b[0]" do

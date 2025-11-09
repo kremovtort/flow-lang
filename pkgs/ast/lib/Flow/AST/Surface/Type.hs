@@ -9,6 +9,7 @@ import "vector" Data.Vector (Vector)
 
 data TypeF ty ann
   = TyWildcardF -- _
+  | TyRegionF (RegionIdentifier ann) -- 's
   | TyBuiltinF Builtin
   | TyIdentifierF (AnyTypeIdentifier ty ann) -- MyType
   | TyParensF (ty ann) -- (A)

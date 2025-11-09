@@ -39,7 +39,12 @@ data BindersF regionBinder typeBinder ty ann = BindersF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-type BindersAppF = BindersF RegionBinderWoConstraintsF BinderAppF
+data BindersAppF ty ann = BindersAppF
+  { types :: NonEmptyVector (ty ann)
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
 type BindersWConstraintsF = BindersF RegionBinderWConstraintsF BinderWConstraintsF
 type BindersWoConstraintsF = BindersF RegionBinderWoConstraintsF BinderWoConstraintsF
 

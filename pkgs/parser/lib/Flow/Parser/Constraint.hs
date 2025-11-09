@@ -11,7 +11,6 @@ import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
 import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface.Common qualified as Surface
-import Flow.AST.Surface.Constraint (RegionBinderWoConstraintsF (..))
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (
@@ -30,33 +29,13 @@ pBindersApp ::
   Parser (Surface.BindersAppF ty Lexer.SourceSpan)
 pBindersApp pTy = Megaparsec.label "binders app" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
-  elems <- Megaparsec.sepEndBy1 binderElem (single (Lexer.Punctuation Lexer.Comma))
+  elems <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
-  (regionElems, typeElems) <- collect elems [] []
-  let regionsVector = Vector.fromList (RegionBinderWoConstraintsF <$> regionElems)
-      typesVector = Vector.fromList (Surface.BinderAppF <$> typeElems)
   pure
-    Surface.BindersF
-      { regions = regionsVector
-      , types = typesVector
+    Surface.BindersAppF
+      { types = fromJust $ NonEmptyVector.fromList elems
       , ann = Lexer.SourceSpan tokS.span.start tokE.span.end
       }
- where
-  binderElem =
-    Megaparsec.choice
-      [ Left <$> Megaparsec.try regionIdentifier
-      , Right <$> pTy
-      ]
-
-  collect [] regionsAcc typesAcc =
-    pure (reverse regionsAcc, reverse typesAcc)
-  collect (Left region : rest) regionsAcc typesAcc
-    | not (null typesAcc) =
-        fail "region argument cannot follow type argument in application binders"
-    | otherwise =
-        collect rest (region : regionsAcc) typesAcc
-  collect (Right ty : rest) regionsAcc typesAcc =
-    collect rest regionsAcc (ty : typesAcc)
 
 anyTypeIdentifier ::
   forall ty.

@@ -21,18 +21,19 @@ import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWConstrai
 
 pType :: Parser (Surface.Type SourceSpan)
 pType = do
-  head' <- Megaparsec.choice
-    [ pApp'
-    , pNotAppable'
-    ]
-  tyWSuffix <-Megaparsec.optional $ pTyEqualsSuffix' head'
+  head' <-
+    Megaparsec.choice
+      [ pApp'
+      , pNotAppable'
+      ]
+  tyWSuffix <- Megaparsec.optional $ pTyEqualsSuffix' head'
   case tyWSuffix of
     Just tyWSuffix' -> pure tyWSuffix'
     Nothing -> pure head'
  where
   pApp' = Megaparsec.try do
     ty <- pAppable'
-    tyWSuffix <-Megaparsec.optional $ pAppSuffix' ty
+    tyWSuffix <- Megaparsec.optional $ pAppSuffix' ty
     case tyWSuffix of
       Just tyWSuffix' -> pure tyWSuffix'
       Nothing -> pure ty
@@ -45,7 +46,8 @@ pType = do
 
   pNotAppable' =
     Megaparsec.choice
-      [ pBuiltin'
+      [ pRegion'
+      , pBuiltin'
       , pTuple'
       , Megaparsec.try pRefApp'
       , pRef'
@@ -53,6 +55,10 @@ pType = do
       , pEffectRow'
       , pForall'
       ]
+
+  pRegion' = do
+    region <- regionIdentifier
+    pure Surface.Type{ty = Surface.TyRegionF region, ann = region.ann}
 
   pBuiltin' = do
     (b, ann) <- pBuiltin

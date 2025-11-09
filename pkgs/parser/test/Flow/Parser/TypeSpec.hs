@@ -113,9 +113,8 @@ spec = describe "Type parser (minimal subset)" do
                   Surface.AppF
                     { head = headT
                     , args =
-                        Surface.BindersF
-                          { regions = Vector.empty
-                          , types = Vector.singleton $ Surface.BinderAppF i32T
+                        Surface.BindersAppF
+                          { types = NonEmptyVector.singleton i32T
                           , ann = ()
                           }
                     , ann = ()
