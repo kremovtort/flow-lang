@@ -146,6 +146,7 @@ structItem pub' name =
           Surface.StructF
             { name = Surface.SimpleTypeIdentifier{name, ann = ()}
             , typeParams = Nothing
+            , whereBlock = Nothing
             , fields = Surface.FieldsDeclNamedF mempty
             , ann = ()
             }
@@ -161,6 +162,7 @@ enumItem pub' name variants =
           Surface.EnumF
             { name = Surface.SimpleTypeIdentifier{name, ann = ()}
             , typeParams = Nothing
+            , whereBlock = Nothing
             , variants =
                 Surface.EVariantsSimpleF
                   ( case NE.fromList

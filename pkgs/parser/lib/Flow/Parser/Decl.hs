@@ -43,12 +43,14 @@ pStruct pTy = do
   structTok <- single (Lexer.Keyword Lexer.Struct)
   name <- simpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
+  whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   (fields, fieldsAnn) <- pFieldsDecl pTy
   let ann = Lexer.SourceSpan{start = structTok.span.start, end = fieldsAnn.end}
   pure
     Surface.StructF
       { name
       , typeParams
+      , whereBlock
       , fields
       , ann
       }
@@ -61,12 +63,14 @@ pEnum pTy = do
   enumTok <- single (Lexer.Keyword Lexer.Enum)
   name <- simpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
+  whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   (variants, variantsAnn) <- pEnumVariants
   let ann = Lexer.SourceSpan{start = enumTok.span.start, end = variantsAnn.end}
   pure
     Surface.EnumF
       { name
       , typeParams
+      , whereBlock
       , variants
       , ann
       }

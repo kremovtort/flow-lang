@@ -27,6 +27,7 @@ import Flow.AST.Surface.Syntax (LetDefinitionF)
 data StructF ty ann = StructF
   { name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   , fields :: FieldsDeclF ty ann
   , ann :: ann
   }
@@ -48,6 +49,7 @@ data FieldDeclF ty ann = FieldDeclF
 data EnumF ty ann = EnumF
   { name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
+  , whereBlock :: Maybe (WhereBlockF ty ann)
   , variants :: EnumVariantsF ty ann
   , ann :: ann
   }
