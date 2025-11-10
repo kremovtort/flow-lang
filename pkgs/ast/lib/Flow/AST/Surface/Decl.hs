@@ -85,7 +85,8 @@ data EnumVariantGeneralizedSimpleF ty ann = EnumVariantGeneralizedSimpleF
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data TraitF stmt ty expr ann = TraitF
-  { name :: SimpleTypeIdentifier ann
+  { sealed :: Bool
+  , name :: SimpleTypeIdentifier ann
   , typeParams :: BindersWoConstraintsF ty ann
   , superTraits :: Maybe (NonEmptyVector (ty ann))
   , traitBody :: Vector (TraitItemF stmt ty expr ann)
@@ -127,7 +128,8 @@ data ImplItemVariantF stmt simPat ty expr ann
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data EffectF stmt ty expr ann = EffectF
-  { name :: SimpleTypeIdentifier ann
+  { sealed :: Bool
+  , name :: SimpleTypeIdentifier ann
   , typeParams :: Maybe (BindersWoConstraintsF ty ann)
   , superEffects :: Maybe (NonEmptyVector (ty ann))
   , whereBlock :: Maybe (WhereBlockF ty ann)

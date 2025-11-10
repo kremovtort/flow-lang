@@ -15,7 +15,6 @@ module Flow.Lexer (
   tokenWithPos,
 ) where
 
-import Flow.AST.Ann (SourceSpan (..))
 import "base" Control.Applicative (many, (<|>))
 import "base" Data.Char (chr, isAlphaNum, isDigit, isHexDigit, isOctDigit)
 import "base" Data.Function ((&))
@@ -39,6 +38,8 @@ import "text" Data.Text (Text)
 import "text" Data.Text qualified as Text
 import "vector" Data.Vector (Vector)
 import "vector" Data.Vector qualified as Vector
+
+import Flow.AST.Ann (SourceSpan (..))
 
 type Lexer = Parsec Void Text
 
@@ -95,6 +96,7 @@ data Keyword
   | Ref
   | Return
   | Returning
+  | Sealed
   | Struct
   | Trait
   | Type
@@ -423,6 +425,7 @@ keywordText = \case
   Ref -> "ref"
   Return -> "return"
   Returning -> "returning"
+  Sealed -> "sealed"
   Struct -> "struct"
   Trait -> "trait"
   Type -> "type"

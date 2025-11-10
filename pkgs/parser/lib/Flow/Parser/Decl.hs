@@ -2,7 +2,7 @@ module Flow.Parser.Decl where
 
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
 import Data.Vector qualified as Vector
 import Data.Vector.NonEmpty qualified as NonEmptyVector
 import Flow.AST.Surface.Callable qualified as Surface
@@ -187,7 +187,8 @@ pTrait ::
   Parser (expr SourceSpan) ->
   Parser (Surface.TraitF stmt ty expr SourceSpan)
 pTrait pStmt pTy pExpr = do
-  tokS <- single (Lexer.Keyword Lexer.Trait)
+  tokSealed <- Megaparsec.optional (single (Lexer.Keyword Lexer.Sealed))
+  tokTrait <- single (Lexer.Keyword Lexer.Trait)
   name <- simpleTypeIdentifier
   typeParams <- pBindersWoConstraints pTy
   superTraits <-
@@ -199,11 +200,18 @@ pTrait pStmt pTy pExpr = do
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
   pure
     Surface.TraitF
-      { name
+      { sealed = isJust tokSealed
+      , name
       , typeParams
       , superTraits
       , traitBody
-      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
+      , ann =
+          Lexer.SourceSpan
+            { start = case tokSealed of
+                Just tokSealed' -> tokSealed'.span.start
+                Nothing -> tokTrait.span.start
+            , end = tokE.span.end
+            }
       }
  where
   pTraitItem = do
@@ -241,7 +249,8 @@ pEffect ::
   Parser (expr SourceSpan) ->
   Parser (Surface.EffectF stmt ty expr SourceSpan)
 pEffect pStmt pTy pExpr = do
-  tokS <- single (Lexer.Keyword Lexer.Effect)
+  tokSealed <- Megaparsec.optional (single (Lexer.Keyword Lexer.Sealed))
+  tokEffect <- single (Lexer.Keyword Lexer.Effect)
   name <- simpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   superEffects <-
@@ -254,12 +263,19 @@ pEffect pStmt pTy pExpr = do
   tokE <- single (Lexer.Punctuation Lexer.RightBrace)
   pure
     Surface.EffectF
-      { name
+      { sealed = isJust tokSealed
+      , name
       , typeParams
       , superEffects
       , whereBlock
       , effectBody
-      , ann = Lexer.SourceSpan{start = tokS.span.start, end = tokE.span.end}
+      , ann =
+          Lexer.SourceSpan
+            { start = case tokSealed of
+                Just tokSealed' -> tokSealed'.span.start
+                Nothing -> tokEffect.span.start
+            , end = tokE.span.end
+            }
       }
  where
   pEffectItem = do
