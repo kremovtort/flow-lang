@@ -10,7 +10,7 @@ import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), simpleVarIdentifier, single)
+import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), pSimpleVarIdentifier, single)
 import Flow.Parser.Constraint (anyTypeIdentifier, pBindersWoConstraints)
 import Flow.Parser.Literal (literal)
 
@@ -56,7 +56,7 @@ pVar :: Parser (Surface.PatternVariableF pat ty SourceSpan)
 pVar = Megaparsec.label "pattern variable" do
   ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
   mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
-  name <- simpleVarIdentifier
+  name <- pSimpleVarIdentifier
   pure
     Surface.PatternVariableF
       { ref = (.span) <$> ref
@@ -158,7 +158,7 @@ pCons pPat pTy = do
 
   pFieldNamedValue :: Parser (Surface.PatternFieldNamedValueF pat ty SourceSpan)
   pFieldNamedValue = do
-    name <- simpleVarIdentifier
+    name <- pSimpleVarIdentifier
     _ <- single (Lexer.Punctuation Lexer.Assign)
     value <- pPat
     pure
@@ -172,7 +172,7 @@ pCons pPat pTy = do
   pFieldNamedPunning = do
     ref <- Megaparsec.optional (single (Lexer.Keyword Lexer.Ref))
     mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
-    name <- simpleVarIdentifier
+    name <- pSimpleVarIdentifier
     optional <- Megaparsec.optional $ single (Lexer.Punctuation Lexer.Question)
     pure
       Surface.PatternFieldNamedPunningF

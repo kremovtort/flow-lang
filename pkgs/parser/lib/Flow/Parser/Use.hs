@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use <$>" #-}
 module Flow.Parser.Use where
 
@@ -10,17 +11,17 @@ import Flow.AST.Surface.Use qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (
   Parser,
-  methodIdentifier,
-  moduleIdentifier,
-  simpleTypeIdentifier,
-  simpleVarIdentifier,
+  pMethodIdentifier,
+  pModuleIdentifier,
+  pSimpleTypeIdentifier,
+  pSimpleVarIdentifier,
   single,
  )
 
 pUseClause :: Parser (Surface.UseClause Lexer.SourceSpan)
 pUseClause = do
   useTok <- single (Lexer.Keyword Lexer.Use)
-  root <- moduleIdentifier
+  root <- pModuleIdentifier
   tree <- Megaparsec.optional do
     _ <- single (Lexer.Punctuation Lexer.ColonColon)
     pUseTree
@@ -43,7 +44,7 @@ pUseClause = do
       , Megaparsec.try pUseTreeLeafWildcard
       ]
   pUseTreeBranch = do
-    ident <- moduleIdentifier
+    ident <- pModuleIdentifier
     _ <- single (Lexer.Punctuation Lexer.ColonColon)
     tree <- pUseTree
     pure $ Surface.UseTrBranch ident tree
@@ -69,21 +70,21 @@ pUseClause = do
         }
 
   pUseTreeLeafMethod = do
-    leaf <- pUseTreeLeaf methodIdentifier
+    leaf <- pUseTreeLeaf pMethodIdentifier
     pure $ Surface.UseTrLeafMethod leaf
 
   pUseTreeLeafVar = do
-    leaf <- pUseTreeLeaf simpleVarIdentifier
+    leaf <- pUseTreeLeaf pSimpleVarIdentifier
     pure $ Surface.UseTrLeafVar leaf
 
   pUseTreeLeafType = do
-    leaf <- pUseTreeLeaf simpleTypeIdentifier
+    leaf <- pUseTreeLeaf pSimpleTypeIdentifier
     pure $ Surface.UseTrLeafType leaf
 
   pUseTreeLeafMethodAsFn = do
-    use <- methodIdentifier
+    use <- pMethodIdentifier
     _ <- single (Lexer.Keyword Lexer.As)
-    as <- simpleVarIdentifier
+    as <- pSimpleVarIdentifier
     pure $
       Surface.UseTrLeafMethodAsFn
         Surface.UseTreeLeafMethodAsFn

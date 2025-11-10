@@ -24,8 +24,8 @@ import Flow.Parser.Common (
   HasAnn,
   Parser,
   pPub,
-  simpleTypeIdentifier,
-  simpleVarIdentifier,
+  pSimpleTypeIdentifier,
+  pSimpleVarIdentifier,
   single,
  )
 import Flow.Parser.Constraint (
@@ -41,7 +41,7 @@ pStruct ::
   Parser (Surface.StructF ty SourceSpan)
 pStruct pTy = do
   structTok <- single (Lexer.Keyword Lexer.Struct)
-  name <- simpleTypeIdentifier
+  name <- pSimpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   (fields, fieldsAnn) <- pFieldsDecl pTy
@@ -61,7 +61,7 @@ pEnum ::
   Parser (Surface.EnumF ty SourceSpan)
 pEnum pTy = do
   enumTok <- single (Lexer.Keyword Lexer.Enum)
-  name <- simpleTypeIdentifier
+  name <- pSimpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   whereBlock <- Megaparsec.optional (pWhereBlockHead pTy)
   (variants, variantsAnn) <- pEnumVariants
@@ -90,7 +90,7 @@ pEnum pTy = do
       )
    where
     pEnumVariant = do
-      name <- simpleTypeIdentifier
+      name <- pSimpleTypeIdentifier
       fields <- Megaparsec.optional (pFieldsDecl pTy)
       let ann =
             Lexer.SourceSpan
@@ -116,7 +116,7 @@ pEnum pTy = do
       )
    where
     pEnumVariantGeneralized = do
-      name <- simpleTypeIdentifier
+      name <- pSimpleTypeIdentifier
       typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
       fields <- Megaparsec.optional (pFieldsDecl pTy)
       _ <- single (Lexer.Punctuation Lexer.Colon)
@@ -154,7 +154,7 @@ pFieldsDecl pTy = do
 
   pFieldDecl = do
     pub <- Megaparsec.optional pPub
-    name <- simpleVarIdentifier
+    name <- pSimpleVarIdentifier
     _ <- single (Lexer.Punctuation Lexer.Colon)
     type_ <- pTy
     pure
@@ -189,7 +189,7 @@ pTrait ::
 pTrait pStmt pTy pExpr = do
   tokSealed <- Megaparsec.optional (single (Lexer.Keyword Lexer.Sealed))
   tokTrait <- single (Lexer.Keyword Lexer.Trait)
-  name <- simpleTypeIdentifier
+  name <- pSimpleTypeIdentifier
   typeParams <- pBindersWoConstraints pTy
   superTraits <-
     fmap (fromJust . NonEmptyVector.fromList) <$> Megaparsec.optional do
@@ -251,7 +251,7 @@ pEffect ::
 pEffect pStmt pTy pExpr = do
   tokSealed <- Megaparsec.optional (single (Lexer.Keyword Lexer.Sealed))
   tokEffect <- single (Lexer.Keyword Lexer.Effect)
-  name <- simpleTypeIdentifier
+  name <- pSimpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   superEffects <-
     fmap (fromJust . NonEmptyVector.fromList) <$> Megaparsec.optional do
@@ -306,7 +306,7 @@ pTypeDeclaration ::
   Parser (Surface.TypeDeclarationF ty SourceSpan)
 pTypeDeclaration pTy = do
   tokS <- single (Lexer.Keyword Lexer.Type)
-  name <- simpleTypeIdentifier
+  name <- pSimpleTypeIdentifier
   kindShort <- Megaparsec.optional (pKindTreeRoot pTy)
   type_ <- Megaparsec.optional pTy
   tokE <- single (Lexer.Punctuation Lexer.Semicolon)
@@ -328,7 +328,7 @@ pLetDeclaration ::
   Parser (Surface.LetDeclarationF ty SourceSpan)
 pLetDeclaration pTy = do
   letTok <- single (Lexer.Keyword Lexer.Let)
-  name <- simpleVarIdentifier
+  name <- pSimpleVarIdentifier
   _ <- single (Lexer.Punctuation Lexer.Colon)
   type_ <- pTy
   tokE <- single (Lexer.Punctuation Lexer.Semicolon)

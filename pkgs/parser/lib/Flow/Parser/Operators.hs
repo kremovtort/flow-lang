@@ -4,10 +4,16 @@ import "base" Data.Functor ((<&>))
 import "parser-combinators" Control.Monad.Combinators.Expr qualified as Expr
 
 import Flow.AST.Surface (Expression (..))
-import Flow.AST.Surface.Common
-import Flow.AST.Surface.Expr
+import Flow.AST.Surface.Common (RegionIdentifier (..))
+import Flow.AST.Surface.Expr (
+  BinOp (..),
+  BinOpExpression (..),
+  ExpressionF (..),
+  UnOp (..),
+  UnOpExpression (..),
+ )
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (Parser, SourceSpan (..), regionIdentifier, single)
+import Flow.Parser.Common (Parser, SourceSpan (..), pRegionIdentifier, single)
 import Text.Megaparsec qualified as Megaparsec
 
 pOperators ::
@@ -45,7 +51,7 @@ operators =
 
   takeRef = Expr.Prefix $ Megaparsec.try do
     tok <- single (Lexer.Punctuation Lexer.Ampersand)
-    mRegion <- Megaparsec.optional regionIdentifier
+    mRegion <- Megaparsec.optional pRegionIdentifier
     pure case mRegion of
       Nothing -> mkUnOp (UnOpTakeRef Nothing) tok.span
       Just region ->
@@ -55,7 +61,7 @@ operators =
 
   takeMutRef = Expr.Prefix $ Megaparsec.try do
     tok <- single (Lexer.Punctuation Lexer.Ampersand)
-    mRegion <- Megaparsec.optional regionIdentifier
+    mRegion <- Megaparsec.optional pRegionIdentifier
     mutTok <- single (Lexer.Keyword Lexer.Mut)
     let region = SourceSpan tok.span.start mutTok.span.end
     pure $ mkUnOp (UnOpTakeMutRef mRegion) region

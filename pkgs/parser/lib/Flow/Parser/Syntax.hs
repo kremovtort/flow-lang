@@ -19,8 +19,8 @@ import Flow.Parser.Common (
   Parser,
   SourceSpan (..),
   WithPos (..),
-  regionIdentifier,
-  simpleVarIdentifier,
+  pRegionIdentifier,
+  pSimpleVarIdentifier,
   single,
   token,
  )
@@ -34,7 +34,7 @@ pCodeBlock ::
 pCodeBlock pStmt pExpr = do
   tokS <- single (Lexer.Punctuation Lexer.LeftBrace)
   region <- Megaparsec.optional do
-    region <- regionIdentifier
+    region <- pRegionIdentifier
     _ <- single (Lexer.Punctuation Lexer.FatArrow)
     pure region
   uses <- Megaparsec.many pUseClause
@@ -113,14 +113,14 @@ pStatement pStmt pLhsExpr pSimPat pPat pTy pExpr = do
 
   continueStatement = do
     continueTok <- single (Lexer.Keyword Lexer.Continue)
-    label <- Megaparsec.optional simpleVarIdentifier
+    label <- Megaparsec.optional pSimpleVarIdentifier
     semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
     let ann = SourceSpan{start = continueTok.span.start, end = semicolonTok.span.end}
     pure (SContinueF label ann, ann)
 
   breakStatement = do
     breakTok <- single (Lexer.Keyword Lexer.Break)
-    label <- Megaparsec.optional simpleVarIdentifier
+    label <- Megaparsec.optional pSimpleVarIdentifier
     semicolonTok <- single (Lexer.Punctuation Lexer.Semicolon)
     let ann = SourceSpan{start = breakTok.span.start, end = semicolonTok.span.end}
     pure (SBreakF label ann, ann)
@@ -202,7 +202,7 @@ pLHSEIndexSuffix expr = do
 pLHSEDotAccessSuffix :: Parser (LHSExpression SourceSpan -> LHSExpression SourceSpan)
 pLHSEDotAccessSuffix = do
   _ <- single (Lexer.Punctuation Lexer.Dot)
-  field' <- simpleVarIdentifier
+  field' <- pSimpleVarIdentifier
   pure $ \acc ->
     LHSExpression
       { lhsExpression = LHSEDotAccess acc field'
@@ -224,7 +224,7 @@ pLHSEWildcard = do
 
 pLHSEVar :: Parser (LHSExpression SourceSpan)
 pLHSEVar = do
-  var <- simpleVarIdentifier
+  var <- pSimpleVarIdentifier
   pure $ LHSExpression{lhsExpression = LHSEVar var, ann = var.ann}
 
 pLHSEUnOp :: Parser (Expression SourceSpan) -> Parser (LHSExpression SourceSpan)

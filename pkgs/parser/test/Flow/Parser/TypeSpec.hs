@@ -10,7 +10,7 @@ import Flow.AST.Surface qualified as Surface
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Type qualified as Surface
-import Flow.Parser.SpecHelpers (testParser, shouldBeParsed, shouldBe)
+import Flow.Parser.SpecHelpers (shouldBe, shouldBeParsed, testParser)
 import Flow.Parser.Type qualified as PType
 
 anyType :: Surface.SimpleTypeIdentifier () -> Surface.AnyTypeIdentifier ty ()
@@ -25,7 +25,14 @@ anyType ident =
 simpleType :: Text -> Surface.Type ()
 simpleType name =
   Surface.Type
-    { ty = Surface.TyIdentifierF (anyType Surface.SimpleTypeIdentifier{name = name, ann = ()})
+    { ty =
+        Surface.TyIdentifierF
+          ( anyType
+              Surface.SimpleTypeIdentifier
+                { name = name
+                , ann = ()
+                }
+          )
     , ann = ()
     }
 

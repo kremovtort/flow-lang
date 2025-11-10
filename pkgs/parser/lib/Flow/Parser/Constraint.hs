@@ -16,10 +16,10 @@ import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (
   HasAnn,
   Parser,
-  moduleIdentifier,
-  regionIdentifier,
-  simpleTypeIdentifier,
-  simpleVarIdentifier,
+  pModuleIdentifier,
+  pRegionIdentifier,
+  pSimpleTypeIdentifier,
+  pSimpleVarIdentifier,
   single,
  )
 
@@ -43,9 +43,9 @@ anyTypeIdentifier ::
   Parser (ty Lexer.SourceSpan) ->
   Parser (Surface.AnyTypeIdentifier ty Lexer.SourceSpan)
 anyTypeIdentifier pTy = do
-  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
+  qualifier <- Megaparsec.many (Megaparsec.try (pModuleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional $ Megaparsec.try do
-    typeName <- simpleTypeIdentifier
+    typeName <- pSimpleTypeIdentifier
     typeParams <- pBindersApp pTy
     _ <- single (Lexer.Punctuation Lexer.ColonColon)
     pure
@@ -53,7 +53,7 @@ anyTypeIdentifier pTy = do
         { typeName
         , typeParams
         }
-  identifier <- simpleTypeIdentifier
+  identifier <- pSimpleTypeIdentifier
   pure $
     Surface.AnyTypeIdentifier
       { qualifier = NonEmptyVector.fromList qualifier
@@ -75,16 +75,16 @@ anyVarIdentifier ::
   Parser (ty Lexer.SourceSpan) ->
   Parser (Surface.AnyVarIdentifier ty Lexer.SourceSpan)
 anyVarIdentifier pTy = do
-  qualifier <- Megaparsec.many (Megaparsec.try (moduleIdentifier <* moduleSeparator))
+  qualifier <- Megaparsec.many (Megaparsec.try (pModuleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional do
-    typeName <- simpleTypeIdentifier
+    typeName <- pSimpleTypeIdentifier
     typeParams <- pBindersApp pTy
     pure
       Surface.TypeQualifierF
         { typeName
         , typeParams
         }
-  identifier <- simpleVarIdentifier
+  identifier <- pSimpleVarIdentifier
   pure $
     Surface.AnyVarIdentifier
       { qualifier = NonEmptyVector.fromList qualifier
@@ -171,7 +171,7 @@ pBindersWoConstraints ::
   Parser (Surface.BindersWoConstraintsF ty Lexer.SourceSpan)
 pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
-  regionBinders <- Megaparsec.sepBy regionIdentifier (single (Lexer.Punctuation Lexer.Comma))
+  regionBinders <- Megaparsec.sepBy pRegionIdentifier (single (Lexer.Punctuation Lexer.Comma))
   unless (null regionBinders) do
     void $ single (Lexer.Punctuation Lexer.Comma)
   typeBinders <- Megaparsec.sepBy pBinderWoConstraints (single (Lexer.Punctuation Lexer.Comma))
@@ -187,7 +187,7 @@ pBindersWoConstraints pTy = Megaparsec.label "binders with constraints" do
       }
  where
   pBinderWoConstraints = do
-    name <- simpleTypeIdentifier
+    name <- pSimpleTypeIdentifier
     kindShort <- Megaparsec.optional (pKindTreeRoot pTy)
     typeType <- Megaparsec.optional do
       _ <- single (Lexer.Punctuation Lexer.Colon)
@@ -267,7 +267,7 @@ pTypeDefinition ::
   Parser (Surface.TypeDefinitionF ty Lexer.SourceSpan)
 pTypeDefinition pTy = do
   tokS <- single (Lexer.Keyword Lexer.Type)
-  name <- simpleTypeIdentifier
+  name <- pSimpleTypeIdentifier
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   _ <- single (Lexer.Punctuation Lexer.Assign)
   type_ <- pTy

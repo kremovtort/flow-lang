@@ -39,12 +39,12 @@ import Flow.AST.Surface.Expr (
   LambdaFullF (..),
   LambdaShortF (..),
  )
-import Flow.AST.Surface.With (WithAppF (..), WithBlockF (..))
 import Flow.AST.Surface.Literal (Literal)
 import Flow.AST.Surface.Syntax (
   CodeBlockF (..),
  )
 import Flow.AST.Surface.Syntax qualified as Syntax
+import Flow.AST.Surface.With (WithAppF (..), WithBlockF (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Callable (pOpDefinition, pOpInfixDefinition)
 import Flow.Parser.Common (
@@ -52,9 +52,9 @@ import Flow.Parser.Common (
   Parser,
   SourceSpan (..),
   WithPos (..),
-  regionIdentifier,
-  simpleTypeIdentifier,
-  simpleVarIdentifier,
+  pRegionIdentifier,
+  pSimpleTypeIdentifier,
+  pSimpleVarIdentifier,
   single,
  )
 import Flow.Parser.Constraint (
@@ -185,7 +185,7 @@ pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
     pure (AppArgsNamedF (Vector.fromList args), tokE.span.end)
 
   pNamedArg = do
-    name <- simpleVarIdentifier
+    name <- pSimpleVarIdentifier
     value <- Megaparsec.optional do
       _ <- single (Lexer.Punctuation Lexer.Assign)
       pExpr
@@ -224,7 +224,7 @@ pAlloc ::
   Parser (AllocF stmt expr SourceSpan)
 pAlloc pStmt pExpr = do
   tokS <- single (Lexer.Keyword Lexer.Alloc)
-  into <- Megaparsec.optional regionIdentifier
+  into <- Megaparsec.optional pRegionIdentifier
   body <- pCodeBlock pStmt pExpr
   pure $
     AllocF
@@ -301,7 +301,7 @@ pLambdaArg ::
   Parser (LambdaArgF ty SourceSpan)
 pLambdaArg pTy = do
   mut <- Megaparsec.optional (single (Lexer.Keyword Lexer.Mut))
-  name <- simpleVarIdentifier
+  name <- pSimpleVarIdentifier
   type_ <- Megaparsec.optional do
     _ <- single (Lexer.Punctuation Lexer.Colon)
     pTy
@@ -341,7 +341,7 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
   returning <- Megaparsec.optional do
     returningTok <- single (Lexer.Keyword Lexer.Returning)
     _ <- single (Lexer.Punctuation Lexer.LessThan)
-    binder <- simpleTypeIdentifier
+    binder <- pSimpleTypeIdentifier
     _ <- single (Lexer.Punctuation Lexer.GreaterThan)
     result <- pTy
     pure $
@@ -391,9 +391,9 @@ pHandleExpression pStmt pSimPat pTy pExpr = do
   pHandleReturningBlock = do
     returningTok <- single (Lexer.Keyword Lexer.Returning)
     _ <- single (Lexer.Punctuation Lexer.LeftParen)
-    arg <- simpleVarIdentifier
+    arg <- pSimpleVarIdentifier
     _ <- single (Lexer.Punctuation Lexer.Colon)
-    argType <- simpleTypeIdentifier
+    argType <- pSimpleTypeIdentifier
     _ <- single (Lexer.Punctuation Lexer.RightParen)
     body <- pCodeBlock pStmt pExpr
     pure $

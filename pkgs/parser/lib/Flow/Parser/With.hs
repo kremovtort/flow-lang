@@ -1,17 +1,27 @@
 module Flow.Parser.With where
 
 import "base" Data.Maybe (fromJust, listToMaybe)
+import "megaparsec" Text.Megaparsec (SourcePos)
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "nonempty-vector" Data.Vector.NonEmpty qualified as NonEmptyVector
-import "megaparsec" Text.Megaparsec (SourcePos)
 
 import Data.List.NonEmpty qualified as NonEmptyList
 import Flow.AST.Ann (SourceSpan (..))
 import Flow.AST.Surface.Common (SimpleVarIdentifier (..))
 import Flow.AST.Surface.Syntax (CodeBlockF (..))
-import Flow.AST.Surface.With
+import Flow.AST.Surface.With (
+  InStatementF (..),
+  WithAppF (..),
+  WithAppFieldsF (..),
+  WithAppNamedClauseF (..),
+  WithBlockF (..),
+  WithLhsF (..),
+  WithRhsExprF (..),
+  WithRhsF (..),
+  WithStatementF (..),
+ )
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, simpleVarIdentifier, single)
+import Flow.Parser.Common (HasAnn, Parser, pSimpleVarIdentifier, single)
 import Flow.Parser.Syntax (pCodeBlock)
 
 pWithApp ::
@@ -28,7 +38,6 @@ pWithApp pTy pExpr = Megaparsec.label "with in function call" do
       , ann = SourceSpan{start = tokS.span.start, end}
       }
  where
-
   pWithAppFields =
     Megaparsec.choice
       [ pWithAppUnnamed
@@ -135,7 +144,7 @@ pWithLhs pTy = do
     ]
  where
   pWithLhsLabelled = do
-    name <- simpleVarIdentifier
+    name <- pSimpleVarIdentifier
     ty <- Megaparsec.optional do
       _ <- single (Lexer.Punctuation Lexer.Colon)
       pTy

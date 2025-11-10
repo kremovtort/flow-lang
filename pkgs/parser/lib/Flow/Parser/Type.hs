@@ -16,7 +16,15 @@ import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Type (FnEffectsF (..))
 import Flow.AST.Surface.Type qualified as Surface
 import Flow.Lexer qualified as Lexer
-import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), regionIdentifier, simpleVarIdentifier, single, token)
+import Flow.Parser.Common (
+  HasAnn,
+  Parser,
+  SourceSpan (..),
+  pRegionIdentifier,
+  pSimpleVarIdentifier,
+  single,
+  token,
+ )
 import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWoConstraints, pWhereBlockNested)
 
 pType :: Parser (Surface.Type SourceSpan)
@@ -57,7 +65,7 @@ pType = do
       ]
 
   pRegion' = do
-    region <- regionIdentifier
+    region <- pRegionIdentifier
     pure Surface.Type{ty = Surface.TyRegionF region, ann = region.ann}
 
   pBuiltin' = do
@@ -168,7 +176,7 @@ pTuple pTy = do
 pRef :: Parser (Surface.RefF SourceSpan)
 pRef = do
   tokS <- single (Lexer.Punctuation Lexer.Ampersand)
-  region <- Megaparsec.optional regionIdentifier
+  region <- Megaparsec.optional pRegionIdentifier
   mut <- Megaparsec.optional $ do
     tok <- single (Lexer.Keyword Lexer.Mut)
     pure SourceSpan{start = tok.span.start, end = tok.span.end}
@@ -265,7 +273,7 @@ pFnEffectRow pTy = do
  where
   effectRowElem = do
     Megaparsec.choice
-      [ Left . Left <$> regionIdentifier
+      [ Left . Left <$> pRegionIdentifier
       , Left . Right <$> effectAtom
       , Right <$> tailVarElem
       ]
@@ -300,7 +308,7 @@ pFnEffectRow pTy = do
    where
     eAtomNameType :: Parser (Surface.FnEffectAtomF ty SourceSpan)
     eAtomNameType = do
-      name <- simpleVarIdentifier
+      name <- pSimpleVarIdentifier
       _ <- single (Lexer.Punctuation Lexer.Colon)
       Surface.FnEffectAtomNameTypeF name <$> pTy
 
@@ -327,7 +335,7 @@ pEffectRow pTy = do
  where
   effectRowElem = do
     Megaparsec.choice
-      [ Left . Left <$> regionIdentifier
+      [ Left . Left <$> pRegionIdentifier
       , Left . Right <$> pTy
       , Right <$> tailVarElem
       ]

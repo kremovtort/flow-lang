@@ -9,11 +9,11 @@ module Flow.Parser.Common (
   Lexer.TokenStream (..),
   single,
   token,
-  moduleIdentifier,
-  simpleTypeIdentifier,
-  simpleVarIdentifier,
-  regionIdentifier,
-  methodIdentifier,
+  pModuleIdentifier,
+  pSimpleTypeIdentifier,
+  pSimpleVarIdentifier,
+  pRegionIdentifier,
+  pMethodIdentifier,
   pPub,
 ) where
 
@@ -35,8 +35,8 @@ import Flow.AST.Surface.Common (
   SimpleTypeIdentifier (..),
   SimpleVarIdentifier (..),
  )
+import Flow.AST.Surface.Common qualified as Surface
 import Flow.Lexer qualified as Lexer
-import qualified Flow.AST.Surface.Common as Surface
 
 type HasAnn f ann = HasField "ann" (f ann) ann
 
@@ -60,8 +60,8 @@ token expected match =
     )
     expected
 
-moduleIdentifier :: Parser (ModuleIdentifier Lexer.SourceSpan)
-moduleIdentifier = do
+pModuleIdentifier :: Parser (ModuleIdentifier Lexer.SourceSpan)
+pModuleIdentifier = do
   tok <-
     token
       (Set.singleton $ Megaparsec.Label "module identifier")
@@ -70,8 +70,8 @@ moduleIdentifier = do
         _ -> Nothing
   pure $ ModuleIdentifier{name = tok.value, ann = tok.span}
 
-simpleTypeIdentifier :: Parser (SimpleTypeIdentifier Lexer.SourceSpan)
-simpleTypeIdentifier = do
+pSimpleTypeIdentifier :: Parser (SimpleTypeIdentifier Lexer.SourceSpan)
+pSimpleTypeIdentifier = do
   tok <-
     token
       (Set.singleton $ Megaparsec.Label "type identifier (should start with an uppercase letter)")
@@ -81,8 +81,8 @@ simpleTypeIdentifier = do
         _ -> Nothing
   pure $ SimpleTypeIdentifier{name = tok.value, ann = tok.span}
 
-simpleVarIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceSpan)
-simpleVarIdentifier = do
+pSimpleVarIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceSpan)
+pSimpleVarIdentifier = do
   tok <-
     token
       (Set.singleton $ Megaparsec.Label "variable identifier (should start with a lowercase letter)")
@@ -92,8 +92,8 @@ simpleVarIdentifier = do
         _ -> Nothing
   pure $ SimpleVarIdentifier{name = tok.value, ann = tok.span}
 
-regionIdentifier :: Parser (RegionIdentifier Lexer.SourceSpan)
-regionIdentifier = do
+pRegionIdentifier :: Parser (RegionIdentifier Lexer.SourceSpan)
+pRegionIdentifier = do
   tok <-
     token
       (Set.singleton $ Megaparsec.Label "region identifier (should start with a single quote)")
@@ -102,8 +102,8 @@ regionIdentifier = do
         _ -> Nothing
   pure $ RegionIdentifier{name = tok.value, ann = tok.span}
 
-methodIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceSpan)
-methodIdentifier = do
+pMethodIdentifier :: Parser (SimpleVarIdentifier Lexer.SourceSpan)
+pMethodIdentifier = do
   dotTok <- single (Lexer.Punctuation Lexer.Dot)
   tok <-
     token
