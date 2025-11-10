@@ -314,7 +314,9 @@ spec = describe "Expression parser (minimal subset)" do
   it "parses full lambda" do
     let source =
           """
-          <T>|a: T, b: T| -> @['r, Reader<T>, ..R] T where Monoid<T> {
+          <T>|a: T, b: T| -> @['r, Reader<T>, ..R] T
+            where Monoid<T>
+          {
             let r = Reader::ask();
             a ++ b ++ r
           }

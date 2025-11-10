@@ -6,6 +6,9 @@ module Flow.Parser.Use where
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "vector" Data.Vector qualified as Vector
 
+import Data.Maybe (fromJust)
+import Data.Vector.NonEmpty qualified as NonEmptyVector
+import Flow.AST.Ann
 import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Use qualified as Surface
 import Flow.Lexer qualified as Lexer
@@ -21,10 +24,9 @@ import Flow.Parser.Common (
 pUseClause :: Parser (Surface.UseClause Lexer.SourceSpan)
 pUseClause = do
   useTok <- single (Lexer.Keyword Lexer.Use)
-  root <- pModuleIdentifier
-  tree <- Megaparsec.optional do
-    _ <- single (Lexer.Punctuation Lexer.ColonColon)
-    pUseTree
+  root <- pUseRoot
+  _ <- single (Lexer.Punctuation Lexer.ColonColon)
+  tree <- pUseTree
   tokE <- single (Lexer.Punctuation Lexer.Semicolon)
   pure
     Surface.UseClause
@@ -33,6 +35,16 @@ pUseClause = do
       , ann = Lexer.SourceSpan{start = useTok.span.start, end = tokE.span.end}
       }
  where
+  pUseRoot = do
+    Megaparsec.choice
+      [ Surface.UsClSelf . (.span) <$> single (Lexer.Keyword Lexer.Self)
+      , Surface.UsClSupers . fromJust . NonEmptyVector.fromList . fmap (.span)
+          <$> Megaparsec.sepEndBy1
+            (single (Lexer.Keyword Lexer.Super))
+            (single (Lexer.Punctuation Lexer.Comma))
+      , Surface.UsClPackage <$> pModuleIdentifier
+      ]
+
   pUseTree =
     Megaparsec.choice
       [ Megaparsec.try pUseTreeNested

@@ -98,6 +98,8 @@ data Keyword
   | Returning
   | Sealed
   | Struct
+  | Self
+  | Super
   | Trait
   | Type
   | Use
@@ -427,6 +429,8 @@ keywordText = \case
   Returning -> "returning"
   Sealed -> "sealed"
   Struct -> "struct"
+  Self -> "self"
+  Super -> "super"
   Trait -> "trait"
   Type -> "type"
   Use -> "use"

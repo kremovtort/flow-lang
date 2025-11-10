@@ -5,12 +5,19 @@ import "tree-diff" Data.TreeDiff.Class (ToExpr)
 import "vector" Data.Vector (Vector)
 
 import Flow.AST.Surface.Common (ModuleIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
+import Data.Vector.NonEmpty (NonEmptyVector)
 
 data UseClause ann = UseClause
-  { root :: ModuleIdentifier ann
-  , tree :: Maybe (UseTree ann)
+  { root :: UseClauseRoot ann
+  , tree :: UseTree ann
   , ann :: ann
   }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
+data UseClauseRoot ann
+  = UsClSelf ann
+  | UsClSupers (NonEmptyVector ann)
+  | UsClPackage (ModuleIdentifier ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data UseTree ann

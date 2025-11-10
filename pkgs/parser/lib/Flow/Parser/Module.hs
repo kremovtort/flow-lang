@@ -79,15 +79,17 @@ pModuleItem pMod' pStmt pSimPat pTy pExpr = do
       [ withRegion Surface.ModItemModF <$> pMod'
       , withRegion Surface.ModItemStructF <$> pStruct pTy
       , withRegion Surface.ModItemEnumF <$> pEnum pTy
-      , withRegion Surface.ModItemTypeAliasF
-          <$> (pTypeDefinition pTy <* single (Lexer.Punctuation Lexer.Semicolon))
+      , withRegion Surface.ModItemTypeAliasF <$> do
+          pTypeDefinition pTy <* single (Lexer.Punctuation Lexer.Semicolon)
       , withRegion Surface.ModItemLetF <$> pLetDefinition pSimPat pTy pExpr
       , withRegion Surface.ModItemTraitF <$> pTrait pStmt pTy pExpr
       , withRegion Surface.ModItemEffectF <$> pEffect pStmt pTy pExpr
       , pPubUse <&> \(pub, use, ann) ->
           (Surface.ModItemPubUseF pub use, ann)
-      , withRegion Surface.ModItemFnF <$> Megaparsec.try (pFnDefinition pStmt pTy pExpr)
-      , withRegion Surface.ModItemFnInfixF <$> Megaparsec.try (pFnInfixDefinition pStmt pTy pExpr)
+      , withRegion Surface.ModItemFnF <$> do
+          Megaparsec.try (pFnDefinition pStmt pTy pExpr)
+      , withRegion Surface.ModItemFnInfixF <$> do
+          Megaparsec.try (pFnInfixDefinition pStmt pTy pExpr)
       ]
 
   withRegion f item = (f item, item.ann)

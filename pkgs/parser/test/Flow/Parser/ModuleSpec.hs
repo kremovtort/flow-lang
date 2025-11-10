@@ -89,20 +89,19 @@ useClauseLeaf path =
     [] -> error "empty path"
     root : rest ->
       let
-        buildTree [] = Nothing
+        buildTree [] = undefined
         buildTree [segment] =
-          Just $
-            Surface.UseTrLeafVar
-              Surface.UseTreeLeaf
-                { use = Surface.SimpleVarIdentifier segment ()
-                , as = Nothing
-                , ann = ()
-                }
+          Surface.UseTrLeafVar
+            Surface.UseTreeLeaf
+              { use = Surface.SimpleVarIdentifier segment ()
+              , as = Nothing
+              , ann = ()
+              }
         buildTree (segment : segments) =
-          Surface.UseTrBranch (modIdent segment) <$> buildTree segments
+          Surface.UseTrBranch (modIdent segment) (buildTree segments)
        in
         Surface.UseClause
-          { root = modIdent root
+          { root = Surface.UsClPackage (modIdent root)
           , tree = buildTree rest
           , ann = ()
           }
@@ -114,25 +113,23 @@ useClauseAs path alias =
     root : rest ->
       let
         build [] =
-          Just $
-            Surface.UseTrLeafVar
-              Surface.UseTreeLeaf
-                { use = Surface.SimpleVarIdentifier root ()
-                , as = Just $ Surface.SimpleVarIdentifier alias ()
-                , ann = ()
-                }
+          Surface.UseTrLeafVar
+            Surface.UseTreeLeaf
+              { use = Surface.SimpleVarIdentifier root ()
+              , as = Just $ Surface.SimpleVarIdentifier alias ()
+              , ann = ()
+              }
         build [segment] =
-          Just $
-            Surface.UseTrLeafVar
-              Surface.UseTreeLeaf
-                { use = Surface.SimpleVarIdentifier segment ()
-                , as = Just $ Surface.SimpleVarIdentifier alias ()
-                , ann = ()
-                }
-        build (segment : segments) = Surface.UseTrBranch (modIdent segment) <$> build segments
+          Surface.UseTrLeafVar
+            Surface.UseTreeLeaf
+              { use = Surface.SimpleVarIdentifier segment ()
+              , as = Just $ Surface.SimpleVarIdentifier alias ()
+              , ann = ()
+              }
+        build (segment : segments) = Surface.UseTrBranch (modIdent segment) (build segments)
        in
         Surface.UseClause
-          { root = modIdent root
+          { root = Surface.UsClPackage (modIdent root)
           , tree = build rest
           , ann = ()
           }
@@ -358,8 +355,8 @@ spec = describe "Module parser (minimal subset)" do
             )
         useClause =
           Surface.UseClause
-            { root = modIdent "std"
-            , tree = Just nestedTree
+            { root = Surface.UsClPackage (modIdent "std")
+            , tree = nestedTree
             , ann = ()
             }
     testParser "use std::{io, fs::{read, write}};" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [useClause] [])
