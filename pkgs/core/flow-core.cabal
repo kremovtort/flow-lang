@@ -45,6 +45,7 @@ library
     containers,
     effectful,
     effectful-core,
+    filepath,
     flow-ast,
     flow-parser,
     hashable,
