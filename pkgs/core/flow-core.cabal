@@ -66,6 +66,7 @@ test-suite flow-core-test
   import: warnings, extensions
   default-language: GHC2024
   other-modules:
+    Flow.Core.ModuleSpec
   -- other-extensions:
   type: exitcode-stdio-1.0
   hs-source-dirs: test
@@ -73,7 +74,11 @@ test-suite flow-core-test
   build-depends:
     base ^>=4.21.0.0,
     bytestring,
+    containers,
+    effectful,
+    effectful-core,
     flow-ast,
+    flow-core,
     flow-parser,
     hspec,
     hspec-megaparsec,
