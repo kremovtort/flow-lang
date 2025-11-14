@@ -16,7 +16,8 @@ import Flow.Parser.Type qualified as PType
 anyType :: Surface.SimpleTypeIdentifier () -> Surface.AnyTypeIdentifier ty ()
 anyType ident =
   Surface.AnyTypeIdentifier
-    { qualifier = Nothing
+    { qualifierPrefix = Nothing
+    , qualifier = Nothing
     , typeQualifier = Nothing
     , identifier = ident
     , ann = ()

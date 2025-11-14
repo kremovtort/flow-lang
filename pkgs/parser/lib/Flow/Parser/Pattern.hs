@@ -11,7 +11,7 @@ import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (HasAnn, Parser, SourceSpan (..), pSimpleVarIdentifier, single)
-import Flow.Parser.Constraint (anyTypeIdentifier, pBindersWoConstraints)
+import Flow.Parser.Constraint (pAnyTypeIdentifier, pBindersWoConstraints)
 import Flow.Parser.Literal (literal)
 
 pPattern ::
@@ -90,7 +90,7 @@ pCons ::
   Parser (ty SourceSpan) ->
   Parser (Surface.PatternConsturctorAppF pat ty SourceSpan)
 pCons pPat pTy = do
-  consName <- anyTypeIdentifier pTy
+  consName <- pAnyTypeIdentifier pTy
   typeParams <- Megaparsec.optional (pBindersWoConstraints pTy)
   fields <- Megaparsec.optional pFields
   let end = case fields of

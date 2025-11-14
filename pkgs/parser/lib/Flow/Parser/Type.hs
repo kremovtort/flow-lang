@@ -25,7 +25,7 @@ import Flow.Parser.Common (
   single,
   token,
  )
-import Flow.Parser.Constraint (anyTypeIdentifier, pBindersApp, pBindersWoConstraints, pWhereBlockNested)
+import Flow.Parser.Constraint (pAnyTypeIdentifier, pBindersApp, pBindersWoConstraints, pWhereBlockNested)
 
 pType :: Parser (Surface.Type SourceSpan)
 pType = do
@@ -149,7 +149,7 @@ pIdentifier ::
   (HasAnn ty SourceSpan) =>
   Parser (ty SourceSpan) ->
   Parser (Surface.AnyTypeIdentifier ty SourceSpan)
-pIdentifier = anyTypeIdentifier
+pIdentifier = pAnyTypeIdentifier
 
 pParens ::
   (HasAnn ty SourceSpan) =>

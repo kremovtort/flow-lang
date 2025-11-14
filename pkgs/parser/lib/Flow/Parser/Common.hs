@@ -9,6 +9,7 @@ module Flow.Parser.Common (
   Lexer.TokenStream (..),
   single,
   token,
+  many1,
   pModuleIdentifier,
   pSimpleTypeIdentifier,
   pSimpleVarIdentifier,
@@ -17,6 +18,7 @@ module Flow.Parser.Common (
   pPub,
 ) where
 
+import "base" Data.List.NonEmpty (NonEmpty ((:|)))
 import "base" Data.List.NonEmpty qualified as List (NonEmpty)
 import "base" Data.List.NonEmpty qualified as List.NonEmpty
 import "base" Data.String (IsString (..))
@@ -59,6 +61,12 @@ token expected match =
         pure $ tw{Lexer.value = r}
     )
     expected
+
+many1 :: Parser a -> Parser (List.NonEmpty a)
+many1 p = do
+  first <- p
+  rest <- Megaparsec.many p
+  pure $ first :| rest
 
 pModuleIdentifier :: Parser (ModuleIdentifier Lexer.SourceSpan)
 pModuleIdentifier = do
@@ -127,7 +135,7 @@ pPub = do
       (Set.singleton $ Megaparsec.Label "package")
       \case
         Lexer.Identifier i
-          | i == "package " -> Just ()
+          | i == "package" -> Just ()
         _ -> Nothing
     tokE <- single (Lexer.Punctuation Lexer.RightParen)
     let ann = Lexer.SourceSpan{start = package'.span.start, end = package'.span.end}

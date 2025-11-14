@@ -58,8 +58,8 @@ import Flow.Parser.Common (
   single,
  )
 import Flow.Parser.Constraint (
-  anyTypeIdentifier,
-  anyVarIdentifier,
+  pAnyTypeIdentifier,
+  pAnyVarIdentifier,
   pBindersApp,
   pBindersWoConstraints,
   pWhereBlockHead,
@@ -92,7 +92,7 @@ pVar ::
   (HasAnn ty SourceSpan) =>
   Parser (ty SourceSpan) ->
   Parser (AnyVarIdentifier ty Lexer.SourceSpan)
-pVar = anyVarIdentifier
+pVar = pAnyVarIdentifier
 
 pOfTypeSuffix ::
   Parser (ty SourceSpan) ->
@@ -107,7 +107,7 @@ pConstructor ::
   (HasAnn ty SourceSpan) =>
   Parser (ty SourceSpan) ->
   Parser (AnyTypeIdentifier ty SourceSpan)
-pConstructor = anyTypeIdentifier
+pConstructor = pAnyTypeIdentifier
 
 pIndexSuffix ::
   Parser (expr SourceSpan) ->
@@ -133,7 +133,7 @@ pDotAccessSuffix ::
   Parser (expr SourceSpan, AnyVarIdentifier ty SourceSpan, SourceSpan)
 pDotAccessSuffix pTy expr = do
   tokS <- single (Lexer.Punctuation Lexer.Dot)
-  field <- anyVarIdentifier pTy
+  field <- pAnyVarIdentifier pTy
   pure (expr, field, SourceSpan{start = tokS.span.start, end = field.ann.end})
 
 pAppSuffix ::

@@ -51,7 +51,8 @@ exprVar name =
     { expr =
         Surface.EVar
           ( Surface.AnyVarIdentifier
-              { qualifier = Nothing
+              { qualifierPrefix = Nothing
+              , qualifier = Nothing
               , typeQualifier = Nothing
               , identifier = Surface.SimpleVarIdentifier{name, ann = ()}
               , ann = ()

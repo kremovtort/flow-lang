@@ -10,8 +10,18 @@ import "base" Prelude hiding (Enum)
 import Data.Vector.NonEmpty (NonEmptyVector)
 import Flow.AST.Surface.Common (ModuleIdentifier, RegionIdentifier, SimpleTypeIdentifier, SimpleVarIdentifier)
 
+data AnyVarIdentifier ty ann = AnyVarIdentifier
+  { qualifierPrefix :: Maybe (QualifierPrefixF ann)
+  , qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
+  , typeQualifier :: Maybe (TypeQualifierF ty ann)
+  , identifier :: SimpleVarIdentifier ann
+  , ann :: ann
+  }
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+
 data AnyTypeIdentifier ty ann = AnyTypeIdentifier
-  { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
+  { qualifierPrefix :: Maybe (QualifierPrefixF ann)
+  , qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
   , typeQualifier :: Maybe (TypeQualifierF ty ann)
   , identifier :: SimpleTypeIdentifier ann
   , ann :: ann
@@ -24,12 +34,9 @@ data TypeQualifierF ty ann = TypeQualifierF
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data AnyVarIdentifier ty ann = AnyVarIdentifier
-  { qualifier :: Maybe (NonEmptyVector (ModuleIdentifier ann))
-  , typeQualifier :: Maybe (TypeQualifierF ty ann)
-  , identifier :: SimpleVarIdentifier ann
-  , ann :: ann
-  }
+data QualifierPrefixF ann
+  = QlfrPrfxSelf ann
+  | QlfrPrfxSupers (NonEmptyVector ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
 data BindersF regionBinder typeBinder ty ann = BindersF

@@ -29,7 +29,7 @@ import Flow.Lexer (SourceSpan (..), WithPos (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (HasAnn, Parser, pSimpleVarIdentifier, single)
 import Flow.Parser.Constraint (
-  anyVarIdentifier,
+  pAnyVarIdentifier,
   pBindersWoConstraints,
   pWhereBlockHead,
  )
@@ -225,7 +225,7 @@ pOpDefinition pStmt pTy pExpr =
   pCallable
     (void <$> single (Lexer.Keyword Lexer.Op))
     (pure Surface.UnitF)
-    (anyVarIdentifier pTy)
+    (pAnyVarIdentifier pTy)
     (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
     pTy
 
@@ -239,7 +239,7 @@ pOpInfixDefinition pStmt pTy pExpr =
   pCallable
     (void <$> single (Lexer.Keyword Lexer.Op))
     (pRecieverHeader pTy)
-    (anyVarIdentifier pTy)
+    (pAnyVarIdentifier pTy)
     (pCodeBlock pStmt pExpr <&> \block -> (block, Just block.ann))
     pTy
 

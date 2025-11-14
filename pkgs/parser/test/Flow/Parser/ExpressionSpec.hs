@@ -27,7 +27,8 @@ var name =
     { expr =
         Surface.EVar
           Surface.AnyVarIdentifier
-            { qualifier = mempty
+            { qualifierPrefix = Nothing
+            , qualifier = mempty
             , typeQualifier = Nothing
             , identifier = Surface.SimpleVarIdentifier{name, ann = ()}
             , ann = ()
@@ -136,7 +137,8 @@ typeVar name =
     { ty =
         Surface.Type.TyIdentifierF
           Surface.AnyTypeIdentifier
-            { qualifier = Nothing
+            { qualifierPrefix = Nothing
+            , qualifier = Nothing
             , typeQualifier = Nothing
             , identifier = Surface.SimpleTypeIdentifier{name, ann = ()}
             , ann = ()
@@ -151,7 +153,8 @@ dotExpr base field =
         Surface.EDotAccess
           base
           Surface.AnyVarIdentifier
-            { qualifier = mempty
+            { qualifierPrefix = Nothing
+            , qualifier = mempty
             , typeQualifier = Nothing
             , identifier = Surface.SimpleVarIdentifier{name = field, ann = ()}
             , ann = ()

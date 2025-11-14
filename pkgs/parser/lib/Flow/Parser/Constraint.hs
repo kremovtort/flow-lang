@@ -16,6 +16,7 @@ import Flow.Lexer qualified as Lexer
 import Flow.Parser.Common (
   HasAnn,
   Parser,
+  many1,
   pModuleIdentifier,
   pRegionIdentifier,
   pSimpleTypeIdentifier,
@@ -37,12 +38,22 @@ pBindersApp pTy = Megaparsec.label "binders app" do
       , ann = Lexer.SourceSpan tokS.span.start tokE.span.end
       }
 
-anyTypeIdentifier ::
+pQualifierPrefix ::
+  Parser (Surface.QualifierPrefixF Lexer.SourceSpan)
+pQualifierPrefix =
+  Megaparsec.choice
+    [ Surface.QlfrPrfxSelf . (.span) <$> single (Lexer.Keyword Lexer.Self)
+    , Surface.QlfrPrfxSupers . NonEmptyVector.fromNonEmpty . fmap (.span)
+        <$> many1 (single (Lexer.Keyword Lexer.Super) <* single (Lexer.Punctuation Lexer.ColonColon))
+    ]
+
+pAnyTypeIdentifier ::
   forall ty.
   (HasAnn ty Lexer.SourceSpan) =>
   Parser (ty Lexer.SourceSpan) ->
   Parser (Surface.AnyTypeIdentifier ty Lexer.SourceSpan)
-anyTypeIdentifier pTy = do
+pAnyTypeIdentifier pTy = do
+  qualifierPrefix <- Megaparsec.optional pQualifierPrefix
   qualifier <- Megaparsec.many (Megaparsec.try (pModuleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional $ Megaparsec.try do
     typeName <- pSimpleTypeIdentifier
@@ -56,7 +67,8 @@ anyTypeIdentifier pTy = do
   identifier <- pSimpleTypeIdentifier
   pure $
     Surface.AnyTypeIdentifier
-      { qualifier = NonEmptyVector.fromList qualifier
+      { qualifierPrefix
+      , qualifier = NonEmptyVector.fromList qualifier
       , typeQualifier
       , identifier
       , ann =
@@ -70,11 +82,12 @@ anyTypeIdentifier pTy = do
  where
   moduleSeparator = single (Lexer.Punctuation Lexer.ColonColon)
 
-anyVarIdentifier ::
+pAnyVarIdentifier ::
   (HasAnn ty Lexer.SourceSpan) =>
   Parser (ty Lexer.SourceSpan) ->
   Parser (Surface.AnyVarIdentifier ty Lexer.SourceSpan)
-anyVarIdentifier pTy = do
+pAnyVarIdentifier pTy = do
+  qualifierPrefix <- Megaparsec.optional pQualifierPrefix
   qualifier <- Megaparsec.many (Megaparsec.try (pModuleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional do
     typeName <- pSimpleTypeIdentifier
@@ -87,7 +100,8 @@ anyVarIdentifier pTy = do
   identifier <- pSimpleVarIdentifier
   pure $
     Surface.AnyVarIdentifier
-      { qualifier = NonEmptyVector.fromList qualifier
+      { qualifierPrefix
+      , qualifier = NonEmptyVector.fromList qualifier
       , typeQualifier = typeQualifier
       , identifier = identifier
       , ann =

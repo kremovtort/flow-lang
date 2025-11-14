@@ -43,7 +43,8 @@ simpleType name =
     { ty =
         Surface.TyIdentifierF
           Surface.AnyTypeIdentifier
-            { qualifier = Nothing
+            { qualifierPrefix = Nothing
+            , qualifier = Nothing
             , typeQualifier = Nothing
             , identifier = Surface.SimpleTypeIdentifier{name, ann = ()}
             , ann = ()
@@ -304,9 +305,6 @@ literalInt n = Surface.Expression{expr = Surface.ELiteral (Surface.LitInteger n)
 
 nonPub :: Maybe (Surface.Pub ())
 nonPub = Nothing
-
-pub :: Maybe (Surface.Pub ())
-pub = Just Surface.PubPub
 
 spec :: Spec
 spec = describe "Module parser (minimal subset)" do
