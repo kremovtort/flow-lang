@@ -42,7 +42,7 @@ buildModule ::
   AST.Surface.ModDefinitionBody SourceSpan ->
   Eff es (Module, Vector Module)
 buildModule modId ast = do
-  env <- buildEnv
+  _ <- buildEnv
   error "unimplemented"
  where
   buildEnv = do
@@ -99,23 +99,23 @@ unwindUseClause currentModId useClause = do
   useRoot <- case useClause.root of
     AST.Surface.UsClSelf _ -> pure currentModId
     AST.Surface.UsClSupers supers -> do
-      let parentDiff = NonEmptyVector.length supers - Vector.length currentModId.name - 1
-      when (NonEmptyVector.length supers > Vector.length currentModId.name) do
+      let parentDiff = NonEmptyVector.length supers - Vector.length currentModId.path - 1
+      when (NonEmptyVector.length supers > Vector.length currentModId.path) do
         throwError $ UsAnErrNoParent (supers NonEmptyVector.! parentDiff)
       pure $
         ModuleId
-          { name = Vector.take (Vector.length currentModId.name - parentDiff) currentModId.name
+          { path = Vector.take (Vector.length currentModId.path - parentDiff) currentModId.path
           , package = currentModId.package
           }
     AST.Surface.UsClPackage modId ->
-      pure $ ModuleId{name = Vector.empty, package = PackageId modId.name}
+      pure $ ModuleId{path = Vector.empty, package = PackageId modId.name}
   unwindUseTree useRoot useClause.tree
  where
   unwindUseTree !modId = \case
     AST.Surface.UseTrBranch childModId tree -> do
-      let childMod = modId{Module.name = Vector.snoc modId.name childModId.name}
+      let childMod = modId{Module.path = modId.path `Vector.snoc` childModId.name}
       checkModuleExists childModId.ann childMod
-      unwindUseTree modId{Module.name = Vector.snoc modId.name childModId.name} tree
+      unwindUseTree modId{Module.path = modId.path `Vector.snoc` childModId.name} tree
     AST.Surface.UseTrNested trees -> do
       mconcat . Vector.toList <$> for trees (unwindUseTree modId)
     AST.Surface.UseTrLeafWildcard _ ->
@@ -123,7 +123,7 @@ unwindUseClause currentModId useClause = do
         Seq.singleton $
           Use{moduleId = modId, use = UsKiAll}
     AST.Surface.UseTrLeafVar leaf -> do
-      let modId' = modId{Module.name = Vector.snoc modId.name leaf.use.name}
+      let modId' = modId{Module.path = modId.path `Vector.snoc` leaf.use.name}
       isModule <- isModuleExists modId'
       if isModule
         then do
@@ -136,7 +136,7 @@ unwindUseClause currentModId useClause = do
         else do
           error "unimplemented"
     AST.Surface.UseTrLeafType leaf -> do
-      let modId' = modId{Module.name = Vector.snoc modId.name leaf.use.name}
+      let modId' = modId{Module.path = modId.path `Vector.snoc` leaf.use.name}
       isModule <- isModuleExists modId'
       if isModule
         then do

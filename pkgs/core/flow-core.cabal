@@ -22,6 +22,7 @@ common extensions
     DuplicateRecordFields
     MultilineStrings
     NoFieldSelectors
+    OverloadedLabels
     OverloadedRecordDot
     OverloadedStrings
     PackageImports
@@ -67,6 +68,7 @@ test-suite flow-core-test
   default-language: GHC2024
   other-modules:
     Flow.Core.ModuleSpec
+
   -- other-extensions:
   type: exitcode-stdio-1.0
   hs-source-dirs: test
@@ -80,8 +82,10 @@ test-suite flow-core-test
     flow-ast,
     flow-core,
     flow-parser,
+    generic-lens,
     hspec,
     hspec-megaparsec,
+    lens,
     megaparsec,
     nonempty-vector,
     prettyprinter,

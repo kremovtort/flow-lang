@@ -1,37 +1,57 @@
-{-# LANGUAGE MultilineStrings #-}
-
 module Flow.Core.ModuleSpec (spec) where
 
 import Prelude
 
 import "base" Data.Foldable (toList)
+import "base" Data.Function ((&))
 import "base" GHC.Stack (HasCallStack)
 import "containers" Data.Sequence (Seq)
 import "containers" Data.Sequence qualified as Seq
 import "effectful" Effectful (runPureEff)
 import "effectful" Effectful.Error.Static (runErrorNoCallStack)
-import "hspec" Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
+import "generic-lens" Data.Generics.Labels ()
+import "hspec" Test.Hspec (Spec, describe, expectationFailure, it)
+import "lens" Control.Lens ((.~))
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
+import "prettyprinter" Prettyprinter (defaultLayoutOptions, layoutSmart)
+import "prettyprinter-ansi-terminal" Prettyprinter.Render.Terminal (renderStrict)
 import "text" Data.Text (Text)
+import "text" Data.Text qualified as Text
+import "tree-diff" Data.TreeDiff.Class (ToExpr (..), ediff)
+import "tree-diff" Data.TreeDiff.Pretty (ansiWlBgEditExprCompact)
 import "vector" Data.Vector qualified as Vector
 
-import Flow.AST.Ann (SourceSpan)
+import Flow.AST.Ann (SourceSpan (..))
 import Flow.AST.Surface (ModDefinitionBody)
+import Flow.AST.Surface.Module (ModDefinitionBodyF (..))
 import Flow.Core.Module (
   BasicAnn (..),
   DuplicateModuleDeclarationError (..),
+  ModuleDeclaration (..),
+  ModuleDefinition (..),
   ModuleId (..),
-  collectModuleDeclarations,
+  Visibility (..),
+  collectModuleDefinitionModules,
  )
 import Flow.Core.Package (PackageId (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser (pModDefinitionBody)
-import Data.Vector.NonEmpty (NonEmptyVector)
-import Data.Maybe (fromJust)
-import qualified Data.Vector.NonEmpty as NonEmptyVector
+
+pShowDiff :: (Eq a, ToExpr a) => a -> a -> Text
+pShowDiff a b =
+  renderStrict $
+    layoutSmart defaultLayoutOptions $
+      ansiWlBgEditExprCompact $
+        ediff a b
+
+shouldBe :: (Eq a, ToExpr a, HasCallStack) => a -> a -> IO ()
+shouldBe a b
+  | a == b = pure ()
+  | otherwise = do
+      expectationFailure $ Text.unpack $ "Equation failed:\n" <> pShowDiff a b
 
 spec :: Spec
-spec = describe "collectModuleDeclarations" do
+spec = describe "collectModuleDefinitionModules" do
   it "collects declarations" do
     body <-
       parseModuleBody
@@ -40,15 +60,36 @@ spec = describe "collectModuleDeclarations" do
         pub(package) mod bar;
         mod baz;
         """
-    let result = runCollect rootModuleId body
-    result
-      `shouldBe` Right
-        ( Seq.fromList
-            [ mkNEVector ["foo"]
-            , mkNEVector ["bar"]
-            , mkNEVector ["baz"]
+    let modDef =
+          ModuleDefinition
+            { visibility = VisibilityAll
+            , identifier = rootModuleId
+            , body = body
+            , ann = dummyAnn
+            }
+        result = runCollectModuleDefinitionModules modDef
+    case result of
+      Left err -> expectationFailure $ show err
+      Right (defs, decls) -> do
+        defs `shouldBe` Seq.fromList []
+        (modDeclWithDummyAnn <$> decls)
+          `shouldBe` Seq.fromList
+            [ ModuleDeclaration
+                { visibility = VisibilityAll
+                , identifier = mkModuleId ["foo"]
+                , ann = dummyAnn
+                }
+            , ModuleDeclaration
+                { visibility = VisibilityPackage
+                , identifier = mkModuleId ["bar"]
+                , ann = dummyAnn
+                }
+            , ModuleDeclaration
+                { visibility = VisibilityPackage
+                , identifier = mkModuleId ["baz"]
+                , ann = dummyAnn
+                }
             ]
-        )
 
   it "fails on duplicate module declarations" do
     body <-
@@ -57,7 +98,14 @@ spec = describe "collectModuleDeclarations" do
         mod foo {}
         mod foo;
         """
-    case runCollect rootModuleId body of
+    let modDef =
+          ModuleDefinition
+            { visibility = VisibilityAll
+            , identifier = rootModuleId
+            , body = body
+            , ann = dummyAnn
+            }
+    case runCollectModuleDefinitionModules modDef of
       Left (DuplicateModuleDeclarationError moduleId _) ->
         moduleId `shouldBe` mkModuleId ["foo"]
       other ->
@@ -77,16 +125,56 @@ spec = describe "collectModuleDeclarations" do
         }
         pub mod top;
         """
-    let result = runCollect rootModuleId body
-    result
-      `shouldBe` Right
-        ( Seq.fromList
-            [ mkNEVector ["outer", "inner"]
-            , mkNEVector ["outer", "nested", "deep"]
-            , mkNEVector ["outer", "leaf"]
-            , mkNEVector ["top"]
+    let modDef =
+          ModuleDefinition
+            { visibility = VisibilityAll
+            , identifier = rootModuleId
+            , body = body
+            , ann = dummyAnn
+            }
+        result = runCollectModuleDefinitionModules modDef
+    case result of
+      Left err -> expectationFailure $ show err
+      Right (defs, decls) -> do
+        let defs' = modDefWithDummy <$> defs
+        defs'
+          `shouldBe` Seq.fromList
+            [ ModuleDefinition
+                { visibility = VisibilityPackage
+                , identifier = mkModuleId ["outer"]
+                , body = dummyBody
+                , ann = dummyAnn
+                }
+            , ModuleDefinition
+                { visibility = VisibilityModule (mkModuleId ["outer"])
+                , identifier = mkModuleId ["outer", "nested"]
+                , body = dummyBody
+                , ann = dummyAnn
+                }
             ]
-        )
+        (modDeclWithDummyAnn <$> decls)
+          `shouldBe` Seq.fromList
+            [ ModuleDeclaration
+                { visibility = VisibilityAll
+                , identifier = mkModuleId ["top"]
+                , ann = dummyAnn
+                }
+            , ModuleDeclaration
+                { visibility = VisibilityPackage
+                , identifier = mkModuleId ["outer", "inner"]
+                , ann = dummyAnn
+                }
+            , ModuleDeclaration
+                { visibility = VisibilityModule (mkModuleId ["outer"])
+                , identifier = mkModuleId ["outer", "leaf"]
+                , ann = dummyAnn
+                }
+            , ModuleDeclaration
+                { visibility = VisibilityModule (mkModuleId ["outer"])
+                , identifier = mkModuleId ["outer", "nested", "deep"]
+                , ann = dummyAnn
+                }
+            ]
 
 testPackageId :: PackageId
 testPackageId = PackageId "test"
@@ -98,19 +186,15 @@ mkModuleId :: [Text] -> ModuleId
 mkModuleId parts =
   ModuleId
     { package = testPackageId
-    , name = Vector.fromList parts
+    , path = Vector.fromList parts
     }
 
-mkNEVector :: HasCallStack => [Text] -> NonEmptyVector Text
-mkNEVector parts = fromJust $ NonEmptyVector.fromList parts
-
-runCollect ::
+runCollectModuleDefinitionModules ::
   (HasCallStack) =>
-  ModuleId ->
-  ModDefinitionBody BasicAnn ->
-  Either DuplicateModuleDeclarationError (Seq (NonEmptyVector Text))
-runCollect moduleId body =
-  runPureEff $ runErrorNoCallStack $ fmap fst <$> collectModuleDeclarations moduleId body
+  ModuleDefinition ->
+  Either DuplicateModuleDeclarationError (Seq ModuleDefinition, Seq ModuleDeclaration)
+runCollectModuleDefinitionModules modDef =
+  runPureEff $ runErrorNoCallStack $ collectModuleDefinitionModules modDef
 
 parseModuleBody :: (HasCallStack) => Text -> IO (ModDefinitionBody BasicAnn)
 parseModuleBody source = do
@@ -128,7 +212,7 @@ parseModuleBody source = do
     Right body -> pure $ annotate body
  where
   annotate :: ModDefinitionBody SourceSpan -> ModDefinitionBody BasicAnn
-  annotate = fmap \span' -> BasicAnn{path = testPath, span = span'}
+  annotate = fmap \span' -> BasicAnn{filePath = testPath, span = span'}
 
   parseFailure stage err = do
     expectationFailure $
@@ -137,3 +221,22 @@ parseModuleBody source = do
 
 testPath :: FilePath
 testPath = "<collect-module-spec>"
+
+modDeclWithDummyAnn :: ModuleDeclaration -> ModuleDeclaration
+modDeclWithDummyAnn modDecl = modDecl & #ann .~ dummyAnn
+
+modDefWithDummy :: ModuleDefinition -> ModuleDefinition
+modDefWithDummy modDef =
+  modDef
+    & #body .~ dummyBody
+    & #ann .~ dummyAnn
+
+dummyBody :: ModDefinitionBody BasicAnn
+dummyBody = ModDefinitionBodyF{uses = Vector.empty, items = Vector.empty}
+
+dummyAnn :: BasicAnn
+dummyAnn =
+  BasicAnn
+    { filePath = testPath
+    , span = SourceSpan{start = Megaparsec.initialPos testPath, end = Megaparsec.initialPos testPath}
+    }
