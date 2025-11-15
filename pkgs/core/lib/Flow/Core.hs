@@ -24,9 +24,8 @@ import Flow.AST.Surface qualified as AST.Surface
 import Flow.AST.Surface.Common qualified as AST.Surface
 import Flow.AST.Surface.Module qualified as AST.Surface
 import Flow.AST.Surface.Use qualified as AST.Surface
-import Flow.Core.Module (ModuleId (..), ModuleEnv (..))
+import Flow.Core.Module (ModuleId (..), ModuleEnv (..), PackageId (..))
 import Flow.Core.Module qualified as Module
-import Flow.Core.Package (PackageId (..))
 
 data Module = Module
   { id :: ModuleId

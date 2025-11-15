@@ -6,13 +6,11 @@ import Prelude hiding (readFile)
 
 import "base" Control.Monad (unless, when)
 import "base" Data.Either (partitionEithers)
-import "base" Data.Foldable (foldlM, toList)
+import "base" Data.Foldable (toList)
 import "base" Data.Traversable (for)
 import "base" Data.Void (Void)
 import "base" GHC.Generics (Generic)
 import "base" GHC.Stack (CallStack, HasCallStack)
-import "containers" Data.Map.Strict (Map)
-import "containers" Data.Map.Strict qualified as Map
 import "containers" Data.Sequence (Seq)
 import "containers" Data.Sequence qualified as Seq
 import "effectful" Effectful (Eff, (:>))
@@ -30,12 +28,12 @@ import "text" Data.Text qualified as Text
 import "text" Data.Text.Encoding qualified as Text.Encoding
 import "text" Data.Text.Encoding.Error qualified as Text.Encoding
 import "unordered-containers" Data.HashMap.Strict (HashMap)
-import "unordered-containers" Data.HashSet (HashSet)
 import "unordered-containers" Data.HashSet qualified as HashSet
 import "vector" Data.Vector (Vector)
 import "vector" Data.Vector qualified as Vector
 
 import Control.Monad (foldM)
+import Data.TreeDiff (ToExpr)
 import Flow.AST.Ann (SourceSpan)
 import Flow.AST.Surface (Mod (..), ModDefinitionBody)
 import Flow.AST.Surface.Common (ModuleIdentifier (..), Pub (..))
@@ -45,10 +43,14 @@ import Flow.AST.Surface.Module (
   ModuleItemF (..),
   ModuleItemVariantF (..),
  )
-import Flow.Core.Package (PackageId)
 import Flow.Lexer qualified as Lexer
 import Flow.Parser (pModDefinitionBody)
-import Data.TreeDiff (ToExpr)
+
+newtype PackageId = PackageId
+  { name :: Text
+  }
+  deriving (Eq, Ord, Show, Generic)
+  deriving newtype (Hashable, ToExpr)
 
 handleError ::
   (HasCallStack, Error e :> es) =>
@@ -116,32 +118,32 @@ data PackageKind
   | PacKExe
   deriving (Eq, Ord, Show)
 
-type ReadAllModFilesErrors es =
+type CollectPackageModulesErrors es =
   ( Error ModuleNotFoundError :> es
   , Error AmbiguousModuleLocationError :> es
   , Error DuplicateModuleDeclarationError :> es
   , ParseModuleErrors es
   )
 
-readAllModFiles ::
+collectPackageModules ::
   forall es.
-  (HasCallStack, ReadAllModFilesErrors es, FileSystem :> es) =>
+  (HasCallStack, CollectPackageModulesErrors es, FileSystem :> es) =>
   PackageKind ->
   PackageId ->
   -- | Absolute path to the package src directory
   FilePath ->
-  Eff es (Map ModuleId (Maybe BasicAnn, ModDefinitionBody BasicAnn))
-readAllModFiles packageKind packageId packageSrcDir = do
-  mods <- go Nothing Vector.empty
-  pure $ Map.fromList (toList mods)
+  Eff es (Seq ModuleDefinition)
+collectPackageModules packageKind packageId packageSrcDir = do
+  let rootModuleId = ModuleId{package = packageId, path = Vector.empty}
+  go Nothing rootModuleId
  where
   rootModulePath = case packageKind of
     PacKLib -> packageSrcDir </> "lib.fl"
     PacKExe -> packageSrcDir </> "main.fl"
 
-  go :: Maybe BasicAnn -> Vector Text -> Eff es (Seq (ModuleId, (Maybe BasicAnn, ModDefinitionBody BasicAnn)))
-  go mDeclAnn currentModPath = do
-    let modPaths = case NonEmptyVector.fromVector currentModPath of
+  go :: Maybe BasicAnn -> ModuleId -> Eff es (Seq ModuleDefinition)
+  go mDeclAnn curModId = do
+    let modPaths = case NonEmptyVector.fromVector curModId.path of
           Nothing -> [rootModulePath]
           Just currentModPath' -> moduleFilePathCandidates packageSrcDir currentModPath'
     (_, asts) <-
@@ -149,7 +151,7 @@ readAllModFiles packageKind packageId packageSrcDir = do
         ast <- readModFile path'
         pure (path', ast)
     ast <- case asts of
-      [] -> throwError $ ModuleNotFoundError mDeclAnn (ModuleId{package = packageId, path = currentModPath}) modPaths
+      [] -> throwError $ ModuleNotFoundError mDeclAnn (ModuleId{package = packageId, path = curModId.path}) modPaths
       [(_, ast)] -> pure ast
       asts' ->
         throwError $
@@ -157,13 +159,21 @@ readAllModFiles packageKind packageId packageSrcDir = do
             mDeclAnn
             ( ModuleId
                 { package = packageId
-                , path = currentModPath
+                , path = curModId.path
                 }
             )
             (fst <$> asts')
-    decls <- collectModuleDeclarations (ModuleId{package = packageId, path = currentModPath}) ast
-    mconcat <$> for (toList decls) \(declName, declAnn) -> do
-      go (Just declAnn) (NonEmptyVector.toVector declName)
+    (defs, decls) <-
+      collectModuleDefinitionModules
+        ModuleDefinition
+          { visibility = VisibilityModule curModId
+          , identifier = curModId
+          , body = ast
+          , declAnn = mDeclAnn
+          }
+    restDefs <- mconcat <$> for (toList decls) \decl -> do
+      go (Just decl.ann) decl.identifier
+    pure (defs Seq.>< restDefs)
 
 data ModuleNotFoundError = ModuleNotFoundError (Maybe BasicAnn) ModuleId [FilePath]
   deriving (Eq, Show)
@@ -259,69 +269,10 @@ data ModuleDefinition = ModuleDefinition
   { visibility :: Visibility
   , identifier :: ModuleId
   , body :: ModDefinitionBody BasicAnn
-  , ann :: BasicAnn
+  , declAnn :: Maybe BasicAnn
   }
   deriving (Eq, Ord, Show, Generic)
   deriving anyclass (ToExpr)
-
-collectModuleDeclarations ::
-  forall es.
-  (HasCallStack, Error DuplicateModuleDeclarationError :> es) =>
-  ModuleId ->
-  ModDefinitionBody BasicAnn ->
-  Eff es (Seq (NonEmptyVector Text, BasicAnn))
-collectModuleDeclarations modId body = do
-  (decls, _) <- collectFromBody modId.path HashSet.empty body
-  pure decls
- where
-  collectFromBody ::
-    (HasCallStack) =>
-    Vector Text ->
-    HashSet (NonEmptyVector Text) ->
-    ModDefinitionBody BasicAnn ->
-    Eff es (Seq (NonEmptyVector Text, BasicAnn), HashSet (NonEmptyVector Text))
-  collectFromBody parent seen body' =
-    foldlM
-      (collectFromItem parent)
-      (Seq.empty, seen)
-      (toList moduleItems)
-   where
-    ModDefinitionBodyF{items = moduleItems} = body'
-
-  collectFromItem parent (acc, seen) ModuleItemF{item = variant} =
-    case variant of
-      ModItemModF nested ->
-        collectFromMod parent nested (acc, seen)
-      _ -> pure (acc, seen)
-
-  collectFromMod parent Mod{mod = mod', ann = modAnn} (acc, seen) =
-    case mod' of
-      ModDeclarationF ident -> do
-        let childId = NonEmptyVector.snocV parent ident.name
-        when (HashSet.member childId seen) do
-          throwError $
-            DuplicateModuleDeclarationError
-              ( ModuleId
-                  { package = modId.package
-                  , path = NonEmptyVector.toVector childId
-                  }
-              )
-              modAnn
-        pure (acc Seq.|> (childId, modAnn), HashSet.insert childId seen)
-      ModDefinitionF ident nestedBody -> do
-        let childId = NonEmptyVector.snocV parent ident.name
-        when (HashSet.member childId seen) do
-          throwError $
-            DuplicateModuleDeclarationError
-              ( ModuleId
-                  { package = modId.package
-                  , path = NonEmptyVector.toVector childId
-                  }
-              )
-              modAnn
-        let seen' = HashSet.insert childId seen
-        (nestedDecls, seen'') <- collectFromBody (NonEmptyVector.toVector childId) seen' nestedBody
-        pure (acc Seq.>< nestedDecls, seen'')
 
 collectModuleDefinitionModules ::
   forall es.
@@ -357,7 +308,7 @@ collectModuleDefinitionModules modDef = do
               { visibility = resolveVisibility modDef.visibility (mPubToVisibility item.pub)
               , identifier = moduleId
               , body = nestedBody
-              , ann = ident.ann
+              , declAnn = Just ident.ann
               }
       pure (HashSet.insert moduleId seen, (defs Seq.|> def, decls))
     _ -> pure (seen, (defs, decls))
@@ -368,3 +319,4 @@ collectModuleDefinitionModules modDef = do
     Nothing -> VisibilityModule modDef.identifier
     Just (PubPackage _) -> VisibilityPackage
     Just PubPub -> VisibilityAll
+

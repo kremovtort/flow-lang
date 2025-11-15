@@ -30,10 +30,10 @@ import Flow.Core.Module (
   ModuleDeclaration (..),
   ModuleDefinition (..),
   ModuleId (..),
+  PackageId (..),
   Visibility (..),
   collectModuleDefinitionModules,
  )
-import Flow.Core.Package (PackageId (..))
 import Flow.Lexer qualified as Lexer
 import Flow.Parser (pModDefinitionBody)
 
@@ -65,7 +65,7 @@ spec = describe "collectModuleDefinitionModules" do
             { visibility = VisibilityAll
             , identifier = rootModuleId
             , body = body
-            , ann = dummyAnn
+            , declAnn = Nothing
             }
         result = runCollectModuleDefinitionModules modDef
     case result of
@@ -103,7 +103,7 @@ spec = describe "collectModuleDefinitionModules" do
             { visibility = VisibilityAll
             , identifier = rootModuleId
             , body = body
-            , ann = dummyAnn
+            , declAnn = Nothing
             }
     case runCollectModuleDefinitionModules modDef of
       Left (DuplicateModuleDeclarationError moduleId _) ->
@@ -130,7 +130,7 @@ spec = describe "collectModuleDefinitionModules" do
             { visibility = VisibilityAll
             , identifier = rootModuleId
             , body = body
-            , ann = dummyAnn
+            , declAnn = Nothing
             }
         result = runCollectModuleDefinitionModules modDef
     case result of
@@ -143,13 +143,13 @@ spec = describe "collectModuleDefinitionModules" do
                 { visibility = VisibilityPackage
                 , identifier = mkModuleId ["outer"]
                 , body = dummyBody
-                , ann = dummyAnn
+                , declAnn = Nothing
                 }
             , ModuleDefinition
                 { visibility = VisibilityModule (mkModuleId ["outer"])
                 , identifier = mkModuleId ["outer", "nested"]
                 , body = dummyBody
-                , ann = dummyAnn
+                , declAnn = Nothing
                 }
             ]
         (modDeclWithDummyAnn <$> decls)
@@ -229,10 +229,10 @@ modDefWithDummy :: ModuleDefinition -> ModuleDefinition
 modDefWithDummy modDef =
   modDef
     & #body .~ dummyBody
-    & #ann .~ dummyAnn
+    & #declAnn .~ Nothing
 
 dummyBody :: ModDefinitionBody BasicAnn
-dummyBody = ModDefinitionBodyF{uses = Vector.empty, items = Vector.empty}
+dummyBody = ModDefinitionBodyF{items = Vector.empty}
 
 dummyAnn :: BasicAnn
 dummyAnn =
