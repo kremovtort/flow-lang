@@ -326,10 +326,11 @@ spec = describe "Expression parser (minimal subset)" do
           """
     testParser source pExpression $ shouldBeParsed $ const $ pure ()
 
-  it "parses simple block { let x = 1; x }" do
-    let stmt = letStatement "x" (literalInt 1)
-        expected = blockExpr [stmt] (Just (var "x"))
-    testParser "{ let x = 1; x }" pExpression $ shouldBeParsed (`shouldBe` expected)
+  it "parses simple block { let x = 1; let y = 2; x }" do
+    let stmt1 = letStatement "x" (literalInt 1)
+        stmt2 = letStatement "y" (literalInt 2)
+        expected = blockExpr [stmt1, stmt2] (Just (var "x"))
+    testParser "{ let x = 1; let y = 2; x }" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses sequence of dot accesses with function calls with lambdas" do
     let source =
@@ -339,5 +340,12 @@ spec = describe "Expression parser (minimal subset)" do
             .filter(|y| y > 0)
             .sum()
             .for_each(|y| println(y)) with { Printer = printer_handle() }
+          """
+    testParser source pExpression $ shouldBeParsed (const $ pure ())
+
+  it "parses type application with less and greater than" do
+    let source =
+          """
+          f<T>(a) < 1
           """
     testParser source pExpression $ shouldBeParsed (const $ pure ())
