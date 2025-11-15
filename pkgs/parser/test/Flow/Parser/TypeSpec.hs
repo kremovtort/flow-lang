@@ -100,9 +100,6 @@ effectRow effects tailVar =
     , ann = ()
     }
 
-mkSimpleVar :: Text -> Surface.SimpleVarIdentifier ()
-mkSimpleVar n = Surface.SimpleVarIdentifier{name = n, ann = ()}
-
 spec :: Spec
 spec = describe "Type parser (minimal subset)" do
   it "parses builtin bool" do

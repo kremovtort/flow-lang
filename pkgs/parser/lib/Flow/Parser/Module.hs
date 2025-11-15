@@ -3,12 +3,10 @@
 {-# HLINT ignore "Use <$>" #-}
 module Flow.Parser.Module where
 
-import "base" Data.Functor ((<&>))
 import "megaparsec" Text.Megaparsec qualified as Megaparsec
 import "vector" Data.Vector qualified as Vector
 
 import Flow.AST.Surface.Callable qualified as Surface
-import Flow.AST.Surface.Common qualified as Surface
 import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Decl qualified as Surface
 import Flow.AST.Surface.Module qualified as Surface
@@ -36,12 +34,10 @@ pModDefinitionBody ::
   Parser (expr Lexer.SourceSpan) ->
   Parser (Surface.ModDefinitionBodyF mod stmt simPat ty expr Lexer.SourceSpan)
 pModDefinitionBody pMod' pStmt pSimPat pTy pExpr = do
-  uses <- Megaparsec.many pUseClause
   items <- Megaparsec.many (pModuleItem pMod' pStmt pSimPat pTy pExpr)
   pure $
     Surface.ModDefinitionBodyF
-      { uses = Vector.fromList uses
-      , items = Vector.fromList items
+      { items = Vector.fromList items
       }
 
 pModuleItem ::
@@ -84,8 +80,7 @@ pModuleItem pMod' pStmt pSimPat pTy pExpr = do
       , withRegion Surface.ModItemLetF <$> pLetDefinition pSimPat pTy pExpr
       , withRegion Surface.ModItemTraitF <$> pTrait pStmt pTy pExpr
       , withRegion Surface.ModItemEffectF <$> pEffect pStmt pTy pExpr
-      , pPubUse <&> \(pub, use, ann) ->
-          (Surface.ModItemPubUseF pub use, ann)
+      , withRegion Surface.ModItemUseF <$> pPubUse
       , withRegion Surface.ModItemFnF <$> do
           Megaparsec.try (pFnDefinition pStmt pTy pExpr)
       , withRegion Surface.ModItemFnInfixF <$> do
@@ -143,13 +138,5 @@ pModDefinition pMod' pStmt pSimPat pTy pExpr = do
   let ann = Lexer.SourceSpan{start = modTok.span.start, end = tokE.span.end}
   pure (Surface.ModDefinitionF ident body, ann)
 
-pPubUse ::
-  Parser
-    ( Surface.Pub Lexer.SourceSpan
-    , Surface.UseClause Lexer.SourceSpan
-    , Lexer.SourceSpan
-    )
-pPubUse = do
-  (pub, pubAnn) <- pPub
-  use <- pUseClause
-  pure (pub, use, Lexer.SourceSpan{start = pubAnn.start, end = use.ann.end})
+pPubUse :: Parser (Surface.UseClause Lexer.SourceSpan)
+pPubUse = pUseClause

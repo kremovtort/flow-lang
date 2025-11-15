@@ -17,11 +17,11 @@ data ModF mod stmt simPat ty expr ann
   | ModDefinitionF (ModuleIdentifier ann) (ModDefinitionBodyF mod stmt simPat ty expr ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
 
-data ModDefinitionBodyF mod stmt simPat ty expr ann = ModDefinitionBodyF
-  { uses :: Vector (UseClause ann)
-  , items :: Vector (ModuleItemF mod stmt simPat ty expr ann)
+newtype ModDefinitionBodyF mod stmt simPat ty expr ann = ModDefinitionBodyF
+  { items :: Vector (ModuleItemF mod stmt simPat ty expr ann)
   }
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+  deriving anyclass (ToExpr)
 
 
 data ModuleItemF mod stmt simPat ty expr ann
@@ -43,5 +43,5 @@ data ModuleItemVariantF mod stmt simPat ty expr ann
   | ModItemFnF (FnDefinitionF stmt ty expr ann)
   | ModItemFnInfixF (FnInfixDefinitionF stmt ty expr ann)
   | ModItemLetF (LetDefinitionF simPat ty expr ann)
-  | ModItemPubUseF (Pub ann) (UseClause ann)
+  | ModItemUseF (UseClause ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic, ToExpr)

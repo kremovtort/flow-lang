@@ -15,6 +15,7 @@ import Flow.AST.Surface.Constraint qualified as Surface
 import Flow.AST.Surface.Decl qualified as Surface
 import Flow.AST.Surface.Expr qualified as Surface
 import Flow.AST.Surface.Literal qualified as Surface
+import Flow.AST.Surface.Module (ModuleItemF (..))
 import Flow.AST.Surface.Module qualified as Surface
 import Flow.AST.Surface.Pattern qualified as Surface
 import Flow.AST.Surface.Syntax qualified as Surface
@@ -52,11 +53,10 @@ simpleType name =
     , ann = ()
     }
 
-moduleBody :: [Surface.UseClause ()] -> [ModuleItem ()] -> Surface.ModDefinitionBody ()
-moduleBody uses items =
+moduleBody :: [ModuleItem ()] -> Surface.ModDefinitionBody ()
+moduleBody items =
   Surface.ModDefinitionBodyF
-    { uses = Vector.fromList uses
-    , items = Vector.fromList items
+    { items = Vector.fromList items
     }
 
 modDecl :: Text -> ModuleItem ()
@@ -67,8 +67,8 @@ modDecl name =
     , ann = ()
     }
 
-modDef :: Text -> [Surface.UseClause ()] -> [ModuleItem ()] -> ModuleItem ()
-modDef name uses items =
+modDef :: Text -> [ModuleItem ()] -> ModuleItem ()
+modDef name items =
   Surface.ModuleItemF
     { pub = Nothing
     , item =
@@ -77,7 +77,7 @@ modDef name uses items =
               { mod =
                   Surface.ModDefinitionF
                     (modIdent name)
-                    Surface.ModDefinitionBodyF{uses = Vector.fromList uses, items = Vector.fromList items}
+                    Surface.ModDefinitionBodyF{items = Vector.fromList items}
               , ann = ()
               }
           )
@@ -100,7 +100,7 @@ useClauseLeaf path =
               }
         buildTree (segment : segments) =
           Surface.UseTrBranch (modIdent segment) (buildTree segments)
-       in
+      in
         Surface.UseClause
           { root = Surface.UsClPackage (modIdent root)
           , tree = buildTree rest
@@ -128,7 +128,7 @@ useClauseAs path alias =
               , ann = ()
               }
         build (segment : segments) = Surface.UseTrBranch (modIdent segment) (build segments)
-       in
+      in
         Surface.UseClause
           { root = Surface.UsClPackage (modIdent root)
           , tree = build rest
@@ -309,17 +309,31 @@ nonPub = Nothing
 spec :: Spec
 spec = describe "Module parser (minimal subset)" do
   it "parses mod declaration 'mod m;'" do
-    testParser "mod m;" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [] [modDecl "m"])
+    testParser "mod m;" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [modDecl "m"])
 
   it "parses empty mod definition 'mod m { }'" do
-    testParser "mod m { }" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [] [modDef "m" [] []])
+    testParser "mod m { }" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [modDef "m" []])
 
   it "parses use leaf 'use std::io;'" do
-    let expected = moduleBody [useClauseLeaf ["std", "io"]] []
+    let expected =
+          moduleBody
+            [ ModuleItemF
+                { pub = Nothing
+                , item = Surface.ModItemUseF (useClauseLeaf ["std", "io"])
+                , ann = ()
+                }
+            ]
     testParser "use std::io;" pModDefinitionBody $ shouldBeParsed (`shouldBe` expected)
 
   it "parses use leaf-as 'use std::io as io;'" do
-    let expected = moduleBody [useClauseAs ["std", "io"] "io"] []
+    let expected =
+          moduleBody
+            [ ModuleItemF
+                { pub = Nothing
+                , item = Surface.ModItemUseF (useClauseAs ["std", "io"] "io")
+                , ann = ()
+                }
+            ]
     testParser "use std::io as io;" pModDefinitionBody $ shouldBeParsed (`shouldBe` expected)
 
   it "parses nested use 'use std::{io, fs::{read, write}};'" do
@@ -357,7 +371,17 @@ spec = describe "Module parser (minimal subset)" do
             , tree = nestedTree
             , ann = ()
             }
-    testParser "use std::{io, fs::{read, write}};" pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [useClause] [])
+    testParser "use std::{io, fs::{read, write}};" pModDefinitionBody $
+      shouldBeParsed
+        ( `shouldBe`
+            moduleBody
+              [ ModuleItemF
+                  { pub = Nothing
+                  , item = Surface.ModItemUseF useClause
+                  , ann = ()
+                  }
+              ]
+        )
 
   it "parses minimal items: struct, enum, type alias, fn, let" do
     let src =
@@ -382,4 +406,4 @@ spec = describe "Module parser (minimal subset)" do
               (Just Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()})
           , letItem nonPub "x" (Surface.Type{ty = Surface.TyBuiltinF Surface.BuiltinI32, ann = ()}) (literalInt 42)
           ]
-    testParser src pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody [] items)
+    testParser src pModDefinitionBody $ shouldBeParsed (`shouldBe` moduleBody items)

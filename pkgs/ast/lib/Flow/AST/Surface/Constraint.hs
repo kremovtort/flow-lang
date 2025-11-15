@@ -58,8 +58,8 @@ newtype BinderAppF ty ann = BinderAppF {ty :: ty ann}
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
 
-newtype RegionBinderWoConstraintsF ty ann =
-  RegionBinderWoConstraintsF (RegionIdentifier ann)
+newtype RegionBinderWoConstraintsF ty ann
+  = RegionBinderWoConstraintsF (RegionIdentifier ann)
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
   deriving anyclass (ToExpr)
 
