@@ -144,7 +144,6 @@ data Punctuation
   | PipeAssign
   | ShiftLeftAssign
   | ShiftRightAssign
-  | ColonLessThan
   | At
   | Dot
   | DotDot
@@ -154,6 +153,7 @@ data Punctuation
   | Semicolon
   | Colon
   | ColonColon
+  | ColonColonLessThan
   | Arrow
   | LeftArrow
   | FatArrow
@@ -475,7 +475,6 @@ punctuationText = \case
   PipeAssign -> "|="
   ShiftLeftAssign -> "<<="
   ShiftRightAssign -> ">>="
-  ColonLessThan -> ":<"
   At -> "@"
   Dot -> "."
   DotDot -> ".."
@@ -485,6 +484,7 @@ punctuationText = \case
   Semicolon -> ";"
   Colon -> ":"
   ColonColon -> "::"
+  ColonColonLessThan -> "::<"
   Arrow -> "->"
   LeftArrow -> "<-"
   FatArrow -> "=>"

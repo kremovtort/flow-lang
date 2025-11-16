@@ -24,11 +24,21 @@ import Flow.Parser.Common (
   single,
  )
 
-pBindersApp ::
+pBindersAppValueLevel ::
   (HasAnn ty Lexer.SourceSpan) =>
   Parser (ty Lexer.SourceSpan) ->
   Parser (Surface.BindersAppF ty Lexer.SourceSpan)
-pBindersApp pTy = Megaparsec.label "binders app" do
+pBindersAppValueLevel pTy = Megaparsec.label "binders app value level" do
+  tokS <- single (Lexer.Punctuation Lexer.ColonColonLessThan)
+  elems <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
+  tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
+  pure $ Surface.BindersAppF { types = fromJust $ NonEmptyVector.fromList elems, ann = Lexer.SourceSpan tokS.span.start tokE.span.end }
+
+pBindersAppTypeLevel ::
+  (HasAnn ty Lexer.SourceSpan) =>
+  Parser (ty Lexer.SourceSpan) ->
+  Parser (Surface.BindersAppF ty Lexer.SourceSpan)
+pBindersAppTypeLevel pTy = Megaparsec.label "binders app type level" do
   tokS <- single (Lexer.Punctuation Lexer.LessThan)
   elems <- Megaparsec.sepEndBy1 pTy (single (Lexer.Punctuation Lexer.Comma))
   tokE <- single (Lexer.Punctuation Lexer.GreaterThan)
@@ -57,7 +67,7 @@ pAnyTypeIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (pModuleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional $ Megaparsec.try do
     typeName <- pSimpleTypeIdentifier
-    typeParams <- pBindersApp pTy
+    typeParams <- pBindersAppTypeLevel pTy
     _ <- single (Lexer.Punctuation Lexer.ColonColon)
     pure
       Surface.TypeQualifierF
@@ -91,7 +101,7 @@ pAnyVarIdentifier pTy = do
   qualifier <- Megaparsec.many (Megaparsec.try (pModuleIdentifier <* moduleSeparator))
   typeQualifier <- Megaparsec.optional do
     typeName <- pSimpleTypeIdentifier
-    typeParams <- pBindersApp pTy
+    typeParams <- pBindersAppTypeLevel pTy
     pure
       Surface.TypeQualifierF
         { typeName

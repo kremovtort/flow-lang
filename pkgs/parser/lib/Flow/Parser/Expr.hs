@@ -60,7 +60,7 @@ import Flow.Parser.Common (
 import Flow.Parser.Constraint (
   pAnyTypeIdentifier,
   pAnyVarIdentifier,
-  pBindersApp,
+  pBindersAppValueLevel,
   pBindersWoConstraints,
   pWhereBlockHead,
  )
@@ -143,7 +143,7 @@ pAppSuffix ::
   expr SourceSpan ->
   Parser (AppF ty expr SourceSpan)
 pAppSuffix pTy pExpr expr = Megaparsec.label "app suffix" do
-  typeParams <- Megaparsec.optional (pBindersApp pTy)
+  typeParams <- Megaparsec.optional (pBindersAppValueLevel pTy)
   (args, end) <-
     Megaparsec.choice
       [ pUnnamedArgs

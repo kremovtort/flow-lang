@@ -230,9 +230,6 @@ punctuationSpec = describe "Punctuation" do
   it "parses '>>='" $
     parse tokens "" ">>=" `shouldParse` singleToken (Punctuation ShiftRightAssign)
 
-  it "parses ':<'" $
-    parse tokens "" ":<" `shouldParse` singleToken (Punctuation ColonLessThan)
-
   it "parses '@'" $
     parse tokens "" "@" `shouldParse` singleToken (Punctuation At)
 

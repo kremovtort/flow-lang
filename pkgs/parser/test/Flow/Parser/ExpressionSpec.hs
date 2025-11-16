@@ -305,7 +305,7 @@ spec = describe "Expression parser (minimal subset)" do
 
   it "parses call with type/region params f<'s, T>(a)" do
     let expected = callWithParams "f" [regionIdent "s", typeVar "T"] [var "a"]
-    testParser "f<'s, T>(a)" pExpression $ shouldBeParsed (`shouldBe` expected)
+    testParser "f::<'s, T>(a)" pExpression $ shouldBeParsed (`shouldBe` expected)
 
   it "parses chained access a.b[0]" do
     let expected = indexExpr (dotExpr (var "a") "b") (literalInt 0)
@@ -346,6 +346,6 @@ spec = describe "Expression parser (minimal subset)" do
   it "parses type application with less and greater than" do
     let source =
           """
-          f<T>(a) < 1
+          f::<T>(a) < 1
           """
     testParser source pExpression $ shouldBeParsed (const $ pure ())

@@ -25,7 +25,7 @@ import Flow.Parser.Common (
   single,
   token,
  )
-import Flow.Parser.Constraint (pAnyTypeIdentifier, pBindersApp, pBindersWoConstraints, pWhereBlockNested)
+import Flow.Parser.Constraint (pAnyTypeIdentifier, pBindersAppTypeLevel, pBindersWoConstraints, pWhereBlockNested)
 
 pType :: Parser (Surface.Type SourceSpan)
 pType = do
@@ -201,7 +201,7 @@ pAppSuffix ::
   ty SourceSpan ->
   Parser (Surface.AppF ty SourceSpan)
 pAppSuffix pTy ty = do
-  args <- pBindersApp pTy
+  args <- pBindersAppTypeLevel pTy
   pure
     Surface.AppF
       { head = ty
